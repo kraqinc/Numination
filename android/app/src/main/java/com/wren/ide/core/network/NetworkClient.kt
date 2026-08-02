@@ -1,7 +1,6 @@
 package com.wren.ide.core.network
 
 import com.google.gson.Gson
-import com.wren.ide.BuildConfig
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,7 +33,7 @@ object NetworkClient {
     // confírmalo en tu dashboard -- si esto no coincide EXACTO con tu
     // deployment real, todas las llamadas de red van a fallar en silencio
     // (mismo síntoma que el bug original de "10.0.2.2").
-    private val BASE_URL = BuildConfig.API_BASE_URL.trimEnd('/')
+    private val BASE_URL get() = BackendConfig.apiBaseUrl().trimEnd('/')
     private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
 
     private const val MAX_RETRIES = 3

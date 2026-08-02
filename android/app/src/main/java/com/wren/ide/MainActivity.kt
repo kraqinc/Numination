@@ -44,6 +44,7 @@ import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingExcept
 import com.google.gson.Gson
 import androidx.core.view.WindowCompat
 import com.wren.ide.core.network.AppVersionResponse
+import com.wren.ide.core.network.BackendConfig
 import com.wren.ide.core.network.ConnectionStatusBanner
 import com.wren.ide.core.network.LoginResponse
 import com.wren.ide.core.network.NetworkClient
@@ -79,6 +80,7 @@ class MainActivity : ComponentActivity() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
         val sessionManager = SessionManager(applicationContext)
+        BackendConfig.initialize(applicationContext)
         NetworkClient.setAuthToken(sessionManager.jwtToken)
 
         pendingAuthIntent = intent

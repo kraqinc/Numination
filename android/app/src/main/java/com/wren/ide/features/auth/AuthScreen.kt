@@ -239,9 +239,9 @@ fun AuthScreen(
                 .weight(1f)
                 .fillMaxWidth()
                 .verticalScroll(scrollState)
-                .padding(horizontal = 30.dp),
+                .padding(horizontal = 24.dp, vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.Top
         ) {
             Column(
                 modifier = Modifier
@@ -268,14 +268,14 @@ fun AuthScreen(
                         }
                     }
                 } else {
-                    Spacer(modifier = Modifier.height(32.dp))
+                    Spacer(modifier = Modifier.height(26.dp))
                 }
 
                 OfficialBrand(
                     modifier = Modifier.padding(top = if (step == AuthStep.CODE) 8.dp else 0.dp)
                 )
 
-                Spacer(modifier = Modifier.height(if (step == AuthStep.CODE) 38.dp else 52.dp))
+                Spacer(modifier = Modifier.height(if (step == AuthStep.CODE) 28.dp else 36.dp))
 
                 Crossfade(
                     targetState = step,
@@ -365,7 +365,7 @@ private fun OfficialBrand(modifier: Modifier = Modifier) {
         Image(
             painter = painterResource(R.drawable.numination_logo_mark),
             contentDescription = "Numination",
-            modifier = Modifier.size(39.dp),
+            modifier = Modifier.size(42.dp),
             contentScale = ContentScale.Fit
         )
         Spacer(modifier = Modifier.width(12.dp))
@@ -373,8 +373,8 @@ private fun OfficialBrand(modifier: Modifier = Modifier) {
             painter = painterResource(R.drawable.numination_logo_wordmark),
             contentDescription = "Numination",
             modifier = Modifier
-                .width(202.dp)
-                .height(44.dp),
+                .width(224.dp)
+                .height(48.dp),
             contentScale = ContentScale.Fit
         )
     }
@@ -394,8 +394,8 @@ private fun EmailLoginContent(
         color = AppText,
         fontFamily = FontFamily.Serif,
         fontWeight = FontWeight.Normal,
-        fontSize = 30.sp,
-        lineHeight = 36.sp,
+        fontSize = 27.sp,
+        lineHeight = 32.sp,
         textAlign = TextAlign.Center,
         modifier = Modifier.fillMaxWidth()
     )
@@ -411,7 +411,7 @@ private fun EmailLoginContent(
         modifier = Modifier.fillMaxWidth()
     )
 
-    Spacer(modifier = Modifier.height(38.dp))
+    Spacer(modifier = Modifier.height(28.dp))
 
     ProviderButton(
         iconRes = R.drawable.ic_google_mark,
@@ -429,7 +429,7 @@ private fun EmailLoginContent(
         onClick = onGithubLogin
     )
 
-    Spacer(modifier = Modifier.height(27.dp))
+    Spacer(modifier = Modifier.height(22.dp))
 
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
@@ -451,7 +451,7 @@ private fun EmailLoginContent(
         )
     }
 
-    Spacer(modifier = Modifier.height(25.dp))
+    Spacer(modifier = Modifier.height(18.dp))
 
     EmailField(
         value = email,
@@ -482,8 +482,8 @@ private fun CodeLoginContent(
         text = "Revisa tu correo",
         color = AppText,
         fontFamily = FontFamily.Serif,
-        fontSize = 31.sp,
-        lineHeight = 37.sp,
+        fontSize = 28.sp,
+        lineHeight = 33.sp,
         textAlign = TextAlign.Center,
         modifier = Modifier.fillMaxWidth()
     )
@@ -509,7 +509,7 @@ private fun CodeLoginContent(
             .padding(top = 4.dp)
     )
 
-    Spacer(modifier = Modifier.height(32.dp))
+    Spacer(modifier = Modifier.height(26.dp))
 
     CodeField(
         value = code,
@@ -552,7 +552,7 @@ private fun ProviderButton(
         enabled = enabled,
         modifier = Modifier
             .fillMaxWidth()
-            .height(54.dp),
+            .height(52.dp),
         shape = RoundedCornerShape(15.dp),
         color = AppSurface,
         border = BorderStroke(1.dp, AppBorder)
@@ -676,7 +676,7 @@ private fun PrimaryActionButton(
         enabled = enabled,
         modifier = Modifier
             .fillMaxWidth()
-            .height(54.dp),
+            .height(52.dp),
         shape = RoundedCornerShape(15.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = AppAccent,
@@ -710,7 +710,7 @@ private fun StatusMessage(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 18.dp),
+            .padding(top = 14.dp),
         verticalAlignment = Alignment.Top,
         horizontalArrangement = Arrangement.Center
     ) {

@@ -1,14 +1,13 @@
 package com.wren.ide.core.network
 
 import android.content.Context
-import com.wren.ide.BuildConfig
 import android.net.Uri
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.core.net.toUri
 import com.google.gson.Gson
 
 object OAuthLauncher {
-    private val BACKEND_ORIGIN = BuildConfig.API_BASE_URL.removeSuffix("/api")
+    private val BACKEND_ORIGIN get() = BackendConfig.apiOrigin()
 
     fun launchGithubLogin(context: Context) {
         launch(context, "$BACKEND_ORIGIN/api/auth/github")
