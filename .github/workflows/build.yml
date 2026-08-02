@@ -1,4 +1,4 @@
-name: Wren Build
+name: Numination Build
 
 on:
   push:
