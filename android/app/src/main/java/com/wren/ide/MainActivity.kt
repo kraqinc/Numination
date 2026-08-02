@@ -103,6 +103,11 @@ class MainActivity : ComponentActivity() {
                 val googleClientId = context.getString(R.string.google_web_client_id)
                 val credentialManager = remember { CredentialManager.create(context) }
 
+                // Helper moved above launchGoogleSignIn to avoid forward-reference compilation errors.
+                fun openWorkspaceOrPermission() {
+                    currentScreen = if (WrenFileStorage.hasAllFilesAccess()) "workspace" else "storage_permission"
+                }
+
                 // Google Sign-In vía Credential Manager (reemplaza el GoogleSignInClient
                 // legado). El flujo antiguo pasaba por un Activity de navegador/WebView de
                 // Google que, para cuentas sin confianza previa en el dispositivo, mostraba
@@ -180,10 +185,6 @@ class MainActivity : ComponentActivity() {
                             Toast.makeText(context, e.message ?: "No se pudo iniciar sesión con Google", Toast.LENGTH_SHORT).show()
                         }
                     }
-                }
-
-                fun openWorkspaceOrPermission() {
-                    currentScreen = if (WrenFileStorage.hasAllFilesAccess()) "workspace" else "storage_permission"
                 }
 
                 LaunchedEffect(Unit) {
