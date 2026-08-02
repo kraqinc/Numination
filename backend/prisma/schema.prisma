@@ -1,0 +1,151 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url = env("DATABASE_URL")
+}
+
+model User {
+  id String @id @default(cuid())
+  email String @unique
+  passwordHash String
+  role String @default("USER")
+  tier String @default("FREE")
+  createdAt DateTime @default(now())
+
+  credits Credits?
+  projects Project[]
+  pendingRecharges PendingRecharge[]
+  auditLogsActedBy AuditLog[] @relation("AuditActor")
+  storageFiles StorageFile[]
+  loginCodes LoginCode[]
+
+  @@index([role])
+}
+
+model LoginCode {
+  id String @id @default(cuid())
+  email String
+  userId String?
+  codeHash String
+  expiresAt DateTime
+  attempts Int @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([email])
+  @@index([expiresAt])
+  @@index([userId])
+}
+
+model Credits {
+  userId String @id
+  balance Int @default(50)
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model CreditLog {
+  id String @id @default(cuid())
+  userId String
+  amount Int
+  reason String
+  timestamp DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Project {
+  id String @id @default(cuid())
+  userId String
+  name String
+  description String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  files ProjectFile[]
+
+  @@index([userId])
+}
+
+model ProjectFile {
+  id String @id @default(cuid())
+  projectId String
+  parentId String?
+  name String
+  path String
+  isDirectory Boolean @default(false)
+  content String? @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([parentId])
+}
+
+model PendingRecharge {
+  id String @id @default(cuid())
+  userId String
+  packageId String
+  creditAmount Int
+  priceLabel String
+  referenceCode String @unique
+  status String @default("PENDING")
+  createdAt DateTime @default(now())
+  resolvedAt DateTime?
+  resolvedBy String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+}
+
+model AuditLog {
+  id String @id @default(cuid())
+  actorId String
+  action String
+  details String? @db.Text
+  timestamp DateTime @default(now())
+
+  actor User @relation("AuditActor", fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([actorId])
+  @@index([timestamp])
+}
+
+model StorageFile {
+  id String @id @default(cuid())
+  userId String
+  key String @unique
+  url String
+  token String
+  expiresAt DateTime
+  size Int
+  mimeType String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model AppVersion {
+  id String @id @default(cuid())
+  platform String
+  version String
+  mandatory Boolean @default(false)
+  downloadUrl String
+  notes String?
+  createdAt DateTime @default(now())
+
+  @@index([platform])
+}
