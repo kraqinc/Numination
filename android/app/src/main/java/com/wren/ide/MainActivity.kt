@@ -58,6 +58,7 @@ import com.wren.ide.core.theme.PrimaryObsidian
 import com.wren.ide.core.theme.WrenTheme
 import com.wren.ide.features.ai.AIAgentScreen
 import com.wren.ide.features.auth.AuthScreen
+import com.wren.ide.features.auth.EnterCodeEmailScreen
 import com.wren.ide.features.credits.CreditsScreen
 import com.wren.ide.features.editor.IDEWorkspaceScreen
 import com.wren.ide.features.owner.OwnerAdminScreen
@@ -101,6 +102,7 @@ class MainActivity : ComponentActivity() {
                 var updateInfo by remember { mutableStateOf<AppVersionResponse?>(null) }
                 var updateError by remember { mutableStateOf<String?>(null) }
                 var checkingUpdates by remember { mutableStateOf(false) }
+                var pendingMagicLinkEmail by remember { mutableStateOf("") }
 
                 val googleClientId = context.getString(R.string.google_web_client_id)
                 val credentialManager = remember { CredentialManager.create(context) }
@@ -212,14 +214,16 @@ class MainActivity : ComponentActivity() {
 
                 LaunchedEffect(pendingAuthIntent) {
                     val uri = pendingAuthIntent?.data
-                    val result = OAuthLauncher.parseAuthDeepLink(uri)
-                    if (result != null) {
-                        sessionManager.jwtToken = result.token
-                        sessionManager.userEmail = result.email ?: sessionManager.userEmail
-                        val jwtInfo = decodeJwtPayloadOrNull(result.token)
+
+                    // Caso 1: deep link ya trae un JWT firmado (Google/GitHub).
+                    val oauthResult = OAuthLauncher.parseAuthDeepLink(uri)
+                    if (oauthResult != null) {
+                        sessionManager.jwtToken = oauthResult.token
+                        sessionManager.userEmail = oauthResult.email ?: sessionManager.userEmail
+                        val jwtInfo = decodeJwtPayloadOrNull(oauthResult.token)
                         sessionManager.userRole = jwtInfo?.role ?: sessionManager.userRole
                         sessionManager.userTier = jwtInfo?.tier ?: sessionManager.userTier
-                        NetworkClient.setAuthToken(result.token)
+                        NetworkClient.setAuthToken(oauthResult.token)
 
                         withContext(Dispatchers.IO) {
                             val response = NetworkClient.get("/credits")
@@ -235,6 +239,47 @@ class MainActivity : ComponentActivity() {
 
                         pendingAuthIntent = null
                         openWorkspaceOrPermission()
+                        return@LaunchedEffect
+                    }
+
+                    // Caso 2: Magic Link -- trae un token opaco que hay que
+                    // canjear contra el backend antes de tener una sesión real.
+                    val magicResult = OAuthLauncher.parseMagicLinkDeepLink(uri)
+                    if (magicResult != null) {
+                        try {
+                            val response = withContext(Dispatchers.IO) {
+                                NetworkClient.post(
+                                    "/auth/magic-link/verify",
+                                    mapOf("email" to magicResult.email, "token" to magicResult.magicToken)
+                                )
+                            }
+                            val body = response.body?.string().orEmpty()
+                            val loginResponse = runCatching {
+                                Gson().fromJson(body, LoginResponse::class.java)
+                            }.getOrNull()
+
+                            if (response.isSuccessful && loginResponse != null && loginResponse.token.isNotBlank()) {
+                                sessionManager.jwtToken = loginResponse.token
+                                sessionManager.userEmail = loginResponse.user.email
+                                sessionManager.userRole = loginResponse.user.role
+                                sessionManager.userTier = loginResponse.user.tier
+                                sessionManager.userCredits = loginResponse.user.balance
+                                NetworkClient.setAuthToken(loginResponse.token)
+
+                                pendingAuthIntent = null
+                                openWorkspaceOrPermission()
+                            } else {
+                                val parsed = runCatching {
+                                    Gson().fromJson(body, Map::class.java)
+                                }.getOrNull()
+                                val error = (parsed?.get("error") as? String) ?: "El enlace ya no es válido, pide uno nuevo."
+                                Toast.makeText(context, error, Toast.LENGTH_LONG).show()
+                                pendingAuthIntent = null
+                            }
+                        } catch (_: Throwable) {
+                            Toast.makeText(context, "No se pudo verificar el enlace. Revisa tu conexión.", Toast.LENGTH_LONG).show()
+                            pendingAuthIntent = null
+                        }
                     }
                 }
 
@@ -278,9 +323,19 @@ class MainActivity : ComponentActivity() {
                             "auth" -> {
                                 AuthScreen(
                                     sessionManager = sessionManager,
-                                    onAuthSuccess = { openWorkspaceOrPermission() },
+                                    onMagicLinkSent = { sentEmail ->
+                                        pendingMagicLinkEmail = sentEmail
+                                        currentScreen = "enter_code_email"
+                                    },
                                     onGoogleLogin = { launchGoogleSignIn() },
                                     onGithubLogin = { OAuthLauncher.launchGithubLogin(context) }
+                                )
+                            }
+                            "enter_code_email" -> {
+                                EnterCodeEmailScreen(
+                                    email = pendingMagicLinkEmail,
+                                    onBack = { currentScreen = "auth" },
+                                    onChangeEmail = { currentScreen = "auth" }
                                 )
                             }
                             "storage_permission" -> {

@@ -23,3 +23,14 @@ export function generateFallbackPasswordHash(): string {
     .update(randomBytes(32).toString("hex"))
     .digest("hex");
 }
+
+/** Token opaco para Magic Link -- 32 bytes aleatorios en hex, va en la URL. */
+export function generateMagicLinkToken(): string {
+  return randomBytes(32).toString("hex");
+}
+
+/** Hash del token de Magic Link, mismo esquema que hashCode: nunca guardamos
+ * el token en claro en la base de datos, solo su hash. */
+export function hashMagicLinkToken(token: string): string {
+  return createHash("sha256").update(`${token}:${PEPPER}`).digest("hex");
+}

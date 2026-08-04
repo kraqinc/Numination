@@ -36,6 +36,21 @@ object OAuthLauncher {
             provider = provider
         )
     }
+
+    /** El Magic Link (numination://auth?magic=...&email=...) trae un token
+     * opaco, no un JWT -- hay que canjearlo contra el backend en
+     * /auth/magic-link/verify antes de confiar en la sesión. Separado de
+     * parseAuthDeepLink porque ese devuelve un JWT ya firmado (Google/GitHub),
+     * mientras este solo devuelve las piezas crudas para canjear. */
+    fun parseMagicLinkDeepLink(uri: Uri?): MagicLinkDeepLinkResult? {
+        if (uri == null) return null
+        if (uri.host != "auth" || (uri.scheme != "wren" && uri.scheme != "numination")) return null
+
+        val magicToken = uri.getQueryParameter("magic") ?: return null
+        val email = uri.getQueryParameter("email") ?: return null
+
+        return MagicLinkDeepLinkResult(magicToken = magicToken, email = email)
+    }
 }
 
 data class AuthDeepLinkResult(
@@ -43,6 +58,11 @@ data class AuthDeepLinkResult(
     val email: String?,
     val name: String?,
     val provider: String
+)
+
+data class MagicLinkDeepLinkResult(
+    val magicToken: String,
+    val email: String
 )
 
 private data class JwtPayload(

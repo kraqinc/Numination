@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { randomBytes } from "crypto";
 import { prisma } from "@/lib/prisma";
 import {
   generateFallbackPasswordHash,
-  hashCode,
+  hashMagicLinkToken,
   isValidEmail,
   normalizeEmail,
 } from "@/lib/verification";
@@ -15,7 +14,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
     const email = normalizeEmail(body.email);
-    const code = String(body.code || "").trim();
+    const token = String(body.token || "").trim();
 
     if (!email || !isValidEmail(email)) {
       return NextResponse.json(
@@ -24,9 +23,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!/^\d{6}$/.test(code)) {
+    if (!token) {
       return NextResponse.json(
-        { ok: false, error: "El código debe tener 6 dígitos" },
+        { ok: false, error: "Enlace inválido o vencido" },
         { status: 400 }
       );
     }
@@ -43,7 +42,7 @@ export async function POST(req: NextRequest) {
 
     if (!record) {
       return NextResponse.json(
-        { ok: false, error: "Código inválido o vencido" },
+        { ok: false, error: "Enlace inválido o vencido" },
         { status: 401 }
       );
     }
@@ -51,7 +50,7 @@ export async function POST(req: NextRequest) {
     if (record.expiresAt.getTime() < Date.now()) {
       await prisma.loginCode.deleteMany({ where: { email } }).catch(() => {});
       return NextResponse.json(
-        { ok: false, error: "Código inválido o vencido" },
+        { ok: false, error: "Enlace inválido o vencido" },
         { status: 401 }
       );
     }
@@ -63,14 +62,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (hashCode(code) !== record.codeHash) {
+    if (hashMagicLinkToken(token) !== record.codeHash) {
       await prisma.loginCode.update({
         where: { email },
         data: { attempts: { increment: 1 } },
       });
 
       return NextResponse.json(
-        { ok: false, error: "Código inválido o vencido" },
+        { ok: false, error: "Enlace inválido o vencido" },
         { status: 401 }
       );
     }
@@ -98,7 +97,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    const token = await signJwt(
+    const jwt = await signJwt(
       {
         sub: user.id,
         email: user.email,
@@ -108,12 +107,14 @@ export async function POST(req: NextRequest) {
       secret
     );
 
+    // Token de un solo uso: se borra apenas se canjea, para que el mismo
+    // enlace no pueda reutilizarse ni siquiera dentro de la ventana de 15 min.
     await prisma.loginCode.deleteMany({ where: { email } }).catch(() => {});
 
     return NextResponse.json({
       ok: true,
       message: "Sesión iniciada",
-      token,
+      token: jwt,
       user: {
         id: user.id,
         email: user.email,
@@ -123,7 +124,7 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("verify-code error:", error);
+    console.error("magic-link verify error:", error);
     return NextResponse.json(
       { ok: false, error: "Error interno de autenticación" },
       { status: 500 }
