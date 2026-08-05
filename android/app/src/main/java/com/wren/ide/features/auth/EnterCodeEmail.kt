@@ -50,19 +50,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.IOException
 
-private data class ApiMessageResponse(
-    val ok: Boolean? = null,
-    val message: String? = null,
-    val error: String? = null,
-    val devLink: String? = null
-)
-
-/**
- * Pantalla de espera: "revisa tu correo". No valida nada por sí misma -- solo
- * ofrece abrir Gmail y reenviar el enlace. La verificación real ocurre cuando
- * el usuario toca el enlace del correo y Android reabre la app por deep link
- * (numination://auth?magic=...), lo que dispara el flujo en MainActivity.
- */
 @Composable
 fun EnterCodeEmailScreen(
     email: String,

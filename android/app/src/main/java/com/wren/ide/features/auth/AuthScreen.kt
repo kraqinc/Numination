@@ -62,7 +62,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.IOException
 
-private data class ApiMessageResponse(
+internal data class ApiMessageResponse(
     val ok: Boolean? = null,
     val message: String? = null,
     val error: String? = null,
