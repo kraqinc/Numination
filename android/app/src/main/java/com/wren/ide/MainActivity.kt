@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.lifecycle.lifecycleScope
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
@@ -89,7 +90,6 @@ class MainActivity : ComponentActivity() {
         setContent {
             WrenTheme {
                 val context = LocalContext.current
-                val scope = rememberCoroutineScope()
                 var currentScreen by remember {
                     mutableStateOf(
                         when {
@@ -119,7 +119,15 @@ class MainActivity : ComponentActivity() {
                 // Credential Manager usa el selector de cuentas nativo del sistema y no
                 // dispara esa pantalla -- no necesitamos ni queremos ningún número ahí.
                 fun launchGoogleSignIn() {
-                    scope.launch {
+                    // IMPORTANTE: usamos lifecycleScope (atado al ciclo de vida de la
+                    // Activity), NO rememberCoroutineScope(). getCredential() lanza
+                    // HiddenActivity de Credential Manager como una Activity real; eso
+                    // dispara una recomposición del árbol de Compose mientras el usuario
+                    // elige su cuenta, y rememberCoroutineScope() cancela la corrutina en
+                    // curso cuando eso pasa -- confirmado con logcat: el flujo llegaba
+                    // hasta que el usuario elegía la cuenta y luego moría en silencio,
+                    // sin excepción que atrapar ni Toast que mostrar.
+                    lifecycleScope.launch {
                         try {
                             val option = GetSignInWithGoogleOption.Builder(googleClientId).build()
                             val request = GetCredentialRequest.Builder()
