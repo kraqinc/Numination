@@ -7,8 +7,8 @@
     <string name="label_password">Wagwoord</string>
     <string name="btn_login">Teken in</string>
     <string name="btn_register">Skryf gratis in</string>
-    <string name="toggle_login">Het jy reeds 'n rekening? Teken in</string>
-    <string name="toggle_register">Het jy nie 'n rekening nie? Meld aan</string>
+    <string name="toggle_login">Het jy reeds ’n rekening? Teken in</string>
+    <string name="toggle_register">Het jy nie ’n rekening nie? Meld aan</string>
     <string name="error_fill_fields">Vul asseblief al die velde in.</string>
     <string name="error_network">Netwerkfout: kon nie die bediener bereik nie.</string>
     <string name="auth_tagline">Die KI vir mense wat probleme oplos.</string>
@@ -20,11 +20,11 @@
     <string name="auth_continue">Gaan voort</string>
     <string name="auth_sending_link">Stuur skakel…</string>
     <string name="auth_terms">Deur voort te gaan, aanvaar jy ons bepalings.</string>
-    <string name="auth_error_invalid_email">Voer 'n geldige e-posadres in.</string>
+    <string name="auth_error_invalid_email">Voer ’n geldige e-posadres in.</string>
     <string name="auth_google_unavailable">Google is nie op hierdie toestel beskikbaar nie.</string>
     <string name="auth_github_unavailable">GitHub is nou nie beskikbaar nie.</string>
     <string name="auth_check_email_title">Kyk na jou e-pos</string>
-    <string name="auth_check_email_body">Ons het 'n skakel na {email} gestuur. Maak dit oop om klaar te teken in.</string>
+    <string name="auth_check_email_body">Ons het ’n skakel na {email} gestuur. Maak dit oop om klaar te teken in.</string>
     <string name="auth_open_gmail">Maak Gmail oop</string>
     <string name="auth_change_email">Verander e-pos</string>
     <string name="auth_resend_link">Stuur skakel weer</string>
@@ -34,10 +34,10 @@
     <string name="auth_no_email_app">Geen e-posprogram gevind nie.</string>
     <string name="header_projects">Projekte</string>
     <string name="header_files">Lêers</string>
-    <string name="hint_editor_empty">Maak 'n projek oop om te begin kodeer</string>
+    <string name="hint_editor_empty">Maak ’n projek oop om te begin kodeer</string>
     <string name="label_terminal">Terminaal</string>
     <string name="ai_agent_title">KI-agent</string>
-    <string name="ai_initial_msg">Hallo! Ek is Numination AI Agent. Vra my om lêers te skep, 'n funksie te beplan of terminaalopdragte te genereer.</string>
+    <string name="ai_initial_msg">Hallo! Ek is Numination AI Agent. Vra my om lêers te skep, ’n funksie te beplan of terminaalopdragte te genereer.</string>
     <string name="cost_points_suffix">punte</string>
     <string name="label_proposed_actions">Voorgestelde aksies</string>
     <string name="desc_safety_warning">Gaan na voor uitvoering. Sommige aksies kan lêers verander.</string>
