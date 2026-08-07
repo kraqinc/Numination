@@ -133,6 +133,25 @@ object NetworkClient {
     }
 
     /**
+     * Executes synchronous PATCH request with body.
+     */
+    @Throws(IOException::class)
+    fun patch(endpoint: String, body: Any): Response {
+        val jsonString = gson.toJson(body)
+        val requestBody = jsonString.toRequestBody(JSON_MEDIA_TYPE)
+
+        val requestBuilder = Request.Builder()
+            .url("$BASE_URL$endpoint")
+            .patch(requestBody)
+
+        token?.let {
+            requestBuilder.addHeader("Authorization", "Bearer $it")
+        }
+
+        return executeWithRetry(requestBuilder)
+    }
+
+    /**
      * Executes synchronous PUT request with body.
      */
     @Throws(IOException::class)

@@ -12,6 +12,29 @@
     <string name="toggle_register">¿No tienes cuenta? Regístrate</string>
     <string name="error_fill_fields">Por favor, llena todos los campos.</string>
     <string name="error_network">Error de red: no se pudo contactar al servidor.</string>
+
+    <!-- Auth -->
+    <string name="auth_tagline">La IA para quienes resuelven problemas.</string>
+    <string name="auth_subtitle">Construye, piensa y desbloquea ideas desde cualquier lugar.</string>
+    <string name="auth_continue_google">Continuar con Google</string>
+    <string name="auth_continue_github">Continuar con GitHub</string>
+    <string name="auth_or">o</string>
+    <string name="auth_email_placeholder">usuario@email.com</string>
+    <string name="auth_continue">Continuar</string>
+    <string name="auth_sending_link">Enviando enlace…</string>
+    <string name="auth_terms">Al continuar aceptas los Términos de Servicio y la Política de Privacidad.</string>
+    <string name="auth_error_invalid_email">Escribe un correo válido para continuar.</string>
+    <string name="auth_google_unavailable">Google no está disponible todavía.</string>
+    <string name="auth_github_unavailable">GitHub no está disponible todavía.</string>
+    <string name="auth_check_email_title">Revisa tu correo</string>
+    <string name="auth_check_email_body">Enviamos un enlace para iniciar sesión.</string>
+    <string name="auth_open_gmail">Abrir Gmail</string>
+    <string name="auth_change_email">Cambiar correo</string>
+    <string name="auth_resend_link">Reenviar enlace</string>
+    <string name="auth_resending">Reenviando…</string>
+    <string name="auth_resend_cooldown">Reenviar enlace (%1$ds)</string>
+    <string name="auth_link_resent">Enlace reenviado a %1$s</string>
+    <string name="auth_no_email_app">No encontramos una app de correo instalada.</string>
     
     <!-- Workspace -->
     <string name="header_projects">PROYECTOS</string>

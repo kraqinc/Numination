@@ -12,6 +12,29 @@
     <string name="toggle_register">Don\'t have an account? Sign up</string>
     <string name="error_fill_fields">Please fill in all fields.</string>
     <string name="error_network">Network error: Could not contact server.</string>
+
+    <!-- Auth -->
+    <string name="auth_tagline">The AI for people who solve problems.</string>
+    <string name="auth_subtitle">Build, think, and unlock ideas from anywhere.</string>
+    <string name="auth_continue_google">Continue with Google</string>
+    <string name="auth_continue_github">Continue with GitHub</string>
+    <string name="auth_or">or</string>
+    <string name="auth_email_placeholder">you@email.com</string>
+    <string name="auth_continue">Continue</string>
+    <string name="auth_sending_link">Sending link…</string>
+    <string name="auth_terms">By continuing you accept the Terms of Service and Privacy Policy.</string>
+    <string name="auth_error_invalid_email">Enter a valid email to continue.</string>
+    <string name="auth_google_unavailable">Google sign-in is not available yet.</string>
+    <string name="auth_github_unavailable">GitHub sign-in is not available yet.</string>
+    <string name="auth_check_email_title">Check your email</string>
+    <string name="auth_check_email_body">We sent you a link to sign in.</string>
+    <string name="auth_open_gmail">Open Gmail</string>
+    <string name="auth_change_email">Change email</string>
+    <string name="auth_resend_link">Resend link</string>
+    <string name="auth_resending">Resending…</string>
+    <string name="auth_resend_cooldown">Resend link (%1$ds)</string>
+    <string name="auth_link_resent">Link resent to %1$s</string>
+    <string name="auth_no_email_app">No email app found on this device.</string>
     
     <!-- Workspace -->
     <string name="header_projects">PROJECTS</string>

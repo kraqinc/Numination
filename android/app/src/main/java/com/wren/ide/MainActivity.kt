@@ -45,6 +45,7 @@ import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingExcept
 import com.google.gson.Gson
 import androidx.core.view.WindowCompat
 import com.wren.ide.core.network.AppVersionResponse
+import com.wren.ide.core.network.AuthSessionHelper
 import com.wren.ide.core.network.BackendConfig
 import com.wren.ide.core.network.ConnectionStatusBanner
 import com.wren.ide.core.network.LoginResponse
@@ -66,6 +67,7 @@ import com.wren.ide.features.owner.OwnerAdminScreen
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.IOException
 
 class MainActivity : ComponentActivity() {
 
@@ -103,13 +105,93 @@ class MainActivity : ComponentActivity() {
                 var updateError by remember { mutableStateOf<String?>(null) }
                 var checkingUpdates by remember { mutableStateOf(false) }
                 var pendingMagicLinkEmail by remember { mutableStateOf("") }
+                var authBusy by remember { mutableStateOf(false) }
+                var authError by remember { mutableStateOf<String?>(null) }
 
                 val googleClientId = context.getString(R.string.google_web_client_id)
                 val credentialManager = remember { CredentialManager.create(context) }
 
-                // Helper moved above launchGoogleSignIn to avoid forward-reference compilation errors.
                 fun openWorkspaceOrPermission() {
                     currentScreen = if (WrenFileStorage.hasAllFilesAccess()) "workspace" else "storage_permission"
+                }
+
+                fun completeLogin(loginResponse: LoginResponse) {
+                    AuthSessionHelper.applySession(sessionManager, loginResponse)
+                    authBusy = false
+                    authError = null
+                    openWorkspaceOrPermission()
+                }
+
+                fun requestMagicLink(email: String) {
+                    lifecycleScope.launch {
+                        authBusy = true
+                        authError = null
+                        try {
+                            val result = withContext(Dispatchers.IO) {
+                                NetworkClient.post("/auth/magic-link", mapOf("email" to email)).use { response ->
+                                    response.code to response.body?.string().orEmpty()
+                                }
+                            }
+                            val parsed = runCatching {
+                                Gson().fromJson(result.second, com.wren.ide.features.auth.ApiMessageResponse::class.java)
+                            }.getOrNull()
+
+                            authBusy = false
+                            if (result.first in 200..299 && parsed?.ok != false) {
+                                parsed?.devLink?.takeIf { it.isNotBlank() }?.let { devLink ->
+                                    Toast.makeText(context, "Modo dev, enlace: $devLink", Toast.LENGTH_LONG).show()
+                                }
+                                pendingMagicLinkEmail = email
+                                currentScreen = "enter_code_email"
+                            } else {
+                                authError = parsed?.error ?: parsed?.message
+                                    ?: AuthSessionHelper.parseErrorMessage(result.second, "No se pudo enviar el enlace.")
+                            }
+                        } catch (_: IOException) {
+                            authBusy = false
+                            authError = "No pudimos conectar con Numination. Revisa tu conexión."
+                        } catch (_: Throwable) {
+                            authBusy = false
+                            authError = "No se pudo enviar el enlace. Inténtalo de nuevo."
+                        }
+                    }
+                }
+
+                fun verifyMagicLink(email: String, token: String) {
+                    lifecycleScope.launch {
+                        authBusy = true
+                        try {
+                            val result = withContext(Dispatchers.IO) {
+                                NetworkClient.post(
+                                    "/auth/magic-link/verify",
+                                    mapOf("email" to email, "token" to token)
+                                ).use { response ->
+                                    response.code to response.body?.string().orEmpty()
+                                }
+                            }
+                            val loginResponse = AuthSessionHelper.parseLoginResponse(result.second)
+                            if (result.first in 200..299 && loginResponse != null) {
+                                completeLogin(loginResponse)
+                            } else {
+                                authBusy = false
+                                val message = AuthSessionHelper.parseErrorMessage(
+                                    result.second,
+                                    "El enlace ya no es válido. Pide uno nuevo."
+                                )
+                                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                            }
+                        } catch (_: IOException) {
+                            authBusy = false
+                            Toast.makeText(
+                                context,
+                                "No se pudo verificar el enlace. Revisa tu conexión.",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        } catch (_: Throwable) {
+                            authBusy = false
+                            Toast.makeText(context, "El enlace no pudo verificarse.", Toast.LENGTH_LONG).show()
+                        }
+                    }
                 }
 
                 // Google Sign-In vía Credential Manager (reemplaza el GoogleSignInClient
@@ -119,26 +201,20 @@ class MainActivity : ComponentActivity() {
                 // Credential Manager usa el selector de cuentas nativo del sistema y no
                 // dispara esa pantalla -- no necesitamos ni queremos ningún número ahí.
                 fun launchGoogleSignIn() {
-                    // IMPORTANTE: usamos lifecycleScope (atado al ciclo de vida de la
-                    // Activity), NO rememberCoroutineScope(). getCredential() lanza
-                    // HiddenActivity de Credential Manager como una Activity real; eso
-                    // dispara una recomposición del árbol de Compose mientras el usuario
-                    // elige su cuenta, y rememberCoroutineScope() cancela la corrutina en
-                    // curso cuando eso pasa -- confirmado con logcat: el flujo llegaba
-                    // hasta que el usuario elegía la cuenta y luego moría en silencio,
-                    // sin excepción que atrapar ni Toast que mostrar.
                     lifecycleScope.launch {
+                        authBusy = true
+                        authError = null
                         try {
                             val option = GetSignInWithGoogleOption.Builder(googleClientId).build()
                             val request = GetCredentialRequest.Builder()
                                 .addCredentialOption(option)
                                 .build()
-                            val result = credentialManager.getCredential(
+                            val credentialResult = credentialManager.getCredential(
                                 context = context,
                                 request = request
                             )
 
-                            val credential = result.credential
+                            val credential = credentialResult.credential
                             val idToken = if (
                                 credential is CustomCredential &&
                                 credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
@@ -149,52 +225,49 @@ class MainActivity : ComponentActivity() {
                             }
 
                             if (idToken.isNullOrBlank()) {
+                                authBusy = false
                                 Toast.makeText(context, "Google no devolvió ID token", Toast.LENGTH_SHORT).show()
                                 return@launch
                             }
 
-                            try {
-                                val response = withContext(Dispatchers.IO) {
-                                    NetworkClient.post(
-                                        "/auth/google/native",
-                                        mapOf("idToken" to idToken)
-                                    )
+                            val networkResult = withContext(Dispatchers.IO) {
+                                NetworkClient.post(
+                                    "/auth/google/native",
+                                    mapOf("idToken" to idToken)
+                                ).use { response ->
+                                    response.code to response.body?.string().orEmpty()
                                 }
-                                val body = response.body?.string().orEmpty()
-                                val loginResponse = runCatching {
-                                    Gson().fromJson(body, LoginResponse::class.java)
-                                }.getOrNull()
+                            }
+                            val loginResponse = AuthSessionHelper.parseLoginResponse(networkResult.second)
 
-                                if (response.isSuccessful && loginResponse != null && loginResponse.token.isNotBlank()) {
-                                    sessionManager.jwtToken = loginResponse.token
-                                    sessionManager.userEmail = loginResponse.user.email
-                                    sessionManager.userRole = loginResponse.user.role
-                                    sessionManager.userTier = loginResponse.user.tier
-                                    sessionManager.userCredits = loginResponse.user.balance
-                                    NetworkClient.setAuthToken(loginResponse.token)
-                                    openWorkspaceOrPermission()
-                                } else {
-                                    val message = runCatching {
-                                        val map = Gson().fromJson(body, Map::class.java)
-                                        map["error"] as? String
-                                    }.getOrNull() ?: "No se pudo iniciar sesión con Google"
-                                    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-                                }
-                            } catch (t: Throwable) {
-                                Toast.makeText(context, t.message ?: "Error de Google", Toast.LENGTH_LONG).show()
+                            if (networkResult.first in 200..299 && loginResponse != null) {
+                                completeLogin(loginResponse)
+                            } else {
+                                authBusy = false
+                                val message = AuthSessionHelper.parseErrorMessage(
+                                    networkResult.second,
+                                    "No se pudo iniciar sesión con Google"
+                                )
+                                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
                             }
                         } catch (_: GetCredentialCancellationException) {
-                            // El usuario cerró el selector de cuentas -- no hace falta avisar.
+                            authBusy = false
                         } catch (_: NoCredentialException) {
+                            authBusy = false
                             Toast.makeText(
                                 context,
                                 "No hay ninguna cuenta de Google en este dispositivo",
                                 Toast.LENGTH_LONG
                             ).show()
                         } catch (_: GoogleIdTokenParsingException) {
+                            authBusy = false
                             Toast.makeText(context, "Google devolvió una respuesta inválida", Toast.LENGTH_SHORT).show()
                         } catch (e: GetCredentialException) {
+                            authBusy = false
                             Toast.makeText(context, e.message ?: "No se pudo iniciar sesión con Google", Toast.LENGTH_SHORT).show()
+                        } catch (t: Throwable) {
+                            authBusy = false
+                            Toast.makeText(context, t.message ?: "Error de Google", Toast.LENGTH_LONG).show()
                         }
                     }
                 }
@@ -226,68 +299,43 @@ class MainActivity : ComponentActivity() {
                     // Caso 1: deep link ya trae un JWT firmado (Google/GitHub).
                     val oauthResult = OAuthLauncher.parseAuthDeepLink(uri)
                     if (oauthResult != null) {
-                        sessionManager.jwtToken = oauthResult.token
-                        sessionManager.userEmail = oauthResult.email ?: sessionManager.userEmail
-                        val jwtInfo = decodeJwtPayloadOrNull(oauthResult.token)
-                        sessionManager.userRole = jwtInfo?.role ?: sessionManager.userRole
-                        sessionManager.userTier = jwtInfo?.tier ?: sessionManager.userTier
-                        NetworkClient.setAuthToken(oauthResult.token)
+                        AuthSessionHelper.applySession(
+                            sessionManager,
+                            LoginResponse(
+                                message = "OAuth",
+                                token = oauthResult.token,
+                                user = com.wren.ide.core.network.User(
+                                    id = "",
+                                    email = oauthResult.email.orEmpty(),
+                                    role = decodeJwtPayloadOrNull(oauthResult.token)?.role ?: "USER",
+                                    tier = decodeJwtPayloadOrNull(oauthResult.token)?.tier ?: "FREE",
+                                    balance = 0
+                                )
+                            )
+                        )
 
                         withContext(Dispatchers.IO) {
-                            val response = NetworkClient.get("/credits")
-                            val body = response.body?.string()
-                            response.close()
-                            if (response.isSuccessful && body != null) {
-                                val json = NetworkClient.getGson().fromJson(body, Map::class.java)
-                                (json["balance"] as? Double)?.let {
-                                    sessionManager.userCredits = it.toInt()
+                            NetworkClient.get("/credits").use { response ->
+                                val body = response.body?.string()
+                                if (response.isSuccessful && body != null) {
+                                    val json = NetworkClient.getGson().fromJson(body, Map::class.java)
+                                    (json["balance"] as? Double)?.let {
+                                        sessionManager.userCredits = it.toInt()
+                                    }
                                 }
                             }
                         }
 
                         pendingAuthIntent = null
+                        authBusy = false
                         openWorkspaceOrPermission()
                         return@LaunchedEffect
                     }
 
-                    // Caso 2: Magic Link -- trae un token opaco que hay que
-                    // canjear contra el backend antes de tener una sesión real.
                     val magicResult = OAuthLauncher.parseMagicLinkDeepLink(uri)
                     if (magicResult != null) {
-                        try {
-                            val response = withContext(Dispatchers.IO) {
-                                NetworkClient.post(
-                                    "/auth/magic-link/verify",
-                                    mapOf("email" to magicResult.email, "token" to magicResult.magicToken)
-                                )
-                            }
-                            val body = response.body?.string().orEmpty()
-                            val loginResponse = runCatching {
-                                Gson().fromJson(body, LoginResponse::class.java)
-                            }.getOrNull()
-
-                            if (response.isSuccessful && loginResponse != null && loginResponse.token.isNotBlank()) {
-                                sessionManager.jwtToken = loginResponse.token
-                                sessionManager.userEmail = loginResponse.user.email
-                                sessionManager.userRole = loginResponse.user.role
-                                sessionManager.userTier = loginResponse.user.tier
-                                sessionManager.userCredits = loginResponse.user.balance
-                                NetworkClient.setAuthToken(loginResponse.token)
-
-                                pendingAuthIntent = null
-                                openWorkspaceOrPermission()
-                            } else {
-                                val parsed = runCatching {
-                                    Gson().fromJson(body, Map::class.java)
-                                }.getOrNull()
-                                val error = (parsed?.get("error") as? String) ?: "El enlace ya no es válido, pide uno nuevo."
-                                Toast.makeText(context, error, Toast.LENGTH_LONG).show()
-                                pendingAuthIntent = null
-                            }
-                        } catch (_: Throwable) {
-                            Toast.makeText(context, "No se pudo verificar el enlace. Revisa tu conexión.", Toast.LENGTH_LONG).show()
-                            pendingAuthIntent = null
-                        }
+                        pendingAuthIntent = null
+                        verifyMagicLink(magicResult.email, magicResult.magicToken)
                     }
                 }
 
@@ -331,10 +379,10 @@ class MainActivity : ComponentActivity() {
                             "auth" -> {
                                 AuthScreen(
                                     sessionManager = sessionManager,
-                                    onMagicLinkSent = { sentEmail ->
-                                        pendingMagicLinkEmail = sentEmail
-                                        currentScreen = "enter_code_email"
-                                    },
+                                    isLoading = authBusy,
+                                    errorMessage = authError,
+                                    onClearError = { authError = null },
+                                    onRequestMagicLink = ::requestMagicLink,
                                     onGoogleLogin = { launchGoogleSignIn() },
                                     onGithubLogin = { OAuthLauncher.launchGithubLogin(context) }
                                 )
@@ -342,8 +390,10 @@ class MainActivity : ComponentActivity() {
                             "enter_code_email" -> {
                                 EnterCodeEmailScreen(
                                     email = pendingMagicLinkEmail,
+                                    isLoading = authBusy,
                                     onBack = { currentScreen = "auth" },
-                                    onChangeEmail = { currentScreen = "auth" }
+                                    onChangeEmail = { currentScreen = "auth" },
+                                    onResendLink = ::requestMagicLink
                                 )
                             }
                             "storage_permission" -> {

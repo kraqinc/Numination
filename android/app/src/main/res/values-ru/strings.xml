@@ -12,6 +12,29 @@
     <string name="toggle_register">Нет аккаунта? Создать бесплатно</string>
     <string name="error_fill_fields">Пожалуйста, заполните все поля.</string>
     <string name="error_network">Ошибка сети: не удалось связаться с сервером.</string>
+
+    <!-- Auth -->
+    <string name="auth_tagline">ИИ для тех, кто решает задачи.</string>
+    <string name="auth_subtitle">Создавайте, думайте и находите идеи откуда угодно.</string>
+    <string name="auth_continue_google">Продолжить с Google</string>
+    <string name="auth_continue_github">Продолжить с GitHub</string>
+    <string name="auth_or">или</string>
+    <string name="auth_email_placeholder">user@email.com</string>
+    <string name="auth_continue">Продолжить</string>
+    <string name="auth_sending_link">Отправка ссылки…</string>
+    <string name="auth_terms">Продолжая, вы принимаете Условия использования и Политику конфиденциальности.</string>
+    <string name="auth_error_invalid_email">Введите корректный адрес электронной почты.</string>
+    <string name="auth_google_unavailable">Вход через Google пока недоступен.</string>
+    <string name="auth_github_unavailable">Вход через GitHub пока недоступен.</string>
+    <string name="auth_check_email_title">Проверьте почту</string>
+    <string name="auth_check_email_body">Мы отправили ссылку для входа.</string>
+    <string name="auth_open_gmail">Открыть Gmail</string>
+    <string name="auth_change_email">Изменить email</string>
+    <string name="auth_resend_link">Отправить ссылку снова</string>
+    <string name="auth_resending">Повторная отправка…</string>
+    <string name="auth_resend_cooldown">Отправить снова (%1$ds)</string>
+    <string name="auth_link_resent">Ссылка отправлена на %1$s</string>
+    <string name="auth_no_email_app">На устройстве не найдено приложение почты.</string>
     
     <!-- Workspace -->
     <string name="header_projects">ПРОЕКТЫ</string>

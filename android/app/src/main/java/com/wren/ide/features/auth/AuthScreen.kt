@@ -4,7 +4,6 @@ import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,6 +27,7 @@ import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -37,7 +37,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,6 +44,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -53,14 +53,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.google.gson.Gson
 import com.wren.ide.R
-import com.wren.ide.core.network.NetworkClient
 import com.wren.ide.core.storage.SessionManager
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.io.IOException
 
 internal data class ApiMessageResponse(
     val ok: Boolean? = null,
@@ -82,197 +76,183 @@ internal val AppAccentSoft = Color(0xFF9B8FFF)
 internal val AppDanger = Color(0xFFE98770)
 internal val AppSuccess = Color(0xFF9ED8B6)
 
-/**
- * Pantalla de login. Solo tiene un paso: pedir el correo y mandar el Magic
- * Link. La pantalla de espera ("revisa tu correo") vive en EnterCodeEmail.kt
- * y la decide MainActivity, no este composable -- así cada pantalla tiene una
- * sola responsabilidad y no hay estado de "step" ni Crossfade escondiendo
- * layouts uno encima del otro.
- */
 @Composable
 fun AuthScreen(
-    sessionManager: SessionManager,
-    onMagicLinkSent: (email: String) -> Unit,
+    @Suppress("UNUSED_PARAMETER") sessionManager: SessionManager,
+    isLoading: Boolean,
+    errorMessage: String?,
+    onClearError: () -> Unit,
+    onRequestMagicLink: (email: String) -> Unit,
     onGoogleLogin: (() -> Unit)? = null,
     onGithubLogin: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
 
     var email by remember { mutableStateOf("") }
-    var isLoading by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var localError by remember { mutableStateOf<String?>(null) }
 
-    fun requestMagicLink() {
+    fun submitEmail() {
         val trimmedEmail = email.trim().lowercase()
         if (!EmailRegex.matches(trimmedEmail)) {
-            errorMessage = "Escribe un correo válido para continuar."
+            localError = context.getString(R.string.auth_error_invalid_email)
             return
         }
-
-        isLoading = true
-        errorMessage = null
-
-        scope.launch {
-            try {
-                val result = withContext(Dispatchers.IO) {
-                    NetworkClient.post("/auth/magic-link", mapOf("email" to trimmedEmail)).use { response ->
-                        response.code to response.body?.string().orEmpty()
-                    }
-                }
-                val parsed = runCatching {
-                    Gson().fromJson(result.second, ApiMessageResponse::class.java)
-                }.getOrNull()
-
-                isLoading = false
-                if (result.first in 200..299 && parsed?.ok != false) {
-                    parsed?.devLink?.takeIf { it.isNotBlank() }?.let {
-                        Toast.makeText(context, "Modo dev, enlace: $it", Toast.LENGTH_LONG).show()
-                    }
-                    onMagicLinkSent(trimmedEmail)
-                } else {
-                    errorMessage = parsed?.error ?: parsed?.message
-                        ?: "No se pudo enviar el enlace. Inténtalo de nuevo."
-                }
-            } catch (_: IOException) {
-                isLoading = false
-                errorMessage = "No pudimos conectar con Numination. Revisa tu conexión e inténtalo de nuevo."
-            } catch (_: Throwable) {
-                isLoading = false
-                errorMessage = "No se pudo enviar el enlace. Inténtalo de nuevo."
-            }
-        }
+        localError = null
+        onClearError()
+        onRequestMagicLink(trimmedEmail)
     }
 
+    val visibleError = localError ?: errorMessage
     val scrollState = rememberScrollState()
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(AppBackground)
-            .statusBarsPadding()
-            .navigationBarsPadding()
-            .imePadding()
     ) {
         Column(
             modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .verticalScroll(scrollState)
-                .padding(horizontal = 24.dp, vertical = 32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .imePadding()
         ) {
             Column(
-                modifier = Modifier.widthIn(max = 390.dp).fillMaxWidth(),
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .verticalScroll(scrollState)
+                    .padding(horizontal = 24.dp, vertical = 32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(0.dp)
+                verticalArrangement = Arrangement.Center
             ) {
-                BrandMark()
-
-                Spacer(28.dp)
-
-                Text(
-                    text = "La IA para quienes resuelven problemas.",
-                    color = AppText,
-                    fontFamily = FontFamily.Serif,
-                    fontSize = 27.sp,
-                    lineHeight = 32.sp,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(12.dp)
-
-                Text(
-                    text = "Construye, piensa y desbloquea ideas desde cualquier lugar.",
-                    color = AppMuted,
-                    fontSize = 14.sp,
-                    lineHeight = 20.sp,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(32.dp)
-
                 Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    modifier = Modifier.widthIn(max = 390.dp).fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(0.dp)
                 ) {
-                    ProviderButton(
-                        iconRes = R.drawable.ic_google_mark,
-                        label = "Continuar con Google",
-                        enabled = !isLoading,
-                        onClick = {
-                            if (onGoogleLogin == null) {
-                                Toast.makeText(context, "Google no está disponible todavía.", Toast.LENGTH_SHORT).show()
-                            } else {
-                                onGoogleLogin()
+                    BrandMark()
+
+                    Spacer(28.dp)
+
+                    Text(
+                        text = stringResource(R.string.auth_tagline),
+                        color = AppText,
+                        fontFamily = FontFamily.Serif,
+                        fontSize = 27.sp,
+                        lineHeight = 32.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(12.dp)
+
+                    Text(
+                        text = stringResource(R.string.auth_subtitle),
+                        color = AppMuted,
+                        fontSize = 14.sp,
+                        lineHeight = 20.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(32.dp)
+
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        ProviderButton(
+                            iconRes = R.drawable.ic_google_mark,
+                            label = stringResource(R.string.auth_continue_google),
+                            enabled = !isLoading,
+                            onClick = {
+                                if (onGoogleLogin == null) {
+                                    Toast.makeText(context, R.string.auth_google_unavailable, Toast.LENGTH_SHORT).show()
+                                } else {
+                                    onGoogleLogin()
+                                }
                             }
-                        }
-                    )
+                        )
 
-                    ProviderButton(
-                        iconRes = R.drawable.ic_github_mark,
-                        label = "Continuar con GitHub",
-                        enabled = !isLoading,
-                        onClick = {
-                            if (onGithubLogin == null) {
-                                Toast.makeText(context, "GitHub no está disponible todavía.", Toast.LENGTH_SHORT).show()
-                            } else {
-                                onGithubLogin()
+                        ProviderButton(
+                            iconRes = R.drawable.ic_github_mark,
+                            label = stringResource(R.string.auth_continue_github),
+                            enabled = !isLoading,
+                            onClick = {
+                                if (onGithubLogin == null) {
+                                    Toast.makeText(context, R.string.auth_github_unavailable, Toast.LENGTH_SHORT).show()
+                                } else {
+                                    onGithubLogin()
+                                }
                             }
-                        }
-                    )
-                }
+                        )
+                    }
 
-                Spacer(22.dp)
+                    Spacer(22.dp)
 
-                OrDivider()
+                    OrDivider()
 
-                Spacer(18.dp)
+                    Spacer(18.dp)
 
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(13.dp)
-                ) {
-                    EmailField(
-                        value = email,
-                        enabled = !isLoading,
-                        onValueChange = {
-                            email = it
-                            errorMessage = null
-                        },
-                        onDone = ::requestMagicLink
-                    )
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(13.dp)
+                    ) {
+                        EmailField(
+                            value = email,
+                            enabled = !isLoading,
+                            onValueChange = {
+                                email = it
+                                localError = null
+                                onClearError()
+                            },
+                            onDone = ::submitEmail
+                        )
 
-                    PrimaryActionButton(
-                        text = if (isLoading) "Enviando enlace..." else "Continuar",
-                        enabled = !isLoading,
-                        onClick = ::requestMagicLink
-                    )
-                }
+                        PrimaryActionButton(
+                            text = if (isLoading) {
+                                stringResource(R.string.auth_sending_link)
+                            } else {
+                                stringResource(R.string.auth_continue)
+                            },
+                            enabled = !isLoading,
+                            onClick = ::submitEmail
+                        )
+                    }
 
-                AnimatedVisibility(visible = errorMessage != null) {
-                    StatusMessage(
-                        message = errorMessage.orEmpty(),
-                        color = AppDanger,
-                        modifier = Modifier.padding(top = 14.dp)
-                    )
+                    AnimatedVisibility(visible = visibleError != null) {
+                        StatusMessage(
+                            message = visibleError.orEmpty(),
+                            color = AppDanger,
+                            modifier = Modifier.padding(top = 14.dp)
+                        )
+                    }
                 }
             }
+
+            Text(
+                text = stringResource(R.string.auth_terms),
+                color = AppMuted.copy(alpha = 0.82f),
+                fontSize = 11.sp,
+                lineHeight = 16.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 34.dp, vertical = 18.dp)
+            )
         }
 
-        Text(
-            text = "Al continuar aceptas los Términos de Servicio y la Política de Privacidad.",
-            color = AppMuted.copy(alpha = 0.82f),
-            fontSize = 11.sp,
-            lineHeight = 16.sp,
-            textAlign = TextAlign.Center,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 34.dp, vertical = 18.dp)
-        )
+        if (isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.35f)),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = AppAccentSoft)
+            }
+        }
     }
 }
 
@@ -347,7 +327,7 @@ private fun OrDivider() {
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Box(modifier = Modifier.weight(1f).height(1.dp).background(AppBorder))
-        Text(text = "o", color = AppMuted, fontSize = 13.sp)
+        Text(text = stringResource(R.string.auth_or), color = AppMuted, fontSize = 13.sp)
         Box(modifier = Modifier.weight(1f).height(1.dp).background(AppBorder))
     }
 }
@@ -365,7 +345,7 @@ private fun EmailField(
         enabled = enabled,
         modifier = Modifier.fillMaxWidth(),
         singleLine = true,
-        placeholder = { Text("usuario@email.com", color = AppMuted) },
+        placeholder = { Text(stringResource(R.string.auth_email_placeholder), color = AppMuted) },
         leadingIcon = {
             Icon(imageVector = Icons.Filled.Email, contentDescription = null, tint = AppAccentSoft)
         },

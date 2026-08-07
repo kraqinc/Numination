@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Numination AI</string>
+    <string name="google_web_client_id">398199654621-01qr82sp89pmevklbolb0e5ctu44nooq.apps.googleusercontent.com</string>
+    <string name="title_wren_ide">NUMINATION AI</string>
+    <string name="sub_title_studio">Numination 智能开发环境</string>
+    <string name="label_email">电子邮箱</string>
+    <string name="label_password">密码</string>
+    <string name="btn_login">登录</string>
+    <string name="btn_register">免费注册</string>
+    <string name="toggle_login">已有账号？登录</string>
+    <string name="toggle_register">没有账号？注册</string>
+    <string name="error_fill_fields">请填写所有字段。</string>
+    <string name="error_network">网络错误：无法连接服务器。</string>
+
+    <!-- Auth -->
+    <string name="auth_tagline">为解决问题的人打造的 AI。</string>
+    <string name="auth_subtitle">随时随地构建、思考并激发灵感。</string>
+    <string name="auth_continue_google">使用 Google 继续</string>
+    <string name="auth_continue_github">使用 GitHub 继续</string>
+    <string name="auth_or">或</string>
+    <string name="auth_email_placeholder">user@email.com</string>
+    <string name="auth_continue">继续</string>
+    <string name="auth_sending_link">正在发送链接…</string>
+    <string name="auth_terms">继续即表示你同意服务条款和隐私政策。</string>
+    <string name="auth_error_invalid_email">请输入有效的电子邮箱。</string>
+    <string name="auth_google_unavailable">Google 登录暂不可用。</string>
+    <string name="auth_github_unavailable">GitHub 登录暂不可用。</string>
+    <string name="auth_check_email_title">查看你的邮箱</string>
+    <string name="auth_check_email_body">我们已发送登录链接。</string>
+    <string name="auth_open_gmail">打开 Gmail</string>
+    <string name="auth_change_email">更改邮箱</string>
+    <string name="auth_resend_link">重新发送链接</string>
+    <string name="auth_resending">正在重新发送…</string>
+    <string name="auth_resend_cooldown">重新发送链接（%1$d 秒）</string>
+    <string name="auth_link_resent">链接已重新发送至 %1$s</string>
+    <string name="auth_no_email_app">未找到邮件应用。</string>
+
+    <!-- Workspace -->
+    <string name="header_projects">项目</string>
+    <string name="header_files">文件</string>
+    <string name="hint_editor_empty">创建或选择一个文件开始编程。</string>
+    <string name="label_terminal">终端</string>
+
+    <!-- AI Agent -->
+    <string name="ai_agent_title">AI 助手</string>
+    <string name="ai_initial_msg">你好！今天想使用哪种模式？你可以在顶部栏选择标准聊天、自主规划、编辑器或终端。</string>
+    <string name="cost_points_suffix">积分</string>
+    <string name="label_proposed_actions">建议操作 - 必须审核</string>
+    <string name="desc_safety_warning">Numination AI 提出了以下结构更改。确认前请先查看：</string>
+    <string name="btn_confirm_execute">确认并执行操作（-1 积分）</string>
+    <string name="btn_cancel_reject">拒绝并取消</string>
+
+    <!-- Credits -->
+    <string name="title_wallet">我的 Numination 钱包</string>
+    <string name="label_balance">积分余额</string>
+    <string name="label_account_tier">账户等级：%1$s 计划</string>
+    <string name="header_packages">充值积分与订阅</string>
+    <string name="header_history">交易记录</string>
+    <string name="package_basic">基础充值（+100 积分）</string>
+    <string name="package_premium">高级充值（+500 积分）</string>
+    <string name="package_subscription">月度订阅（+1000 积分/月）</string>
+
+    <!-- Owner Console -->
+    <string name="title_owner_console">所有者控制台</string>
+    <string name="header_server_stats">服务器指标</string>
+    <string name="label_users">用户</string>
+    <string name="label_total_points">总积分</string>
+    <string name="label_active_projects">活跃项目</string>
+    <string name="label_consumed_points">已消耗积分</string>
+    <string name="header_audit_logs">安全审计日志（RBAC）</string>
+
+    <!-- Payments -->
+    <string name="header_payment_methods">支付方式</string>
+    <string name="label_paypal">PayPal</string>
+    <string name="label_paypal_active">✓ 已启用</string>
+    <string name="label_paypal_secure">通过 paypal.me/Numination 安全支付</string>
+    <string name="btn_pay_paypal">使用 PayPal 支付</string>
+    <string name="dialog_confirm_purchase">确认购买</string>
+    <string name="label_points">积分：</string>
+    <string name="label_price">价格：</string>
+    <string name="msg_paypal_redirect">将打开 PayPal 以安全完成支付。</string>
+    <string name="msg_payment_success">✓ 已通过 PayPal 处理 %1$s 的支付 — 已到账 +%2$d 积分</string>
+    <string name="msg_payment_error_server">服务器处理支付时出错。</string>
+    <string name="msg_payment_error_network">处理交易时出现网络错误。</string>
+    <string name="package_pro">Pro 套餐（+1500 积分）</string>
+    <string name="package_ultra">Ultra 套餐（+5000 积分）</string>
+</resources>

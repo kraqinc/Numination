@@ -5,17 +5,11 @@ import android.content.SharedPreferences
 
 enum class AppLanguage(val code: String, val label: String) {
     SYSTEM("system", "System"),
-    ESPANOL("es", "Español"),
-    ESPANOL_LATAM("es-419", "Español (LatAm)"),
-    ESPANOL_ES("es-ES", "Español (España)"),
     ENGLISH("en", "English"),
-    BRITISH_ENGLISH("en-GB", "English (UK)"),
-    PORTUGUES("pt", "Português"),
+    ESPANOL("es", "Español"),
     RUSSIAN("ru", "Русский"),
-    AFRIKAANS("af", "Afrikaans"),
     CHINESE("zh", "中文"),
-    JAPANESE("ja", "日本語"),
-    ARABIC("ar", "العربية");
+    GERMAN("de", "Deutsch");
 
     companion object {
         fun fromCode(code: String?): AppLanguage {

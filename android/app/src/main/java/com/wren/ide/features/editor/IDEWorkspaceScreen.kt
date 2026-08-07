@@ -40,23 +40,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.text.input.TransformedText
-import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.wren.ide.core.editor.EditorInput
 import com.wren.ide.core.network.FileItem
 import com.wren.ide.core.network.NetworkClient
 import com.wren.ide.core.network.Project
@@ -215,27 +208,15 @@ fun IDEWorkspaceScreen(
             // --- Full-screen editor: the primary surface on mobile, not a
             // pane squeezed next to a permanent file tree. ---
             selectedFile?.let {
-                BasicTextField(
+                EditorInput(
                     value = codeContent,
                     onValueChange = {
                         codeContent = it
                         isDirty = true
                     },
-                    textStyle = TextStyle(
-                        color = TextLight,
-                        fontSize = 14.sp,
-                        fontFamily = FontFamily.Monospace,
-                        lineHeight = 20.sp
-                    ),
-                    cursorBrush = SolidColor(ElectricCyan),
-                    visualTransformation = VisualTransformation { text ->
-                        val annotated = highlightKotlinSyntax(text.text)
-                        TransformedText(annotated, OffsetMapping.Identity)
-                    },
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(16.dp)
-                        .padding(bottom = 72.dp) // room for the Ask AI bar
+                        .padding(bottom = 72.dp)
                 )
             } ?: EmptyEditorState(
                 hasProject = selectedProject != null,
@@ -834,59 +815,3 @@ private fun TerminalSheet(
     }
 }
 
-fun highlightKotlinSyntax(text: String): AnnotatedString {
-    return buildAnnotatedString {
-        val keywords = setOf(
-            "package", "import", "class", "interface", "fun", "val", "var",
-            "if", "else", "for", "while", "return", "try", "catch", "throw",
-            "null", "true", "false", "object", "private", "public", "protected"
-        )
-
-        var currentIndex = 0
-        val tokenRegex = Regex("""(//.*)|(".*?")|(\d+)|([a-zA-Z_][a-zA-Z0-9_]*)|([^\s])""")
-
-        tokenRegex.findAll(text).forEach { result ->
-            val match = result.value
-            val start = result.range.first
-
-            if (start > currentIndex) {
-                append(text.substring(currentIndex, start))
-            }
-
-            when {
-                match.startsWith("//") -> {
-                    withStyle(style = SpanStyle(color = TextMuted, fontStyle = FontStyle.Italic)) {
-                        append(match)
-                    }
-                }
-
-                match.startsWith("\"") && match.endsWith("\"") -> {
-                    withStyle(style = SpanStyle(color = TerminalGreen)) {
-                        append(match)
-                    }
-                }
-
-                match.all { it.isDigit() } -> {
-                    withStyle(style = SpanStyle(color = ElectricCyan)) {
-                        append(match)
-                    }
-                }
-
-                keywords.contains(match) -> {
-                    withStyle(style = SpanStyle(color = EditorYellow, fontWeight = FontWeight.Bold)) {
-                        append(match)
-                    }
-                }
-
-                else -> {
-                    append(match)
-                }
-            }
-            currentIndex = result.range.last + 1
-        }
-
-        if (currentIndex < text.length) {
-            append(text.substring(currentIndex))
-        }
-    }
-}
