@@ -9,7 +9,11 @@ enum class AppLanguage(val code: String, val label: String) {
     ESPANOL("es", "Español"),
     RUSSIAN("ru", "Русский"),
     CHINESE("zh", "中文"),
-    GERMAN("de", "Deutsch");
+    GERMAN("de", "Deutsch"),
+    FRENCH("fr", "Français"),
+    PORTUGUESE("pt", "Português"),
+    SWAHILI("sw", "Kiswahili"),
+    AFRIKAANS("af", "Afrikaans");
 
     companion object {
         fun fromCode(code: String?): AppLanguage {

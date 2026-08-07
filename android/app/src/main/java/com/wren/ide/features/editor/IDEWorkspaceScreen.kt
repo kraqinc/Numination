@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.*
 import com.wren.ide.core.storage.AppLanguage
+import com.wren.ide.core.storage.AppLocaleController
 import com.wren.ide.core.storage.AppSettingsManager
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -554,6 +555,7 @@ private fun SettingsDialog(onDismiss: () -> Unit) {
             TextButton(onClick = {
                 settings.autoUpdateEnabled = autoUpdate
                 settings.preferredLanguage = language.code
+                AppLocaleController.applyLanguage(language.code)
                 onDismiss()
             }) { Text("Guardar") }
         },

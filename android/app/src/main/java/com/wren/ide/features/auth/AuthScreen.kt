@@ -133,7 +133,7 @@ fun AuthScreen(
                 ) {
                     BrandMark()
 
-                    Spacer(28.dp)
+                    Spacer(22.dp)
 
                     Text(
                         text = stringResource(R.string.auth_tagline),
@@ -271,13 +271,13 @@ private fun BrandMark(modifier: Modifier = Modifier) {
         Image(
             painter = painterResource(R.drawable.numination_logo_mark),
             contentDescription = null,
-            modifier = Modifier.size(56.dp),
+            modifier = Modifier.size(68.dp),
             contentScale = ContentScale.Fit
         )
         Image(
             painter = painterResource(R.drawable.numination_logo_wordmark),
             contentDescription = "Numination",
-            modifier = Modifier.height(34.dp).widthIn(max = 240.dp),
+            modifier = Modifier.height(44.dp).widthIn(max = 300.dp),
             contentScale = ContentScale.Fit
         )
     }

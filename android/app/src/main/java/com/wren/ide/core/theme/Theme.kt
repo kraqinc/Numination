@@ -11,15 +11,15 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.sp
 
-val PrimaryObsidian = Color(0xFF050607)
-val SecondaryCard = Color(0xFF101215)
+val PrimaryObsidian = Color(0xFF0A0D12)
+val SecondaryCard = Color(0xFF131823)
 val TextLight = Color(0xFFF3F5F7)
-val TextMuted = Color(0xFF9CA3AF)
-val ElectricCyan = Color(0xFF27E7FF)
-val TerminalGreen = Color(0xFF3CE57B)
+val TextMuted = Color(0xFFA6AFBF)
+val ElectricCyan = Color(0xFF6ED7FF)
+val TerminalGreen = Color(0xFF53E08B)
 val EditorYellow = Color(0xFFFFD36A)
-val BorderGray = Color(0xFF232833)
-val ErrorRed = Color(0xFFFF6474)
+val BorderGray = Color(0xFF253041)
+val ErrorRed = Color(0xFFFF7282)
 
 val AnthropicSerif = FontFamily.Serif
 val ClaudeHand = FontFamily.Cursive

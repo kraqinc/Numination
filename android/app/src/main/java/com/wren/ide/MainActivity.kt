@@ -52,6 +52,7 @@ import com.wren.ide.core.network.LoginResponse
 import com.wren.ide.core.network.NetworkClient
 import com.wren.ide.core.network.OAuthLauncher
 import com.wren.ide.core.network.decodeJwtPayloadOrNull
+import com.wren.ide.core.storage.AppLocaleController
 import com.wren.ide.core.storage.SessionManager
 import com.wren.ide.core.storage.StoragePermissionBanner
 import com.wren.ide.core.storage.StoragePermissionGate
@@ -85,6 +86,7 @@ class MainActivity : ComponentActivity() {
 
         val sessionManager = SessionManager(applicationContext)
         BackendConfig.initialize(applicationContext)
+        AppLocaleController.applyStoredLanguage(applicationContext)
         NetworkClient.setAuthToken(sessionManager.jwtToken)
 
         pendingAuthIntent = intent
