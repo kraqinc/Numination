@@ -42,10 +42,6 @@ jobs:
     name: Android (Compose)
     runs-on: ubuntu-latest
 
-    defaults:
-      run:
-        working-directory: android
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -60,6 +56,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build APK
+        working-directory: android
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug
