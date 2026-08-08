@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Numination AI</string>
-    <string name="google_web_client_id">398199654621-01qr82sp89pmevklbolb0e5ctu44nooq.apps.googleusercontent.com</string>
+    <string name="google_web_client_id">646756563616-mf34qenoihs0pt43jvesdbifaiugl5j4.apps.googleusercontent.com</string>
     <string name="title_wren_ide">NUMINATION AI</string>
     <string name="sub_title_studio">Numination AI Agent</string>
     <string name="label_email">Email Address</string>

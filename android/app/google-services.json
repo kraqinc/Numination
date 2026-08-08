@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "646756563616",
+    "project_id": "numination-c780b",
+    "storage_bucket": "numination-c780b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:646756563616:android:2c8d4f5bf17ad070e727c5",
+        "android_client_info": {
+          "package_name": "com.wren.ide"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "646756563616-mf34qenoihs0pt43jvesdbifaiugl5j4.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCNdhOVClHtMITpjD9wFzZrlinAX9tMMAE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "646756563616-mf34qenoihs0pt43jvesdbifaiugl5j4.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -385,7 +385,7 @@ class MainActivity : ComponentActivity() {
                                     errorMessage = authError,
                                     onClearError = { authError = null },
                                     onRequestMagicLink = ::requestMagicLink,
-                                    onGoogleLogin = { launchGoogleSignIn() },
+                                    onGoogleLogin = { OAuthLauncher.launchGoogleLogin(context) },
                                     onGithubLogin = { OAuthLauncher.launchGithubLogin(context) }
                                 )
                             }

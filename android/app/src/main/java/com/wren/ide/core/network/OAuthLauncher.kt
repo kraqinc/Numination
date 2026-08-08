@@ -13,6 +13,10 @@ object OAuthLauncher {
         launch(context, "$BACKEND_ORIGIN/api/auth/github")
     }
 
+    fun launchGoogleLogin(context: Context) {
+        launch(context, "$BACKEND_ORIGIN/api/auth/google")
+    }
+
     private fun launch(context: Context, url: String) {
         val customTabsIntent = CustomTabsIntent.Builder()
             .setShowTitle(true)
