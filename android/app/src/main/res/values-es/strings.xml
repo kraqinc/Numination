@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Numination AI</string>    <string name="title_wren_ide">NUMINATION AI</string>
+    <string name="sub_title_studio">Tu entorno de desarrollo inteligente con Numination</string>
+    <string name="label_email">Correo Electrónico</string>
+    <string name="label_password">Contraseña</string>
+    <string name="btn_login">Iniciar Sesión</string>
+    <string name="btn_register">Registrarse Gratis</string>
+    <string name="toggle_login">¿Ya tienes cuenta? Inicia Sesión</string>
+    <string name="toggle_register">¿No tienes cuenta? Regístrate</string>
+    <string name="error_fill_fields">Por favor, llena todos los campos.</string>
+    <string name="error_network">Error de red: no se pudo contactar al servidor.</string>
+
+    <!-- Auth -->
+    <string name="auth_tagline">La IA para quienes resuelven problemas.</string>
+    <string name="auth_subtitle">Construye, piensa y desbloquea ideas desde cualquier lugar.</string>
+    <string name="auth_continue_google">Continuar con Google</string>
+    <string name="auth_continue_github">Continuar con GitHub</string>
+    <string name="auth_or">o</string>
+    <string name="auth_email_placeholder">usuario@email.com</string>
+    <string name="auth_continue">Continuar</string>
+    <string name="auth_sending_link">Enviando enlace…</string>
+    <string name="auth_terms">Al continuar aceptas los Términos de Servicio y la Política de Privacidad.</string>
+    <string name="auth_error_invalid_email">Escribe un correo válido para continuar.</string>
+    <string name="auth_google_unavailable">Google no está disponible todavía.</string>
+    <string name="auth_github_unavailable">GitHub no está disponible todavía.</string>
+    <string name="auth_check_email_title">Revisa tu correo</string>
+    <string name="auth_check_email_body">Enviamos un enlace para iniciar sesión.</string>
+    <string name="auth_open_gmail">Abrir Gmail</string>
+    <string name="auth_change_email">Cambiar correo</string>
+    <string name="auth_resend_link">Reenviar enlace</string>
+    <string name="auth_resending">Reenviando…</string>
+    <string name="auth_resend_cooldown">Reenviar enlace (%1$ds)</string>
+    <string name="auth_link_resent">Enlace reenviado a %1$s</string>
+    <string name="auth_no_email_app">No encontramos una app de correo instalada.</string>
+    
+    <!-- Workspace -->
+    <string name="header_projects">PROYECTOS</string>
+    <string name="header_files">ARCHIVOS</string>
+    <string name="hint_editor_empty">Crea o selecciona un archivo para empezar a programar.</string>
+    <string name="label_terminal">TERMINAL</string>
+    
+    <!-- AI Agent -->
+    <string name="ai_agent_title">Asistente AI Agent</string>
+    <string name="ai_initial_msg">¡Hola! ¿En qué modo deseas trabajar hoy? Puedes seleccionar Chat estándar, Planificador autónomo, Editor o Terminal en la barra superior.</string>
+    <string name="cost_points_suffix">Puntos</string>
+    <string name="label_proposed_actions">ACCIONES PROPUESTAS - REVISIÓN OBLIGATORIA</string>
+    <string name="desc_safety_warning">El planificador de Numination AI ha sugerido los siguientes cambios estructurales. Revísalos antes de confirmar:</string>
+    <string name="btn_confirm_execute">Confirmar y Ejecutar Acción (-1 Punto)</string>
+    <string name="btn_cancel_reject">Rechazar y Cancelar</string>
+    
+    <!-- Credits -->
+    <string name="title_wallet">Mi Billetera Numination</string>
+    <string name="label_balance">BALANCE DE PUNTOS</string>
+    <string name="label_account_tier">Nivel de Cuenta: Plan %1$s</string>
+    <string name="header_packages">RECARGAR PUNTOS &amp; SUSCRIPCIONES</string>
+    <string name="header_history">HISTORIAL DE TRANSACCIONES</string>
+    <string name="package_basic">Recarga Básica (+100 Puntos)</string>
+    <string name="package_premium">Recarga Premium (+500 Puntos)</string>
+    <string name="package_subscription">Plan Suscriptor Mensual (+1000 Pts/Mes)</string>
+    
+    <!-- Owner Console -->
+    <string name="title_owner_console">Consola del Propietario</string>
+    <string name="header_server_stats">ESTADÍSTICAS DEL SERVIDOR</string>
+    <string name="label_users">Usuarios</string>
+    <string name="label_total_points">Puntos Totales</string>
+    <string name="label_active_projects">Proyectos Activos</string>
+    <string name="label_consumed_points">Puntos Consumidos</string>
+    <string name="header_audit_logs">LOGS DE AUDITORÍA DE SEGURIDAD (RBAC)</string>
+    
+    <!-- Pagos -->
+    <string name="header_payment_methods">MÉTODOS DE PAGO</string>
+    <string name="label_paypal">PayPal</string>
+    <string name="label_paypal_active">✓ Activo</string>
+    <string name="label_paypal_secure">Pago seguro vía paypal.me/Numination</string>
+    <string name="btn_pay_paypal">Pagar con PayPal</string>
+    <string name="dialog_confirm_purchase">Confirmar Compra</string>
+    <string name="label_points">Puntos:</string>
+    <string name="label_price">Precio:</string>
+    <string name="msg_paypal_redirect">Se abrirá PayPal para completar el pago de forma segura.</string>
+    <string name="msg_payment_success">✓ Pago de %1$s procesado vía PayPal — +%2$d Pts acreditados</string>
+    <string name="msg_payment_error_server">Error en el servidor al procesar el pago.</string>
+    <string name="msg_payment_error_network">Error de red al procesar transacción.</string>
+    <string name="package_pro">Pack Pro (+1500 Puntos)</string>
+    <string name="package_ultra">Pack Ultra (+5000 Puntos)</string>
+</resources>

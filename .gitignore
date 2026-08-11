@@ -1,0 +1,52 @@
+# Dependencies / build output
+node_modules/
+.next/
+out/
+dist/
+build/
+coverage/
+
+# Environment files (keep example files)
+.env*
+!.env.example
+backend/.env*
+!backend/.env.example
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+
+# Vercel
+.vercel/
+.vercelignore
+backend/.vercel/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local-only secrets / credentials
+database_url.txt
+
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+android/keystore/
+*.apk
+*.aab
+*.keystore
+*.jks
+
+# Google config is restored in CI from a secret
+android/app/google-services.json
+google-services.json
+
+# Supabase local runtime
+supabase/.branches/
+supabase/.temp/

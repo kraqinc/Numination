@@ -1,0 +1,3 @@
+-- Superseded by 20260810000000_numination_schema.sql.
+-- Kept as a no-op so old migration references remain stable.
+-- Apply the 20260810000000 migration to provision the full Numination schema.

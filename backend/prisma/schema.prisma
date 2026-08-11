@@ -1,0 +1,142 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// Auth (credenciales, sesiones, identidades de Google/GitHub) vive enteramente
+// en Supabase Auth (auth.users). Este modelo ya NO es dueño de contraseñas ni
+// tokens -- es el perfil de aplicacion que cuelga 1:1 de auth.users.id.
+// El id es el mismo uuid que Supabase asigna en auth.users (sin @default:
+// siempre se inserta explicitamente, nunca lo genera Prisma). La fila se crea
+// automaticamente via el trigger `on_auth_user_created` (ver
+// supabase/migrations) apenas Supabase confirma un signup, asi que el backend
+// nunca necesita hacer upsert de usuario en el login.
+model User {
+  id String @id @db.Uuid
+  email String @unique
+  role String @default("USER")
+  tier String @default("FREE")
+  createdAt DateTime @default(now())
+
+  credits Credits?
+  projects Project[]
+  pendingRecharges PendingRecharge[]
+  auditLogsActedBy AuditLog[] @relation("AuditActor")
+  storageFiles StorageFile[]
+
+  @@index([role])
+  @@map("profiles")
+}
+
+model Credits {
+  userId String @id @db.Uuid
+  balance Int @default(50)
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model CreditLog {
+  id String @id @default(cuid())
+  userId String @db.Uuid
+  amount Int
+  reason String
+  timestamp DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Project {
+  id String @id @default(cuid())
+  userId String @db.Uuid
+  name String
+  description String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  files ProjectFile[]
+
+  @@index([userId])
+}
+
+model ProjectFile {
+  id String @id @default(cuid())
+  projectId String
+  parentId String?
+  name String
+  path String
+  isDirectory Boolean @default(false)
+  content String? @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([parentId])
+}
+
+model PendingRecharge {
+  id String @id @default(cuid())
+  userId String @db.Uuid
+  packageId String
+  creditAmount Int
+  priceLabel String
+  referenceCode String @unique
+  status String @default("PENDING")
+  createdAt DateTime @default(now())
+  resolvedAt DateTime?
+  resolvedBy String? @db.Uuid
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+}
+
+model AuditLog {
+  id String @id @default(cuid())
+  actorId String @db.Uuid
+  action String
+  details String? @db.Text
+  timestamp DateTime @default(now())
+
+  actor User @relation("AuditActor", fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([actorId])
+  @@index([timestamp])
+}
+
+model StorageFile {
+  id String @id @default(cuid())
+  userId String @db.Uuid
+  key String @unique
+  url String
+  token String
+  expiresAt DateTime
+  size Int
+  mimeType String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model AppVersion {
+  id String @id @default(cuid())
+  platform String
+  version String
+  mandatory Boolean @default(false)
+  downloadUrl String
+  notes String?
+  createdAt DateTime @default(now())
+
+  @@index([platform])
+}
