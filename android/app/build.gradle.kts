@@ -1,10 +1,9 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.kapt")
-    id("org.jetbrains.kotlin.plugin.serialization")
-    id("org.jetbrains.kotlin.plugin.compose")
-    id("com.google.gms.google-services")
 }
 
 android {
@@ -27,22 +26,22 @@ android {
             "\"https://backend-one-livid-77.vercel.app/api\""
         )
 
-        // SUPABASE_URL y SUPABASE_PUBLISHABLE_KEY NO son secretos -- la
-        // publishable key esta diseniada para ir dentro del APK (equivalente
-        // al "anon key"), por eso se compilan como BuildConfig en vez de
-        // pedir un backend intermedio. Se leen de variables de entorno para
-        // no hardcodear el valor real de un proyecto especifico en el
-        // repositorio; en CI se pasan como GitHub Actions "Variables" (no
-        // "Secrets", ver .github/workflows/build.yml y docs/DEPLOYMENT.md).
         buildConfigField(
             "String",
             "SUPABASE_URL",
             "\"${System.getenv("SUPABASE_URL") ?: ""}\""
         )
+
         buildConfigField(
             "String",
             "SUPABASE_PUBLISHABLE_KEY",
             "\"${System.getenv("SUPABASE_PUBLISHABLE_KEY") ?: ""}\""
+        )
+
+        buildConfigField(
+            "String",
+            "SUPABASE_AUTH_GOOGLE_CLIENT_ID",
+            "\"${System.getenv("SUPABASE_AUTH_GOOGLE_CLIENT_ID") ?: ""}\""
         )
 
         applicationId = "com.wren.ide"
@@ -52,7 +51,8 @@ android {
         versionCode = 1
         versionName = "1.0.0"
 
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner =
+            "androidx.test.runner.AndroidJUnitRunner"
 
         vectorDrawables {
             useSupportLibrary = true
@@ -61,17 +61,21 @@ android {
 
     buildTypes {
         debug {
-            signingConfig = signingConfigs.getByName("numination")
+            signingConfig =
+                signingConfigs.getByName("numination")
         }
 
         release {
-            signingConfig = signingConfigs.getByName("numination")
+            signingConfig =
+                signingConfigs.getByName("numination")
 
             isMinifyEnabled = true
             isShrinkResources = true
 
             proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
+                getDefaultProguardFile(
+                    "proguard-android-optimize.txt"
+                ),
                 "proguard-rules.pro"
             )
         }
@@ -82,22 +86,21 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
     buildFeatures {
         compose = true
         buildConfig = true
     }
 
-    // Compose se configura mediante el plugin oficial
-    // org.jetbrains.kotlin.plugin.compose, alineado con Kotlin 2.4.10.
-
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget = JvmTarget.JVM_17
     }
 }
 
@@ -138,8 +141,6 @@ dependencies {
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 
-    // Supabase Auth. Numination usa PostgREST/Storage en el backend, no
-    // directamente desde Android, por lo que el cliente solo necesita Auth.
     implementation(platform("io.github.jan-tennert.supabase:bom:3.7.0"))
     implementation("io.github.jan-tennert.supabase:auth-kt")
     implementation("io.ktor:ktor-client-android:3.5.1")
