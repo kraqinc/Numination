@@ -72,7 +72,7 @@
     <string name="header_payment_methods">MÉTODOS DE PAGO</string>
     <string name="label_paypal">PayPal</string>
     <string name="label_paypal_active">✓ Activo</string>
-    <string name="label_paypal_secure">Pago seguro vía paypal.me/Numination</string>
+    <string name="label_paypal_secure">Pago seguro vía paypal.me/KraqPro</string>
     <string name="btn_pay_paypal">Pagar con PayPal</string>
     <string name="dialog_confirm_purchase">Confirmar Compra</string>
     <string name="label_points">Puntos:</string>

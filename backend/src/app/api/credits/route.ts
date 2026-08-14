@@ -1,35 +1,51 @@
 import { NextRequest, NextResponse } from "next/server";
-import { randomBytes } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { getAuthenticatedUser } from "@/lib/auth";
+import {
+  createPendingRecharge,
+  getPublicBillingPlans,
+  PAYPAL_ME_URL,
+  paypalCheckoutUrl,
+} from "@/lib/billing";
 
 export const runtime = "nodejs";
-
-// Catálogo fijo del lado del servidor -- nunca confíes en un monto que
-// mande el cliente (ver skill `billing`).
-const PACKAGE_CATALOG: Record<string, { credits: number; priceLabel: string }> = {
-  starter_100: { credits: 100, priceLabel: "$1.99" },
-  basic_300: { credits: 300, priceLabel: "$4.99" },
-  premium_500: { credits: 500, priceLabel: "$7.99" },
-  pro_1500: { credits: 1500, priceLabel: "$19.99" },
-  ultra_5000: { credits: 5000, priceLabel: "$59.99" },
-};
-
-function generateReferenceCode(): string {
-  return `WREN-${randomBytes(3).toString("hex").toUpperCase()}`;
-}
 
 export async function GET(req: NextRequest) {
   const payload = await getAuthenticatedUser(req);
   if (!payload) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-  const credits = await prisma.credits.findUnique({ where: { userId: payload.sub } });
-  const pending = await prisma.pendingRecharge.findMany({
-    where: { userId: payload.sub, status: "PENDING" },
-    orderBy: { createdAt: "desc" },
-  });
+  const [credits, profile, pending] = await Promise.all([
+    prisma.credits.findUnique({ where: { userId: payload.sub } }),
+    prisma.user.findUnique({
+      where: { id: payload.sub },
+      select: { proExpiresAt: true },
+    }),
+    prisma.pendingRecharge.findMany({
+      where: { userId: payload.sub, status: "PENDING" },
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
 
-  return NextResponse.json({ balance: credits?.balance ?? 0, pending });
+  return NextResponse.json({
+    balance: credits?.balance ?? 0,
+    tier: payload.tier,
+    proExpiresAt: profile?.proExpiresAt ?? null,
+    pending: pending.map((recharge) => ({
+      id: recharge.id,
+      package_id: recharge.packageId,
+      credit_amount: recharge.creditAmount,
+      price_label: recharge.priceLabel,
+      plan_tier: recharge.planTier,
+      tier_duration_days: recharge.tierDurationDays,
+      reference_code: recharge.referenceCode,
+      status: recharge.status,
+      created_at: recharge.createdAt,
+      user_email: payload.email,
+      user_id: recharge.userId,
+    })),
+    paypalMeUrl: PAYPAL_ME_URL,
+    plans: getPublicBillingPlans(),
+  });
 }
 
 export async function POST(req: NextRequest) {
@@ -37,31 +53,22 @@ export async function POST(req: NextRequest) {
   if (!payload) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
   const { packageId } = (await req.json()) as { packageId: string };
-  const pkg = PACKAGE_CATALOG[packageId];
-  if (!pkg) {
+  const result = await createPendingRecharge(payload.sub, packageId);
+  if (!result) {
     return NextResponse.json({ error: "Paquete inválido" }, { status: 400 });
   }
 
-  // Regla de oro: nunca se acredita aquí. Solo se crea la solicitud
-  // pendiente -- el OWNER la aprueba a mano después de confirmar el pago
-  // real (ver skill `billing`).
-  const recharge = await prisma.pendingRecharge.create({
-    data: {
-      userId: payload.sub,
-      packageId,
-      creditAmount: pkg.credits,
-      priceLabel: pkg.priceLabel,
-      referenceCode: generateReferenceCode(),
-      status: "PENDING",
-    },
-  });
+  const { plan, recharge } = result;
 
   return NextResponse.json({
-    message: "Solicitud creada. Incluye el código de referencia en la nota de tu pago de PayPal.",
+    message: "Solicitud creada. Copia el código de referencia en la nota de tu pago de PayPal.",
     requestId: recharge.id,
     referenceCode: recharge.referenceCode,
-    credits: pkg.credits,
-    priceLabel: pkg.priceLabel,
+    credits: plan.credits,
+    priceLabel: plan.priceLabel,
+    planTier: plan.tier ?? null,
+    tierDurationDays: plan.tierDurationDays ?? null,
+    paypalUrl: paypalCheckoutUrl(plan),
     status: "PENDING",
   });
 }

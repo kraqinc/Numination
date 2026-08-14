@@ -72,7 +72,7 @@
     <string name="header_payment_methods">支付方式</string>
     <string name="label_paypal">PayPal</string>
     <string name="label_paypal_active">✓ 已启用</string>
-    <string name="label_paypal_secure">通过 paypal.me/Numination 安全支付</string>
+    <string name="label_paypal_secure">通过 paypal.me/KraqPro 安全支付</string>
     <string name="btn_pay_paypal">使用 PayPal 支付</string>
     <string name="dialog_confirm_purchase">确认购买</string>
     <string name="label_points">积分：</string>

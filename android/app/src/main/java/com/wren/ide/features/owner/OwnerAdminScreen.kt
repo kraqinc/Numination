@@ -217,9 +217,22 @@ fun OwnerAdminScreen(
                                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                     Column {
                                         Text(req.user_email, color = TextLight, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                        Text(req.package_id, color = TextMuted, fontSize = 11.sp)
+                                        Text(
+                                            if (req.plan_tier == "PRO") {
+                                                "${req.package_id} · activa PRO ${req.tier_duration_days ?: 30} días"
+                                            } else {
+                                                req.package_id
+                                            },
+                                            color = if (req.plan_tier == "PRO") TerminalGreen else TextMuted,
+                                            fontSize = 11.sp
+                                        )
                                     }
-                                    Text("+${req.credit_amount} Pts", color = EditorYellow, fontWeight = FontWeight.Black, fontSize = 14.sp)
+                                    Text(
+                                        if (req.plan_tier == "PRO") "PRO +${req.credit_amount} Pts" else "+${req.credit_amount} Pts",
+                                        color = if (req.plan_tier == "PRO") TerminalGreen else EditorYellow,
+                                        fontWeight = FontWeight.Black,
+                                        fontSize = 14.sp
+                                    )
                                 }
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Row(verticalAlignment = Alignment.CenterVertically) {

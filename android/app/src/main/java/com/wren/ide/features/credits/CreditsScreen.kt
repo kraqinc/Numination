@@ -1,7 +1,9 @@
 package com.wren.ide.features.credits
 
 import android.content.Intent
-import com.wren.ide.R
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -16,7 +18,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -40,7 +41,20 @@ data class PaymentPackage(
     val priceUsd: String,
     val priceLabel: String,
     val isSubscription: Boolean = false,
-    val isBestValue: Boolean = false
+    val isBestValue: Boolean = false,
+    val planTier: String? = null,
+    val tierDurationDays: Int? = null
+)
+
+private data class PendingPayment(
+    val referenceCode: String,
+    val priceLabel: String,
+    val planTier: String? = null
+)
+
+private data class PaymentInstructions(
+    val payment: PendingPayment,
+    val paypalUrl: String
 )
 
 /** Same glass-panel language used across Auth / Workspace / AI Agent. */
@@ -74,34 +88,43 @@ fun CreditsScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var selectedPackage by remember { mutableStateOf<PaymentPackage?>(null) }
     var showPaymentDialog by remember { mutableStateOf(false) }
-    var activePendingRequest by remember { mutableStateOf<RechargeRequestResponse?>(null) }
-
-    val packages = remember {
-        listOf(
-            PaymentPackage("basic_100", "Starter Pack", 100, "1.99", "$1.99 USD"),
-            PaymentPackage("premium_500", "Premium Pack", 500, "6.99", "$6.99 USD", isBestValue = true),
-            PaymentPackage("pro_1500", "Pro Pack", 1500, "14.99", "$14.99 USD"),
-            PaymentPackage("ultra_5000", "Ultra Pack", 5000, "39.99", "$39.99 USD"),
-            PaymentPackage("subscription_monthly", "Monthly Subscriber", 1000, "9.99", "$9.99 USD / Mes", isSubscription = true)
-        )
-    }
+    var activePendingPayment by remember { mutableStateOf<PendingPayment?>(null) }
+    var paymentInstructions by remember { mutableStateOf<PaymentInstructions?>(null) }
+    var packages by remember { mutableStateOf<List<PaymentPackage>>(emptyList()) }
+    var proExpiresAt by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         isLoading = true
         scope.launch(Dispatchers.IO) {
             try {
-                val response = NetworkClient.get("/credits/history")
-                if (response.isSuccessful) {
-                    val data = Gson().fromJson(response.body?.string(), CreditHistoryResponse::class.java)
-                    withContext(Dispatchers.Main) {
-                        historyLogs = data.logs
-                        isLoading = false
+                val history = NetworkClient.get("/credits/history").use { response ->
+                    if (response.isSuccessful) {
+                        Gson().fromJson(response.body?.string(), CreditHistoryResponse::class.java)
+                    } else null
+                }
+                val overview = NetworkClient.get("/credits").use { response ->
+                    if (response.isSuccessful) {
+                        Gson().fromJson(response.body?.string(), CreditsOverviewResponse::class.java)
+                    } else null
+                }
+                withContext(Dispatchers.Main) {
+                    historyLogs = history?.logs.orEmpty()
+                    overview?.let { data ->
+                        sessionManager.userCredits = data.balance
+                        sessionManager.userTier = data.tier
+                        proExpiresAt = data.proExpiresAt
+                        packages = data.plans.map { it.toPaymentPackage() }
+                        activePendingPayment = data.pending.firstOrNull()?.toPendingPayment()
+                    } ?: run {
+                        errorMessage = "No se pudieron cargar los planes de pago."
                     }
-                } else {
-                    withContext(Dispatchers.Main) { isLoading = false }
+                    isLoading = false
                 }
             } catch (_: Exception) {
-                withContext(Dispatchers.Main) { isLoading = false }
+                withContext(Dispatchers.Main) {
+                    errorMessage = "No se pudo conectar con la billetera de Numination."
+                    isLoading = false
+                }
             }
         }
     }
@@ -159,7 +182,29 @@ fun CreditsScreen(
                     }
                 }
 
-                activePendingRequest?.let { req ->
+                if (sessionManager.userTier == "PRO") {
+                    item {
+                        GlassPanel(modifier = Modifier.fillMaxWidth(), accent = TerminalGreen) {
+                            Row(
+                                modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Filled.Verified, contentDescription = null, tint = TerminalGreen)
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text("NUMINATION PRO ACTIVO", color = TerminalGreen, fontWeight = FontWeight.Black, fontSize = 13.sp)
+                                    Text(
+                                        proExpiresAt?.let { "Vence: ${it.take(10)}" } ?: "Acceso activado tras pago verificado",
+                                        color = TextMuted,
+                                        fontSize = 11.sp
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                activePendingPayment?.let { payment ->
                     item {
                         GlassPanel(modifier = Modifier.fillMaxWidth(), accent = EditorYellow) {
                             Column(modifier = Modifier.padding(18.dp)) {
@@ -170,7 +215,11 @@ fun CreditsScreen(
                                 }
                                 Spacer(modifier = Modifier.height(10.dp))
                                 Text(
-                                    "Incluye este código en la nota del pago de PayPal. Se acreditará cuando se confirme el pago:",
+                                    if (payment.planTier == "PRO") {
+                                        "Tu acceso Pro se activa al confirmar este pago. Incluye este código en la nota de PayPal:"
+                                    } else {
+                                        "Incluye este código en la nota del pago de PayPal. Los créditos se añaden al confirmar:"
+                                    },
                                     color = TextMuted, fontSize = 12.sp, lineHeight = 16.sp
                                 )
                                 Spacer(modifier = Modifier.height(10.dp))
@@ -183,7 +232,7 @@ fun CreditsScreen(
                                         .padding(12.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text(req.referenceCode, color = EditorYellow, fontSize = 18.sp, fontWeight = FontWeight.Black, letterSpacing = 2.sp)
+                                    Text(payment.referenceCode, color = EditorYellow, fontSize = 18.sp, fontWeight = FontWeight.Black, letterSpacing = 2.sp)
                                 }
                             }
                         }
@@ -206,12 +255,12 @@ fun CreditsScreen(
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("PayPal", color = Color(0xFF0070BA), fontSize = 15.sp, fontWeight = FontWeight.Bold)
                             Spacer(modifier = Modifier.fillMaxWidth(0.65f))
-                            Text("Verificación manual", color = TextMuted, fontSize = 11.sp)
+                            Text("paypal.me/KraqPro · verificación manual", color = TextMuted, fontSize = 11.sp)
                         }
                     }
                 }
 
-                item { SectionLabel("RECARGAR PUNTOS Y SUSCRIPCIONES") }
+                item { SectionLabel("PLANES Y CRÉDITOS") }
 
                 // Bento tile: 2-column grid for the four one-time packs, full-width for the subscription
                 item {
@@ -235,6 +284,9 @@ fun CreditsScreen(
                                 onClick = { selectedPackage = sub; showPaymentDialog = true },
                                 wide = true
                             )
+                        }
+                        if (!isLoading && packages.isEmpty()) {
+                            Text("No hay planes disponibles ahora mismo.", color = TextMuted, fontSize = 13.sp)
                         }
                     }
                 }
@@ -296,7 +348,11 @@ fun CreditsScreen(
                     }
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        "Se abrirá PayPal para el pago. Después recibirás un código — inclúyelo en la nota del pago. Un administrador confirma el pago antes de acreditar los puntos.",
+                        if (pkg.planTier == "PRO") {
+                            "Crearemos tu referencia de pago. Tras verificar el pago, Numination activará Pro durante ${pkg.tierDurationDays} días y añadirá los créditos incluidos."
+                        } else {
+                            "Crearemos tu referencia de pago antes de abrir PayPal. Debes incluirla en la nota; un administrador confirma el pago antes de añadir créditos."
+                        },
                         color = TextMuted, fontSize = 11.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -304,21 +360,30 @@ fun CreditsScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        val paypalUrl = "https://paypal.me/Numination/${pkg.priceUsd}"
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(paypalUrl)))
-
                         isLoading = true
                         showPaymentDialog = false
                         errorMessage = null
                         scope.launch(Dispatchers.IO) {
                             try {
                                 val body = mapOf("packageId" to pkg.id)
-                                val response = NetworkClient.post("/credits/recharge", body)
-                                if (response.isSuccessful) {
-                                    val data = Gson().fromJson(response.body?.string(), RechargeRequestResponse::class.java)
+                                val data = NetworkClient.post("/credits/recharge", body).use { response ->
+                                    if (response.isSuccessful) {
+                                        Gson().fromJson(response.body?.string(), RechargeRequestResponse::class.java)
+                                    } else null
+                                }
+                                if (data != null) {
                                     withContext(Dispatchers.Main) {
-                                        activePendingRequest = data
-                                        actionMessage = null
+                                        val pending = PendingPayment(
+                                            referenceCode = data.referenceCode,
+                                            priceLabel = data.priceLabel,
+                                            planTier = data.planTier
+                                        )
+                                        activePendingPayment = pending
+                                        paymentInstructions = PaymentInstructions(
+                                            payment = pending,
+                                            paypalUrl = data.paypalUrl ?: "https://paypal.me/KraqPro/${pkg.priceUsd}"
+                                        )
+                                        actionMessage = "Referencia creada. Copia el código antes de pagar."
                                         isLoading = false
                                     }
                                 } else {
@@ -352,12 +417,92 @@ fun CreditsScreen(
             containerColor = SecondaryCard
         )
     }
+
+    paymentInstructions?.let { instructions ->
+        AlertDialog(
+            onDismissRequest = { paymentInstructions = null },
+            title = { Text("Paso final: pago PayPal", color = TextLight, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Incluye este código en la nota del pago:", color = TextMuted, fontSize = 12.sp)
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        instructions.payment.referenceCode,
+                        color = EditorYellow,
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 2.sp
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        if (instructions.payment.planTier == "PRO") {
+                            "Pro se activa después de que el pago sea verificado manualmente."
+                        } else {
+                            "Los créditos se añaden después de que el pago sea verificado manualmente."
+                        },
+                        color = TextMuted,
+                        fontSize = 11.sp,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        runCatching {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(instructions.paypalUrl)))
+                        }.onFailure {
+                            errorMessage = "No se pudo abrir PayPal en este dispositivo."
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0070BA))
+                ) {
+                    Icon(Icons.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Abrir PayPal")
+                }
+            },
+            dismissButton = {
+                Row {
+                    TextButton(onClick = {
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        clipboard.setPrimaryClip(ClipData.newPlainText("Código PayPal Numination", instructions.payment.referenceCode))
+                        actionMessage = "Código de pago copiado."
+                    }) {
+                        Text("Copiar código", color = ElectricCyan)
+                    }
+                    TextButton(onClick = { paymentInstructions = null }) {
+                        Text("Cerrar", color = TextMuted)
+                    }
+                }
+            },
+            containerColor = SecondaryCard
+        )
+    }
 }
 
 @Composable
 private fun SectionLabel(text: String) {
     Text(text, color = TextLight, fontSize = 14.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
 }
+
+private fun BillingPlan.toPaymentPackage() = PaymentPackage(
+    id = id,
+    title = title,
+    points = credits,
+    priceUsd = priceUsd,
+    priceLabel = priceLabel,
+    isSubscription = tier == "PRO",
+    isBestValue = bestValue,
+    planTier = tier,
+    tierDurationDays = tierDurationDays
+)
+
+private fun PendingRecharge.toPendingPayment() = PendingPayment(
+    referenceCode = reference_code,
+    priceLabel = price_label,
+    planTier = plan_tier
+)
 
 @Composable
 private fun PackageBentoTile(
@@ -383,7 +528,15 @@ private fun PackageBentoTile(
                 Spacer(modifier = Modifier.height(6.dp))
             }
             Text(pkg.title, color = TextLight, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-            Text("+${pkg.points} Pts" + if (pkg.isSubscription) " / Mes" else "", color = TextMuted, fontSize = 11.sp)
+            Text(
+                if (pkg.planTier == "PRO") {
+                    "PRO · ${pkg.tierDurationDays ?: 30} días · +${pkg.points} Pts"
+                } else {
+                    "+${pkg.points} Pts"
+                },
+                color = TextMuted,
+                fontSize = 11.sp
+            )
             Spacer(modifier = Modifier.height(if (wide) 4.dp else 12.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),

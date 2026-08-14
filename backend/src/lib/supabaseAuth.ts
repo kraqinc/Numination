@@ -167,7 +167,7 @@ async function findProfileWithRetry(sub: string) {
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const profile = await prisma.user.findUnique({
       where: { id: sub },
-      select: { role: true, tier: true, email: true },
+      select: { role: true, tier: true, proExpiresAt: true, email: true },
     });
     if (profile) return profile;
     if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 150));
@@ -213,11 +213,22 @@ export async function verifySupabaseAccessToken(
     const profile = await findProfileWithRetry(sub);
     if (!profile) return null;
 
+    let tier = profile.tier;
+    if (profile.tier === "PRO" && profile.proExpiresAt && profile.proExpiresAt <= new Date()) {
+      // Expiry is enforced server-side, so a stale Android preference cannot
+      // keep paid access alive after the verified term ends.
+      await prisma.user.update({
+        where: { id: sub },
+        data: { tier: "FREE", proExpiresAt: null },
+      });
+      tier = "FREE";
+    }
+
     return {
       sub,
       email: profile.email || claims.email || "",
       role: profile.role,
-      tier: profile.tier,
+      tier,
     };
   } catch {
     return null;

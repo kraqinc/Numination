@@ -86,7 +86,30 @@ data class RechargeRequestResponse(
     val referenceCode: String,
     val credits: Int,
     val priceLabel: String,
+    val planTier: String? = null,
+    val tierDurationDays: Int? = null,
+    val paypalUrl: String? = null,
     val status: String
+)
+
+data class BillingPlan(
+    val id: String,
+    val title: String,
+    val credits: Int,
+    val priceUsd: String,
+    val priceLabel: String,
+    val bestValue: Boolean = false,
+    val tier: String? = null,
+    val tierDurationDays: Int? = null
+)
+
+data class CreditsOverviewResponse(
+    val balance: Int = 0,
+    val tier: String = "FREE",
+    val proExpiresAt: String? = null,
+    val paypalMeUrl: String = "",
+    val plans: List<BillingPlan> = emptyList(),
+    val pending: List<PendingRecharge> = emptyList()
 )
 
 // Security auditing record
@@ -122,6 +145,8 @@ data class PendingRecharge(
     val package_id: String,
     val credit_amount: Int,
     val price_label: String,
+    val plan_tier: String? = null,
+    val tier_duration_days: Int? = null,
     val reference_code: String,
     val status: String,
     val created_at: String,

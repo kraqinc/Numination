@@ -21,6 +21,7 @@ model User {
   email String @unique
   role String @default("USER")
   tier String @default("FREE")
+  proExpiresAt DateTime?
   createdAt DateTime @default(now())
 
   credits Credits?
@@ -96,6 +97,8 @@ model PendingRecharge {
   packageId String
   creditAmount Int
   priceLabel String
+  planTier String?
+  tierDurationDays Int?
   referenceCode String @unique
   status String @default("PENDING")
   createdAt DateTime @default(now())

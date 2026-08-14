@@ -72,7 +72,7 @@
     <string name="header_payment_methods">СПОСОБЫ ОПЛАТЫ</string>
     <string name="label_paypal">PayPal</string>
     <string name="label_paypal_active">✓ Активен</string>
-    <string name="label_paypal_secure">Безопасная оплата через paypal.me/Numination</string>
+    <string name="label_paypal_secure">Безопасная оплата через paypal.me/KraqPro</string>
     <string name="btn_pay_paypal">Оплатить через PayPal</string>
     <string name="dialog_confirm_purchase">Подтвердить Покупку</string>
     <string name="label_points">Баллы:</string>
