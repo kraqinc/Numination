@@ -50,11 +50,10 @@ import com.wren.ide.data.auth.AuthUiState
 import com.wren.ide.data.auth.AuthViewModel
 import com.wren.ide.data.auth.AuthViewModelFactory
 import com.wren.ide.data.supabase.WrenSupabase
-import com.wren.ide.features.ai.AIAgentScreen
 import com.wren.ide.features.auth.AuthScreen
 import com.wren.ide.features.auth.EnterCodeEmailScreen
 import com.wren.ide.features.credits.CreditsScreen
-import com.wren.ide.features.editor.IDEWorkspaceScreen
+import com.wren.ide.features.ide.NuminationIDEScreen
 import com.wren.ide.features.owner.OwnerAdminScreen
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -221,21 +220,18 @@ class MainActivity : ComponentActivity() {
                                 Column(modifier = Modifier.fillMaxSize().background(PrimaryObsidian)) {
                                     StoragePermissionBanner()
                                     Box(modifier = Modifier.fillMaxSize()) {
-                                        IDEWorkspaceScreen(
+                                        NuminationIDEScreen(
                                             sessionManager = sessionManager,
-                                            onNavToAI = { currentScreen = "ai_agent" },
                                             onNavToCredits = { currentScreen = "credits" },
                                             onNavToOwner = { currentScreen = "owner_dashboard" },
                                             onLogout = {
                                                 authViewModel.signOut()
                                                 currentScreen = "auth"
-                                            },
-                                            onOpenSettings = {}
+                                            }
                                         )
                                     }
                                 }
                             }
-                            "ai_agent" -> AIAgentScreen(sessionManager = sessionManager, onNavBack = { currentScreen = "workspace" })
                             "credits" -> CreditsScreen(sessionManager = sessionManager, onNavBack = { currentScreen = "workspace" })
                             "owner_dashboard" -> OwnerAdminScreen(sessionManager = sessionManager, onNavBack = { currentScreen = "workspace" })
                         }

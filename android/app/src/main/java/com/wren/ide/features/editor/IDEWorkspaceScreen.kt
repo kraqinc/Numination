@@ -1,10 +1,6 @@
 package com.wren.ide.features.editor
 
 import androidx.compose.animation.core.tween
-import com.wren.ide.R
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -12,13 +8,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.Description
@@ -26,10 +19,8 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.MonetizationOn
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Save
-import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.*
 import com.wren.ide.core.storage.AppLanguage
@@ -40,11 +31,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -57,6 +45,7 @@ import com.wren.ide.core.network.Project
 import com.wren.ide.core.network.ProjectFilesResponse
 import com.wren.ide.core.network.ProjectListResponse
 import com.wren.ide.core.storage.SessionManager
+import com.wren.ide.core.storage.WrenFileStorage
 import com.wren.ide.core.theme.BorderGray
 import com.wren.ide.core.theme.EditorYellow
 import com.wren.ide.core.theme.ElectricCyan
@@ -78,7 +67,9 @@ fun IDEWorkspaceScreen(
     onNavToCredits: () -> Unit,
     onNavToOwner: () -> Unit,
     onLogout: () -> Unit,
-    onOpenSettings: () -> Unit
+    onNavToTerminal: () -> Unit,
+    onProjectChanged: (Project?) -> Unit = {},
+    onFileContentChanged: (String?) -> Unit = {}
 ) {
     val scope = rememberCoroutineScope()
 
@@ -90,9 +81,6 @@ fun IDEWorkspaceScreen(
     var isDirty by remember { mutableStateOf(false) }
 
     var showFileExplorer by remember { mutableStateOf(false) }
-    var showTerminal by remember { mutableStateOf(false) }
-    var terminalOutput by remember { mutableStateOf("numination-terminal-session init: OK\n$ ") }
-    var terminalInput by remember { mutableStateOf("") }
 
     var isLoading by remember { mutableStateOf(false) }
     var showNewProjectDialog by remember { mutableStateOf(false) }
@@ -114,6 +102,7 @@ fun IDEWorkspaceScreen(
                         projects = pResponse.projects
                         if (projects.isNotEmpty()) {
                             selectedProject = projects.first()
+                            onProjectChanged(projects.first())
                         } else {
                             // No projects yet — open the explorer so the user
                             // isn't dropped onto a blank, unexplained screen.
@@ -131,6 +120,13 @@ fun IDEWorkspaceScreen(
     }
 
     LaunchedEffect(selectedProject) {
+        onProjectChanged(selectedProject)
+        if (selectedProject == null) {
+            files = emptyList()
+            selectedFile = null
+            codeContent = TextFieldValue("")
+            onFileContentChanged(null)
+        }
         selectedProject?.let { project ->
             isLoading = true
             try {
@@ -139,12 +135,18 @@ fun IDEWorkspaceScreen(
                     if (response.isSuccessful) {
                         val body = response.body?.string()
                         val fResponse = Gson().fromJson(body, ProjectFilesResponse::class.java)
+                        val syncedFiles = hydrateProjectFiles(project, fResponse.files)
                         withContext(Dispatchers.Main) {
-                            files = fResponse.files
+                            files = syncedFiles
                             selectedFile = files.find { it.is_directory == 0 }
                             selectedFile?.let {
                                 codeContent = TextFieldValue(it.content ?: "")
                                 isDirty = false
+                                onFileContentChanged(it.content)
+                            } ?: run {
+                                codeContent = TextFieldValue("")
+                                isDirty = false
+                                onFileContentChanged(null)
                             }
                             isLoading = false
                         }
@@ -166,6 +168,7 @@ fun IDEWorkspaceScreen(
                 val body = mapOf("content" to codeContent.text)
                 val res = NetworkClient.put("/projects/${p.id}/files/${activeFile.id}", body)
                 if (res.isSuccessful) {
+                    WrenFileStorage.writeFile(p.name, activeFile.path, codeContent.text)
                     val updatedFiles = files.map {
                         if (it.id == activeFile.id) it.copy(content = codeContent.text) else it
                     }
@@ -190,7 +193,7 @@ fun IDEWorkspaceScreen(
                 credits = sessionManager.userCredits,
                 showOwnerAction = sessionManager.userRole == "OWNER" || sessionManager.userRole == "SUPER_ADMIN",
                 onOpenExplorer = { showFileExplorer = true },
-                onOpenTerminal = { showTerminal = true },
+                onOpenTerminal = onNavToTerminal,
                 onSave = { saveActiveFile() },
                 onNavToAI = onNavToAI,
                 onNavToCredits = onNavToCredits,
@@ -214,6 +217,7 @@ fun IDEWorkspaceScreen(
                     onValueChange = {
                         codeContent = it
                         isDirty = true
+                        onFileContentChanged(it.text)
                     },
                     modifier = Modifier
                         .fillMaxSize()
@@ -263,44 +267,17 @@ fun IDEWorkspaceScreen(
                 onSelectFile = { file ->
                     if (file.is_directory == 0) {
                         selectedFile = file
-                        codeContent = TextFieldValue(file.content ?: "")
+                        val localContent = selectedProject?.let { project ->
+                            WrenFileStorage.readFile(project.name, file.path)
+                        } ?: file.content
+                        codeContent = TextFieldValue(localContent ?: "")
                         isDirty = false
+                        onFileContentChanged(localContent)
                         showFileExplorer = false
                     }
                 },
                 onNewProject = { showNewProjectDialog = true },
                 onNewFile = { showNewFileDialog = true }
-            )
-        }
-    }
-
-    // --- Terminal as a bottom sheet the user summons, instead of a fixed
-    // 150dp strip permanently eating vertical space on every screen. ---
-    if (showTerminal) {
-        ModalBottomSheet(
-            onDismissRequest = { showTerminal = false },
-            containerColor = PrimaryObsidian
-        ) {
-            TerminalSheet(
-                output = terminalOutput,
-                input = terminalInput,
-                onInputChange = { terminalInput = it },
-                onReset = { terminalOutput = "numination-terminal-session reset: SUCCESS\n$ " },
-                onExecute = {
-                    if (terminalInput.isNotBlank()) {
-                        val command = terminalInput.trim()
-                        val simulatedResponse = when {
-                            command == "numination build" || command == "numination compile" ->
-                                "Numination Build Engine v1.0...\n> Compiling sources...\n> Task :compile SUCCESS\n> Task :assemble SUCCESS\n\nBUILD SUCCESSFUL in 4s\nAPK generated: numination-app.apk (1.8 MB)\n$ "
-                            command.startsWith("git ") ->
-                                "git branch main: local tracking active.\nEverything up-to-date.\n$ "
-                            command == "clear" -> ""
-                            else -> "wren-shell: command not found: $command. Prueba 'numination build' o 'git status'.\n$ "
-                        }
-                        terminalOutput = if (command == "clear") "$ " else "$terminalOutput$command\n$simulatedResponse"
-                        terminalInput = ""
-                    }
-                }
             )
         }
     }
@@ -423,8 +400,9 @@ fun IDEWorkspaceScreen(
                                         if (fResponse.isSuccessful) {
                                             val b = fResponse.body?.string()
                                             val filesData = Gson().fromJson(b, ProjectFilesResponse::class.java)
+                                            val syncedFiles = hydrateProjectFiles(p, filesData.files)
                                             withContext(Dispatchers.Main) {
-                                                files = filesData.files
+                                                files = syncedFiles
                                                 newFileName = ""
                                                 isNewFileDirectory = false
                                                 isLoading = false
@@ -454,6 +432,35 @@ fun IDEWorkspaceScreen(
     if (showSettings) {
         SettingsDialog(onDismiss = { showSettings = false })
     }
+    }
+}
+
+/**
+ * The editor API remains the source of project metadata, while the terminal
+ * works on physical files. Existing local content wins to avoid overwriting a
+ * terminal edit before the user explicitly saves it through the editor.
+ */
+private fun hydrateProjectFiles(project: Project, remoteFiles: List<FileItem>): List<FileItem> {
+    if (!WrenFileStorage.hasAllFilesAccess()) return remoteFiles
+
+    return try {
+        remoteFiles.sortedWith(
+            compareBy<FileItem> { it.is_directory == 0 }
+                .thenBy { it.path.count { character -> character == '/' } }
+        ).map { file ->
+            if (file.is_directory == 1) {
+                WrenFileStorage.createDirectory(project.name, file.path)
+                file
+            } else {
+                val localContent = WrenFileStorage.readFile(project.name, file.path)
+                if (localContent == null) {
+                    WrenFileStorage.writeFile(project.name, file.path, file.content.orEmpty())
+                }
+                file.copy(content = localContent ?: file.content.orEmpty())
+            }
+        }
+    } catch (_: Exception) {
+        remoteFiles
     }
 }
 
@@ -738,82 +745,3 @@ private fun FileExplorerSheet(
         Spacer(modifier = Modifier.height(12.dp))
     }
 }
-
-@Composable
-private fun TerminalSheet(
-    output: String,
-    input: String,
-    onInputChange: (String) -> Unit,
-    onReset: () -> Unit,
-    onExecute: () -> Unit
-) {
-    val terminalPulseTransition = rememberInfiniteTransition(label = "terminal_pulse")
-    val terminalPulse by terminalPulseTransition.animateFloat(
-        initialValue = 0.35f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(1400)),
-        label = "terminal_pulse_alpha"
-    )
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(420.dp)
-            .padding(horizontal = 16.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.Terminal, contentDescription = null, tint = TerminalGreen.copy(alpha = 0.45f + (0.55f * terminalPulse)), modifier = Modifier.size(15.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("TERMINAL", color = TextMuted, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
-            }
-            IconButton(onClick = onReset, modifier = Modifier.size(24.dp)) {
-                Icon(Icons.Filled.Refresh, contentDescription = "Reiniciar terminal", tint = TextMuted, modifier = Modifier.size(15.dp))
-            }
-        }
-
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(0.70f)
-                .background(SecondaryCard, RoundedCornerShape(10.dp))
-                .padding(12.dp)
-        ) {
-            item {
-                Text(text = output, color = TerminalGreen, fontFamily = FontFamily.Monospace, fontSize = 12.sp, lineHeight = 17.sp)
-            }
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(SecondaryCard, RoundedCornerShape(10.dp))
-                .border(1.dp, BorderGray, RoundedCornerShape(10.dp))
-                .padding(horizontal = 12.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("$ ", color = TerminalGreen, fontFamily = FontFamily.Monospace, fontSize = 13.sp)
-            BasicTextField(
-                value = input,
-                onValueChange = onInputChange,
-                textStyle = TextStyle(color = TextLight, fontFamily = FontFamily.Monospace, fontSize = 13.sp),
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                cursorBrush = SolidColor(ElectricCyan),
-                modifier = Modifier
-                    .fillMaxWidth(0.85f)
-                    .padding(start = 4.dp, top = 8.dp, bottom = 8.dp)
-            )
-            IconButton(onClick = onExecute, modifier = Modifier.size(28.dp)) {
-                Icon(Icons.Filled.Send, contentDescription = "Ejecutar", tint = ElectricCyan, modifier = Modifier.size(16.dp))
-            }
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-    }
-}
-

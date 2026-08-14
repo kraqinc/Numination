@@ -101,7 +101,10 @@ function verifyAsymmetricJwt(token: string, keys: Jwk[], expectedIssuer: string)
   let valid = false;
   for (const jwk of candidates) {
     try {
-      const publicKey = createPublicKey({ key: jwk, format: "jwk" });
+      const publicKey = createPublicKey({
+        key: jwk as import("node:crypto").JsonWebKey,
+        format: "jwk",
+      });
       valid = verifySignature(
         "sha256",
         signingInput,

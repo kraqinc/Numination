@@ -28,6 +28,9 @@ model User {
   pendingRecharges PendingRecharge[]
   auditLogsActedBy AuditLog[] @relation("AuditActor")
   storageFiles StorageFile[]
+  activities UserActivity[]
+  notifications Notification[]
+  memories Memory[]
 
   @@index([role])
   @@map("profiles")
@@ -49,6 +52,7 @@ model CreditLog {
   timestamp DateTime @default(now())
 
   @@index([userId])
+  @@index([userId, timestamp(sort: Desc)])
 }
 
 model Project {
@@ -58,11 +62,15 @@ model Project {
   description String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  lastOpenedAt DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   files ProjectFile[]
+  activities UserActivity[]
+  memories Memory[]
 
   @@index([userId])
+  @@index([userId, updatedAt(sort: Desc)])
 }
 
 model ProjectFile {
@@ -139,4 +147,62 @@ model AppVersion {
   createdAt DateTime @default(now())
 
   @@index([platform])
+}
+
+model UserActivity {
+  id String @id @default(cuid())
+  userId String @db.Uuid
+  projectId String?
+  fileId String?
+  type String
+  title String?
+  description String?
+  metadata Json?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([projectId, createdAt(sort: Desc)])
+  @@map("UserActivity")
+}
+
+model Notification {
+  id String @id @default(cuid())
+  userId String @db.Uuid
+  type String
+  title String
+  message String
+  read Boolean @default(false)
+  metadata Json?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, read])
+  @@map("Notification")
+}
+
+model Memory {
+  id String @id @default(cuid())
+  userId String @db.Uuid
+  projectId String?
+  title String
+  content String @db.Text
+  type String @default("PROJECT")
+  path String?
+  extension String?
+  pinned Boolean @default(false)
+  metadata Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([userId, updatedAt(sort: Desc)])
+  @@index([userId, projectId])
+  @@map("Memory")
 }

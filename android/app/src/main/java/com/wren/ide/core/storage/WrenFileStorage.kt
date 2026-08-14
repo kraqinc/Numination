@@ -38,10 +38,13 @@ object WrenFileStorage {
         return File(base, "$ROOT_FOLDER/$INTERNAL_FOLDER/$APP_FOLDER/$PROJECTS_FOLDER")
     }
 
+    /** Directorio raíz visible de todos los proyectos de Numination. */
+    fun workspaceDir(): File = projectsRoot().apply { mkdirs() }
+
     /** Carpeta real de un proyecto específico, creándola si no existe. */
     fun projectDir(projectName: String): File {
         val safeName = sanitizeName(projectName)
-        val dir = File(projectsRoot(), safeName)
+        val dir = File(workspaceDir(), safeName)
         if (!dir.exists()) dir.mkdirs()
         return dir
     }
