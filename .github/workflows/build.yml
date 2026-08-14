@@ -72,6 +72,14 @@ jobs:
           java-version: 17
           cache: gradle
 
+      # The app compiles with API 36. This is provisioned in CI only; developers
+      # do not need to install an Android SDK to rely on this verification path.
+      - name: Setup Android SDK API 36
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK platform
+        run: sdkmanager --install "platforms;android-36"
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 

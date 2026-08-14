@@ -9,7 +9,9 @@ plugins {
 
 android {
     namespace = "com.wren.ide"
-    compileSdk = 34
+    // Modern AndroidX/Compose artifacts in the dependency graph require API 36.
+    // targetSdk stays at 34 until runtime-behaviour migration is explicitly planned.
+    compileSdk = 36
 
     signingConfigs {
         create("numination") {
