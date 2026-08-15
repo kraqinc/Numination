@@ -42,9 +42,6 @@ class AuthRepository(private val context: Context) {
         val rawNonce = generateRawNonce()
         val hashedNonce = sha256Hex(rawNonce)
 
-        // A Google se le manda el nonce hasheado (SHA-256, hex); a Supabase
-        // se le manda el nonce crudo -- Supabase Auth hashea internamente lo
-        // que recibe de vuelta en el ID token y lo compara contra este.
         val option = GetSignInWithGoogleOption.Builder(webClientId)
             .setNonce(hashedNonce)
             .build()
@@ -71,12 +68,6 @@ class AuthRepository(private val context: Context) {
             this.nonce = rawNonce
         }
     }
-
-    /**
-     * Opens GitHub in a Custom Tab (configured in WrenSupabase) and returns
-     * through numination://auth. MainActivity forwards those intents to
-     * Supabase via handleDeeplinks(intent).
-     */
     suspend fun signInWithGithub() {
         auth.signInWith(Github)
     }
@@ -98,10 +89,6 @@ class AuthRepository(private val context: Context) {
     }
 
     fun getCurrentUser(): UserInfo? = auth.currentUserOrNull()
-
-    /** Access token de la sesion Supabase actual -- este es el que se manda
-     * como Bearer al backend propio (/credits, /projects, /owner, /ai/*),
-     * en vez del JWT que antes firmaba lib/jwt.ts. */
     fun getCurrentAccessToken(): String? = auth.currentSessionOrNull()?.accessToken
 
     private fun generateRawNonce(): String {
