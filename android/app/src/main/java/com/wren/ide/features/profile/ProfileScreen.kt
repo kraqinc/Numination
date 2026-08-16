@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+
 package com.wren.ide.features.profile
 
 import androidx.compose.foundation.background
@@ -107,11 +109,9 @@ fun ProfileScreen(
                 Column {
 
                     Text(
-                        sessionManager
-                            .userEmail
-                            .ifBlank {
-                                "Usuario Numination"
-                            },
+                        sessionManager.userEmail.ifBlank {
+                            "Usuario Numination"
+                        },
                         style =
                             MaterialTheme
                                 .typography
@@ -119,7 +119,6 @@ fun ProfileScreen(
                         fontWeight =
                             FontWeight.Bold
                     )
-
                     Text(
                         "Plan ${sessionManager.userTier}",
                         color = ElectricCyan

@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+
 package com.wren.ide.features.memory
 
 import androidx.compose.foundation.background
@@ -213,7 +215,7 @@ fun MemoryScreen(
                                     ?.toString()
                                     .orEmpty(),
                                 fontWeight = FontWeight.Bold,
-                                Modifier.weight(1f)
+                                modifier = Modifier.weight(1f)
                             )
 
                             Text(

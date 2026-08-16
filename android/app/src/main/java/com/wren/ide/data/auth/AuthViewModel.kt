@@ -13,7 +13,7 @@ import com.google.gson.Gson
 import com.wren.ide.core.network.NetworkClient
 import com.wren.ide.core.network.User
 import com.wren.ide.core.storage.SessionManager
-import io.github.jan.supabase.auth.SessionStatus
+import io.github.jan.supabase.auth.status.SessionStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

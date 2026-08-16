@@ -1,15 +1,15 @@
 package com.wren.ide.data.auth
 
 import android.content.Context
+import com.wren.ide.BuildConfig
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
-import com.wren.ide.R
 import com.wren.ide.data.supabase.WrenSupabase
 import io.github.jan.supabase.auth.OtpType
-import io.github.jan.supabase.auth.SessionStatus
+import io.github.jan.supabase.auth.status.SessionStatus
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.Github
 import io.github.jan.supabase.auth.providers.Google
@@ -38,7 +38,7 @@ class AuthRepository(private val context: Context) {
     val sessionStatus: StateFlow<SessionStatus> = auth.sessionStatus
 
     suspend fun signInWithGoogle() {
-        val webClientId = context.getString(R.string.default_web_client_id)
+        val webClientId = BuildConfig.SUPABASE_AUTH_GOOGLE_CLIENT_ID
         val rawNonce = generateRawNonce()
         val hashedNonce = sha256Hex(rawNonce)
 

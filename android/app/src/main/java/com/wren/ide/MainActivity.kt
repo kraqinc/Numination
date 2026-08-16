@@ -50,6 +50,7 @@ import com.wren.ide.data.auth.AuthUiState
 import com.wren.ide.data.auth.AuthViewModel
 import com.wren.ide.data.auth.AuthViewModelFactory
 import com.wren.ide.data.supabase.WrenSupabase
+import io.github.jan.supabase.auth.handleDeeplinks
 import com.wren.ide.features.auth.AuthScreen
 import com.wren.ide.features.auth.EnterCodeEmailScreen
 import com.wren.ide.features.credits.CreditsScreen

@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+
 package com.wren.ide.features.dashboard
 
 import androidx.compose.foundation.background
@@ -429,7 +431,7 @@ fun DashboardScreen(
                                 )
 
                                 Text(
-                                    project.description.ifBlank {
+                                    project.description?.ifBlank {
                                         "Proyecto Numination"
                                     },
                                     color = TextMuted,
