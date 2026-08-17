@@ -109,9 +109,9 @@ fun ProfileScreen(
                 Column {
 
                     Text(
-                        sessionManager.userEmail.ifBlank {
+                        sessionManager.userEmail?.ifBlank {
                             "Usuario Numination"
-                        },
+                        } ?: "Usuario Numination",
                         style =
                             MaterialTheme
                                 .typography
@@ -185,7 +185,7 @@ fun ProfileScreen(
                     Text("Rol")
 
                     Text(
-                        sessionManager.userRole
+                        sessionManager.userRole	?: "USER"
                     )
                 }
             }
