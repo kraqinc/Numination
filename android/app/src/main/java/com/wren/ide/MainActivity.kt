@@ -199,7 +199,7 @@ class MainActivity : ComponentActivity() {
                                             currentScreen = "enter_code_email"
                                         }
                                     },
-                                    onGoogleLogin = { authViewModel.onGoogleLogin() },
+                                    onGoogleLogin = { authViewModel.onGoogleLogin(this@MainActivity) },
                                     onGithubLogin = { authViewModel.onGithubLogin() }
                                 )
                             }

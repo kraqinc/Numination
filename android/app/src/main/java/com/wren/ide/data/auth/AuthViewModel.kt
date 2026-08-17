@@ -6,6 +6,7 @@ import androidx.credentials.exceptions.GetCredentialException
 import androidx.credentials.exceptions.NoCredentialException
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
+import android.app.Activity
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
@@ -68,11 +69,11 @@ class AuthViewModel(
         }
     }
 
-    fun onGoogleLogin() {
+    fun onGoogleLogin(activity: Activity) {
         viewModelScope.launch {
             _state.value = AuthUiState.Loading
             try {
-                repository.signInWithGoogle()
+                repository.signInWithGoogle(activity)
                 syncAuthenticatedSession(forceProfile = true)
             } catch (_: GetCredentialCancellationException) {
                 _state.value = AuthUiState.Idle
