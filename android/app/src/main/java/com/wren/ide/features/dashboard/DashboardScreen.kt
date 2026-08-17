@@ -287,7 +287,7 @@ fun DashboardScreen(
                         )
 
                         Text(
-                            sessionManager.userTier,
+                            sessionManager.userTier ?: "FREE",
                             color = ElectricCyan,
                             fontSize = 12.sp
                         )
@@ -433,7 +433,7 @@ fun DashboardScreen(
                                 Text(
                                     project.description?.ifBlank {
                                         "Proyecto Numination"
-                                    },
+                                    } ?: "Proyecto Numination",
                                     color = TextMuted,
                                     maxLines = 2
                                 )
