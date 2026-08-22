@@ -1,181 +1,135 @@
-
 # ⚡ Numination
 
-### The pocket-sized AI IDE for real development work.
----
+### A pocket-sized AI IDE for real development work.
 
 <div align="center">
 
-# NUMINATION
+![Numination](https://img.shields.io/badge/Numination-AI%20IDE-7C3AED?style=for-the-badge\&logo=android\&logoColor=white)
+![Kotlin](https://img.shields.io/badge/Kotlin-7F52FF?style=for-the-badge\&logo=kotlin\&logoColor=white)
+![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-4285F4?style=for-the-badge\&logo=jetpackcompose\&logoColor=white)
+![Material 3](https://img.shields.io/badge/Material%203-6750A4?style=for-the-badge\&logo=materialdesign\&logoColor=white)
+![Next.js](https://img.shields.io/badge/Next.js-000000?style=for-the-badge\&logo=next.js\&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge\&logo=typescript\&logoColor=white)
+![Prisma](https://img.shields.io/badge/Prisma-2D3748?style=for-the-badge\&logo=prisma\&logoColor=white)
+![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge\&logo=supabase\&logoColor=white)
 
-**Build anywhere. Code anywhere. Think with AI.**
-
-A native Android development environment designed to bring real software development into your pocket.
+**Build. Code. Create. Anywhere.**
 
 </div>
 
 ---
 
-## ✨ Overview
+## 🧠 What is Numination?
 
-**Numination** is a native Android IDE with an integrated AI agent, project workspace, file explorer, authentication system, cloud-backed services and a companion web login.
+**Numination** is a native Android IDE built for developers who want a powerful development environment directly on their mobile device.
 
-The project is designed around a simple idea:
+It combines a real project workspace, file explorer, AI-assisted development, authentication, cloud infrastructure and developer-focused tools into one Android experience.
 
-> **Professional development tools shouldn't have to stay on a desktop.**
+Numination isn't designed to be just another code editor.
 
-Numination combines an Android-native development environment with AI-assisted workflows and a cloud backend, creating a portable workspace for developers who want to build, inspect and manage projects directly from their mobile device.
-
-The architecture separates the Android application, backend services and web authentication layer so each part of the ecosystem can evolve independently.
+It is designed to become a **portable development environment**.
 
 ---
 
-# 🚀 Features
-
-<table>
-<tr>
-<td width="50%">
+## ✨ Core Features
 
 ### 📱 Native Android IDE
 
-Built specifically for Android using:
+Built from the ground up for Android using modern native technologies.
 
 * Kotlin
 * Jetpack Compose
 * Material 3
-* Native Android components
-* Modern Android architecture
+* Native Android architecture
+* Modern UI
+* Mobile-first development experience
 
-</td>
+### 🤖 AI Agent
 
-<td width="50%">
+AI is integrated directly into the development experience.
 
-### 🤖 AI-Assisted Development
-
-Numination integrates an AI agent into the development workflow.
-
-* AI development assistance
+* AI-assisted development
 * Context-aware workflows
 * Project interaction
-* Development screens
-* AI-powered tooling
-
-</td>
-</tr>
-
-<tr>
-<td width="50%">
+* Development assistance
+* Intelligent coding workflows
+* AI-powered developer tools
 
 ### 📂 Project Workspace
 
-Work directly with real project structures.
+A complete workspace designed around real development projects.
 
+* Project management
 * File explorer
-* Workspace management
-* Project navigation
+* Workspace navigation
 * File operations
+* Project context
 * Development environment
-
-</td>
-
-<td width="50%">
 
 ### 🔐 Authentication
 
-A complete authentication ecosystem.
+Numination includes a complete account and authentication system.
 
 * Email authentication
-* Google sign-in
+* Google authentication
 * Session management
 * Profile synchronization
-* Secure redirects
-* Cloud-backed accounts
+* Supabase integration
+* Secure authentication flows
 
-</td>
-</tr>
+### 💳 Credits & Pro
 
-<tr>
-<td width="50%">
+Numination includes infrastructure for account-based usage and premium functionality.
 
-### ☁️ Cloud Backend
-
-The backend provides the services required by the application.
-
-* Next.js API
-* TypeScript
-* Prisma
-* MySQL
-* Authentication
-* User data
-
-</td>
-
-<td width="50%">
-
-### 🌐 Companion Web
-
-A lightweight web login experience connected to the Numination backend.
-
-* Static web application
-* Vercel deployment
-* Authentication flow
-* Backend integration
-* Browser-based access
-
-</td>
-</tr>
-</table>
+* User credits
+* Pro functionality
+* Billing infrastructure
+* Account management
+* Owner functionality
 
 ---
 
 # 🏗️ Architecture
 
-Numination is divided into multiple independent layers.
+Numination is organized into independent layers that work together as one ecosystem.
 
 ```text
-                         ┌──────────────────────┐
-                         │       USER           │
-                         └──────────┬───────────┘
-                                    │
-                  ┌─────────────────┴─────────────────┐
-                  │                                   │
-                  ▼                                   ▼
-        ┌────────────────────┐              ┌────────────────────┐
-        │   Android App      │              │   Web Login        │
-        │                    │              │                    │
-        │ Kotlin             │              │ HTML / CSS / JS    │
-        │ Jetpack Compose   │              │ Vercel             │
-        │ Material 3        │              │                    │
-        └─────────┬──────────┘              └─────────┬──────────┘
-                  │                                   │
-                  └─────────────────┬─────────────────┘
-                                    │
-                                    ▼
-                         ┌──────────────────────┐
-                         │     Backend API      │
-                         │                      │
-                         │ Next.js              │
-                         │ TypeScript           │
-                         │ Prisma               │
-                         └──────────┬───────────┘
-                                    │
-                                    ▼
-                         ┌──────────────────────┐
-                         │       Database       │
-                         │                      │
-                         │        MySQL         │
-                         └──────────────────────┘
-
-                                    │
-                                    ▼
-
-                         ┌──────────────────────┐
-                         │      Supabase        │
-                         │                      │
-                         │ Authentication       │
-                         │ Sessions             │
-                         │ User synchronization  │
-                         └──────────────────────┘
+                         ┌────────────────────────┐
+                         │        NUMINATION      │
+                         │      Android Client    │
+                         └────────────┬───────────┘
+                                      │
+                    ┌─────────────────┼─────────────────┐
+                    │                 │                 │
+                    ▼                 ▼                 ▼
+             ┌────────────┐    ┌────────────┐    ┌────────────┐
+             │ Workspace  │    │ AI Agent   │    │   Auth     │
+             │            │    │            │    │            │
+             │ Files      │    │ AI Tools   │    │ Sessions   │
+             │ Projects   │    │ Context    │    │ Profiles   │
+             └──────┬─────┘    └──────┬─────┘    └──────┬─────┘
+                    │                 │                 │
+                    └─────────────────┼─────────────────┘
+                                      │
+                                      ▼
+                         ┌────────────────────────┐
+                         │      BACKEND API       │
+                         │                        │
+                         │       Next.js          │
+                         │       TypeScript       │
+                         │       Prisma           │
+                         └────────────┬───────────┘
+                                      │
+                         ┌────────────┴────────────┐
+                         │                         │
+                         ▼                         ▼
+                  ┌─────────────┐          ┌──────────────┐
+                  │    MySQL    │          │   Supabase   │
+                  │             │          │              │
+                  │ Application │          │ Auth         │
+                  │ Data        │          │ Sessions     │
+                  └─────────────┘          │ Profiles     │
+                                           └──────────────┘
 ```
 
 ---
@@ -186,7 +140,6 @@ Numination is divided into multiple independent layers.
 Numination/
 │
 ├── android/
-│   │
 │   ├── app/
 │   ├── gradle/
 │   ├── build.gradle
@@ -194,25 +147,14 @@ Numination/
 │   └── gradlew
 │
 ├── backend/
-│   │
 │   ├── app/
 │   ├── prisma/
 │   ├── public/
 │   ├── package.json
 │   ├── next.config.*
-│   ├── prisma.schema
 │   └── .env.example
 │
-├── wren-login-web/
-│   │
-│   ├── index.html
-│   ├── style.css
-│   ├── script.js
-│   ├── config.example.js
-│   └── README.md
-│
 ├── supabase/
-│   │
 │   └── migrations/
 │
 ├── docs/
@@ -233,13 +175,13 @@ Numination/
 
 # 📱 Android
 
-The Android application is the core of Numination.
+The Android application is the heart of Numination.
 
-Built using modern Android development technologies, the application provides the development workspace, project navigation and AI-assisted experiences.
+Built using **Kotlin, Jetpack Compose and Material 3**, it provides the native interface for the entire development experience.
 
-### Core technologies
+### Android stack
 
-| Technology      | Purpose              |
+| Technology      | Role                 |
 | --------------- | -------------------- |
 | Kotlin          | Application language |
 | Jetpack Compose | UI framework         |
@@ -247,69 +189,117 @@ Built using modern Android development technologies, the application provides th
 | Android SDK     | Native platform      |
 | Gradle          | Build system         |
 
-### Android capabilities
+### Android modules & experiences
 
 * Workspace
 * File explorer
-* Project management
-* AI screens
+* Project navigation
+* AI development screens
+* Authentication
 * Session management
-* Credits system
-* Owner/admin screens
+* Credits
+* Pro functionality
+* Owner screens
 * Storage permissions
-* Native Android UI
+* Native UI
 
 ---
 
 # 🤖 AI Development
 
-Numination is built around an AI-assisted development experience.
+Numination places AI directly inside the development workflow.
 
-Instead of treating AI as a separate chatbot, the project integrates AI capabilities into the development environment itself.
+Rather than forcing developers to constantly switch between an IDE and an external AI assistant, Numination is designed around an integrated AI experience.
 
 ```text
-Developer
-    │
-    ▼
-Project
-    │
-    ├── Files
-    ├── Workspace
-    ├── Context
-    └── Configuration
-           │
-           ▼
-       AI Agent
-           │
-           ▼
-    Development Workflow
+              Developer
+                  │
+                  ▼
+             ┌──────────┐
+             │ Project  │
+             └────┬─────┘
+                  │
+          ┌───────┼────────┐
+          │       │        │
+          ▼       ▼        ▼
+        Files   Context  Workspace
+          │       │        │
+          └───────┼────────┘
+                  │
+                  ▼
+             ┌──────────┐
+             │ AI Agent │
+             └────┬─────┘
+                  │
+                  ▼
+        AI-Assisted Development
 ```
 
-The goal is to make AI useful **inside the development process**, rather than outside of it.
+The objective is simple:
+
+> **Make AI part of the development environment, not a separate destination.**
+
+---
+
+# 🧩 Workspace
+
+The Numination workspace is designed around real development projects.
+
+Developers can work with project structures, navigate files and interact with their development environment from the Android application.
+
+### Workspace capabilities
+
+* Project navigation
+* File explorer
+* File management
+* Workspace context
+* Development screens
+* Project-aware workflows
 
 ---
 
 # 🔐 Authentication
 
-Numination provides a unified authentication flow across its ecosystem.
+Authentication is an important part of the Numination ecosystem.
 
-Current architecture includes:
+The project uses **Supabase** to support account and session functionality while maintaining synchronization with the application backend.
 
-* Supabase authentication
+### Authentication capabilities
+
+* Email sign-in
 * Google sign-in
-* Email authentication
 * Session handling
 * Profile synchronization
-* Redirect handling
-* Backend authentication integration
+* Authentication state
+* Account management
 
-The Android application and web login communicate with the backend while maintaining the user's account and session ecosystem.
+```text
+User
+ │
+ ▼
+Authentication
+ │
+ ▼
+Supabase
+ │
+ ├── Session
+ ├── Identity
+ └── Profile
+ │
+ ▼
+Numination
+ │
+ ▼
+Backend
+```
 
 ---
 
 # ☁️ Backend
 
-The backend is powered by:
+Numination's backend provides the API and server-side infrastructure required by the application.
+
+### Backend stack
 
 ```text
 Next.js 14
@@ -318,16 +308,18 @@ Prisma 5
 MySQL
 ```
 
-The backend acts as the central API layer connecting the clients, authentication systems and persistent application data.
+The backend handles application services, persistent data, account synchronization and other server-side functionality.
 
 ### Backend responsibilities
 
 * API endpoints
-* User management
+* User data
 * Authentication integration
 * Profile synchronization
 * Application data
-* Billing-related services
+* Credits
+* Pro functionality
+* Billing infrastructure
 * AI-related services
 * Database operations
 
@@ -335,178 +327,104 @@ The backend acts as the central API layer connecting the clients, authentication
 
 # 🗄️ Database
 
-Numination uses **Prisma** as its database ORM.
+Numination uses **Prisma** as its ORM and **MySQL** as its primary application database.
 
 ```text
-Application
-     │
-     ▼
-  Next.js API
-     │
-     ▼
-   Prisma
-     │
-     ▼
-   MySQL
+┌─────────────────┐
+│ Android Client  │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│    Next.js      │
+│      API        │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│     Prisma      │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│      MySQL      │
+└─────────────────┘
 ```
 
-Prisma provides the application with a typed and structured interface for interacting with the database.
+This structure provides a typed and structured layer between the application services and persistent data.
 
 ---
 
-# 🌐 Web Login
+# 💳 Numination Pro
 
-The companion web login is located inside:
+Numination includes infrastructure for premium functionality.
 
-```text
-wren-login-web/
-```
-
-It is intentionally lightweight and can be deployed independently from the Android application.
-
-The web client communicates with the backend through:
-
-```javascript
-window.WREN_API_BASE
-```
-
-Before deployment, configure the backend endpoint using:
+The system is designed around account-level capabilities and usage.
 
 ```text
-config.example.js
+User
+ │
+ ▼
+Account
+ │
+ ├── Credits
+ ├── Plan
+ └── Features
+       │
+       ▼
+  Numination Pro
 ```
 
-and create the required:
-
-```text
-config.js
-```
+The backend validates account and billing-related state before granting protected functionality.
 
 ---
 
-# ⚙️ Environment Configuration
+# ⚙️ Configuration
 
-Environment variables should never be committed directly to the repository.
+Sensitive configuration should never be committed to the repository.
 
-Use the provided examples:
+Numination provides example configuration files such as:
 
 ```text
 .env.example
 backend/.env.example
-wren-login-web/config.example.js
 ```
 
-Create your local configuration files before running the project.
+Environment variables may contain:
 
----
+* Database credentials
+* Authentication configuration
+* API keys
+* Service credentials
+* Application secrets
 
-# 🧑‍💻 Getting Started
-
-## 1. Clone the repository
-
-```bash
-git clone https://github.com/kraqinc/Numination.git
-```
-
-```bash
-cd Numination
-```
-
----
-
-## 2. Android
-
-Open:
-
-```text
-android/
-```
-
-with **Android Studio**.
-
-Then allow Gradle to synchronize the project and run the application on an emulator or physical Android device.
-
----
-
-## 3. Backend
-
-Navigate to:
-
-```bash
-cd backend
-```
-
-Install dependencies:
-
-```bash
-npm install
-```
-
-Configure the environment:
-
-```text
-.env
-```
-
-based on:
-
-```text
-.env.example
-```
-
-Then run the development server:
-
-```bash
-npm run dev
-```
-
----
-
-## 4. Web Login
-
-Navigate to:
-
-```text
-wren-login-web/
-```
-
-Create the configuration file from:
-
-```text
-config.example.js
-```
-
-Set the backend API URL and serve/deploy the static application.
+**Never commit production secrets.**
 
 ---
 
 # 🔄 CI / CD
 
-Numination uses **GitHub Actions** for automated builds.
+Numination uses **GitHub Actions** to automatically validate the project.
 
-The workflow is located at:
-
-```text
-.github/workflows/build.yml
-```
-
-The CI pipeline validates the main components of the project.
+Workflow:
 
 ```text
-Git Push
-   │
-   ▼
-GitHub Actions
-   │
-   ├───────────────┐
-   │               │
-   ▼               ▼
-Android Build   Backend Build
-   │               │
-   └───────┬───────┘
-           │
-           ▼
-        Results
+                    Git Push
+                       │
+                       ▼
+               ┌──────────────┐
+               │ GitHub Action│
+               └───────┬──────┘
+                       │
+              ┌────────┴────────┐
+              │                 │
+              ▼                 ▼
+       Android Build      Backend Build
+              │                 │
+              └────────┬────────┘
+                       │
+                       ▼
+                   CI Result
 ```
 
 ### Automated checks
@@ -514,206 +432,162 @@ Android Build   Backend Build
 * Android build
 * Backend build
 * Dependency validation
-* Build failures reporting
+* Build verification
 
 ---
 
 # 📦 Releases
 
-The recommended distribution method for Numination is through **GitHub Releases**.
+Numination distributes Android builds through **GitHub Releases**.
 
-Users can obtain Android builds from the release assets when releases are published.
+Release assets can contain installable Android builds and other project artifacts.
 
-```text
-GitHub
-   │
-   ▼
-Release
-   │
-   ▼
-Android APK / Build
-   │
-   ▼
-Install
-```
+The release workflow allows users to obtain specific versions of Numination without needing to build the application themselves.
 
 ---
 
-# 🧪 Development Workflow
+# 🧪 Development Philosophy
 
-Numination follows a development workflow centered around continuous iteration.
+Numination is continuously evolving.
+
+The development process follows an iterative cycle:
 
 ```text
-PLAN
-  ↓
+IDEA
+ │
+ ▼
+DESIGN
+ │
+ ▼
 BUILD
-  ↓
+ │
+ ▼
 TEST
-  ↓
+ │
+ ▼
 DEBUG
-  ↓
+ │
+ ▼
 IMPROVE
-  ↓
-COMMIT
-  ↓
-CI
-  ↓
-DEPLOY
+ │
+ ▼
+RELEASE
+ │
+ └──────────────► REPEAT
 ```
 
-The project is actively evolving, with Android, backend, authentication and infrastructure components being developed together.
+Every iteration is an opportunity to improve the developer experience.
 
 ---
 
 # 🗺️ Roadmap
 
-> The roadmap is continuously evolving as Numination develops.
-
-### Android
+## Android
 
 * [x] Native Android application
-* [x] Jetpack Compose UI
+* [x] Kotlin
+* [x] Jetpack Compose
 * [x] Material 3
 * [x] Workspace
 * [x] File explorer
 * [x] Authentication
-* [x] AI development screens
+* [x] AI development experience
+* [x] Session management
+* [x] Credits system
+* [x] Owner functionality
 * [ ] Expanded development tooling
+* [ ] More advanced AI workflows
 * [ ] Improved project management
-* [ ] More AI workflows
 
-### Backend
+## Backend
 
 * [x] Next.js API
-* [x] Prisma integration
-* [x] MySQL integration
+* [x] TypeScript
+* [x] Prisma
+* [x] MySQL
 * [x] Authentication integration
 * [x] Profile synchronization
-* [ ] Expanded API capabilities
-* [ ] Additional developer services
+* [x] Credits infrastructure
+* [x] Pro billing infrastructure
+* [ ] Expanded API services
+* [ ] Additional developer functionality
 
-### Web
+## Infrastructure
 
-* [x] Web login
-* [x] Backend integration
-* [x] Vercel deployment
-* [x] Authentication flow
-* [x] Expanded browser functionality
+* [x] Supabase integration
+* [x] GitHub Actions
+* [x] Automated Android builds
+* [x] Automated backend builds
+* [ ] Expanded CI/CD automation
 
 ---
 
-# 📊 Project Statistics
+# 🧰 Technology Stack
 
 <div align="center">
+
+### Android
+
+![Kotlin](https://img.shields.io/badge/Kotlin-7F52FF?style=flat-square\&logo=kotlin\&logoColor=white)
+![Android](https://img.shields.io/badge/Android-3DDC84?style=flat-square\&logo=android\&logoColor=white)
+![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-4285F4?style=flat-square\&logo=jetpackcompose\&logoColor=white)
+![Material 3](https://img.shields.io/badge/Material%203-6750A4?style=flat-square\&logo=materialdesign\&logoColor=white)
+
+### Backend
+
+![Next.js](https://img.shields.io/badge/Next.js-000000?style=flat-square\&logo=next.js\&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square\&logo=typescript\&logoColor=white)
+![Prisma](https://img.shields.io/badge/Prisma-2D3748?style=flat-square\&logo=prisma\&logoColor=white)
+![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=flat-square\&logo=mysql\&logoColor=white)
+
+### Infrastructure
+
+![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=flat-square\&logo=supabase\&logoColor=white)
+![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-2088FF?style=flat-square\&logo=githubactions\&logoColor=white)
+![Git](https://img.shields.io/badge/Git-F05032?style=flat-square\&logo=git\&logoColor=white)
 
 </div>
 
 ---
 
-# 🧩 Tech Stack
-
-```text
-┌───────────────────────────────────────────────┐
-│                    CLIENT                     │
-├───────────────────────────────────────────────┤
-│ Kotlin                                        │
-│ Jetpack Compose                               │
-│ Material 3                                    │
-│ Android SDK                                   │
-└───────────────────────────────────────────────┘
-
-┌───────────────────────────────────────────────┐
-│                   BACKEND                     │
-├───────────────────────────────────────────────┤
-│ Next.js                                       │
-│ TypeScript                                    │
-│ Prisma                                        │
-│ MySQL                                         │
-└───────────────────────────────────────────────┘
-
-┌───────────────────────────────────────────────┐
-│                AUTH / CLOUD                   │
-├───────────────────────────────────────────────┤
-│ Supabase                                      │
-│ Authentication                                │
-│ Session Management                            │
-└───────────────────────────────────────────────┘
-
-┌───────────────────────────────────────────────┐
-│                  TOOLING                      │
-├───────────────────────────────────────────────┤
-│ Git                                           │
-│ GitHub                                        │
-│ GitHub Actions                                │
-│ Android Studio                                │
-│ Vercel                                        │
-└───────────────────────────────────────────────┘
-```
-
----
-
 # 👥 Contributors
 
-Numination is built by contributors working across the Android, backend and web ecosystem.
+Numination is built by contributors working across the Android application, backend and infrastructure.
 
-<a href="[https://github.com/kraqinc](https://github.com/kraqinc)">
-  <img src="[https://avatars.githubusercontent.com/u/275528312?v=4](https://avatars.githubusercontent.com/u/275528312?v=4)" width="80px;" alt="kraqinc"/>
+<div align="center">
+
+<a href="https://github.com/kraqinc">
+<img src="https://avatars.githubusercontent.com/u/275528312?v=4" width="80px" alt="kraqinc"/>
 </a>
-<a href="[https://github.com/alvaronegrito230-blip](https://github.com/alvaronegrito230-blip)">
-  <img src="[https://avatars.githubusercontent.com/u/301766768?v=4](https://avatars.githubusercontent.com/u/301766768?v=4)" width="80px;" alt="alvaronegrito230-blip"/>
+
+<a href="https://github.com/alvaronegrito230-blip">
+<img src="https://avatars.githubusercontent.com/u/301766768?v=4" width="80px" alt="alvaronegrito230-blip"/>
 </a>
 
----
-
-# 🤝 Contributing
-
-Contributions, ideas and improvements are welcome.
-
-Before submitting a change:
-
-1. Fork the repository.
-2. Create a feature branch.
-3. Make your changes.
-4. Test the affected component.
-5. Commit your changes.
-6. Open a pull request.
-
-Example:
-
-```bash
-git checkout -b feature/my-feature
-```
-
-```bash
-git add .
-git commit -m "feat: add my feature"
-```
-
-```bash
-git push origin feature/my-feature
-```
-
-Then open a Pull Request.
+</div>
 
 ---
 
 # 🔒 Security
 
-Do not commit:
+Security-sensitive information must remain outside the repository.
+
+Never commit:
 
 ```text
 .env
 .env.local
 API keys
-Database credentials
+Database passwords
 Private tokens
 Service-role keys
-Production secrets
+Production credentials
+Authentication secrets
 ```
 
-Use environment variables and the provided example configuration files.
+Use environment variables for sensitive configuration.
 
-If you discover a security issue, please report it privately rather than publishing sensitive details in a public issue.
+If you discover a security vulnerability, please report it privately rather than publicly exposing sensitive information.
 
 ---
 
@@ -721,42 +595,28 @@ If you discover a security issue, please report it privately rather than publish
 
 Numination is released under the **MIT License**.
 
-See [`LICENSE`](LICENSE) for the complete license text.
+See [`LICENSE`](LICENSE) for the complete license.
 
 ---
 
-# 🌐 Links
-
-**Repository**
-
-[https://github.com/kraqinc/Numination](https://github.com/kraqinc/Numination)
-
-**Website / Waitlist**
-
-[https://numination-swart.vercel.app/#waitlist](https://numination-swart.vercel.app/#waitlist)
-
-**Releases**
-
-[https://github.com/kraqinc/Numination/releases](https://github.com/kraqinc/Numination/releases)
-
-**Issues**
-
-[https://github.com/kraqinc/Numination/issues](https://github.com/kraqinc/Numination/issues)
-
----
+# 🌐 Numination
 
 <div align="center">
 
 # ⚡ NUMINATION
 
-### Your development environment. Anywhere.
+### The pocket-sized AI IDE for real development work.
 
-Built with **Kotlin · Jetpack Compose · Next.js · Prisma · MySQL · Supabase**
+**Kotlin · Jetpack Compose · Material 3 · Next.js · TypeScript · Prisma · MySQL · Supabase**
+
+<br>
+
+[![GitHub](https://img.shields.io/badge/Numination-GitHub-181717?style=for-the-badge\&logo=github\&logoColor=white)](https://github.com/kraqinc/Numination)
+
+[![Website](https://img.shields.io/badge/Numination-Website-7C3AED?style=for-the-badge\&logo=googlechrome\&logoColor=white)](https://numination-swart.vercel.app/)
 
 <br>
 
-**Code. Create. Build. Ship.**
-
-<br>
+**Build. Code. Create. Anywhere.**
 
 </div>
