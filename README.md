@@ -1,22 +1,7 @@
-Sí, ahora sí. **Quieres que haga un README para NUMINATION**, usando todo el contexto que me pasaste del repositorio real: Android + Kotlin + Compose + Material 3 + IA + Next.js + Prisma + MySQL + autenticación + Supabase + web login + CI/CD.
 
 # ⚡ Numination
 
 ### The pocket-sized AI IDE for real development work.
-
-
-
-
-\
-
-
-
-
-
-
-
-\
-
 ---
 
 <div align="center">
