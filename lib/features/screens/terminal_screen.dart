@@ -1,0 +1,7 @@
+import 'dart:io';
+import 'package:flutter/material.dart';
+import '../../core/theme.dart';
+class TerminalScreen extends StatefulWidget{const TerminalScreen({super.key});@override State<TerminalScreen> createState()=>_TerminalScreenState();}
+class _TerminalScreenState extends State<TerminalScreen>{final c=TextEditingController();final lines=<String>['Numination terminal — comandos se ejecutan dentro del sandbox de la app.'];bool busy=false;
+Future<void> run()async{final cmd=c.text.trim();if(cmd.isEmpty||busy)return;c.clear();setState((){lines.add('\$ $cmd');busy=true;});try{final r=await Process.run('/system/bin/sh',['-c',cmd]);if(r.stdout.toString().trim().isNotEmpty)lines.add(r.stdout.toString().trimRight());if(r.stderr.toString().trim().isNotEmpty)lines.add(r.stderr.toString().trimRight());}catch(e){lines.add('Error: $e');}finally{if(mounted)setState(()=>busy=false);}}
+@override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Terminal')),body:Column(children:[Expanded(child:Container(color:const Color(0xFF070A0E),padding:const EdgeInsets.all(14),child:ListView(children:lines.map((x)=>Padding(padding:const EdgeInsets.only(bottom:4),child:SelectableText(x,style:const TextStyle(fontFamily:'monospace',fontSize:13,color:AppColors.green)))).toList()))),SafeArea(child:Padding(padding:const EdgeInsets.all(12),child:TextField(controller:c,onSubmitted:(_)=>run(),style:const TextStyle(fontFamily:'monospace'),decoration:InputDecoration(prefixText:'$ ',suffixIcon:Icon(Icons.send),hintText:'Escribe un comando'))))]));}
