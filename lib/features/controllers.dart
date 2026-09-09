@@ -54,12 +54,12 @@ class FileController extends AsyncNotifier<List<FileItem>> {
   Future<void> save(FileItem file, String content) async {
     final id=_projectId; if(id==null)return;
     ApiClient.decode(await ApiClient.put('/projects/$id/files/${file.id}', {'content':content}));
-    final current=state.valueOrNull ?? const <FileItem>[];
+    final current=state.value ?? const <FileItem>[];
     state=AsyncData(current.map((f)=>f.id==file.id?FileItem(id:f.id,projectId:f.projectId,name:f.name,path:f.path,isDirectory:f.isDirectory,content:content,parentId:f.parentId):f).toList());
   }
   Future<void> remove(FileItem file) async {
     final id=_projectId; if(id==null)return;
     ApiClient.decode(await ApiClient.delete('/projects/$id/files/${file.id}'));
-    state=AsyncData((state.valueOrNull??const <FileItem>[]).where((f)=>f.id!=file.id).toList());
+    state=AsyncData((state.value??const <FileItem>[]).where((f)=>f.id!=file.id).toList());
   }
 }
