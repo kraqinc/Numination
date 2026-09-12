@@ -195,7 +195,7 @@ class _WorkspaceScreenState
             ),
             ValueListenableBuilder<bool>(
               valueListenable: d,
-              builder: (_, value, __) {
+              builder: (_, value, _) {
                 return CheckboxListTile(
                   value: value,
                   title: const Text('Directorio'),
