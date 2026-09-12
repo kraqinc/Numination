@@ -46,7 +46,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               const SizedBox(height: 18),
               TextField(controller: email, onSubmitted: (_) => submit(), keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(prefixIcon: Icon(Icons.mail_outline), hintText: 'usuario@email.com')),
               const SizedBox(height: 12),
-              FilledButton.icon(onPressed: loading ? null : submit, icon: const Icon(Icons.arrow_forward_rounded), label: Text(sent ? 'Enlace/código enviado' : 'Continuar')),
+              FilledButton.icon(onPressed: loading ? null : submit, icon: const Icon(Icons.arrow_forward_rounded), label: Text(sent ? 'Se ha enviado un enlace a tu correo' : 'Continuar')),
               if (sent) ...[
                 const Padding(padding: EdgeInsets.only(top: 12), child: Text('Revisa tu correo e introduce el código recibido.', textAlign: TextAlign.center, style: TextStyle(color: AppColors.green))),
                 const SizedBox(height: 10),
@@ -72,3 +72,28 @@ class _ProviderButton extends StatelessWidget {
   const _ProviderButton({required this.icon, required this.label, required this.onTap, required this.enabled});
   @override Widget build(BuildContext context) => SizedBox(height: 50, child: OutlinedButton.icon(onPressed: enabled ? onTap : null, icon: Icon(icon), label: Text(label, style: const TextStyle(fontWeight: FontWeight.w700))));
 }
+Numination is an AI-powered development workspace designed to help people build, debug, manage and understand software from one unified environment.
+
+Instead of forcing developers to jump between an editor, terminal, AI assistant, project manager and other tools, Numination brings these workflows together into a single workspace.
+
+    Numi is the key.
+
+Numination is being built around one simple idea:
+
+AI should not just generate code. It should understand the workspace, the project, the problems and the developer's intent.Numination is an AI-powered development workspace designed to help people build, debug, manage and understand software from one unified environment.
+
+Instead of forcing developers to jump between an editor, terminal, AI assistant, project manager and other tools, Numination brings these workflows together into a single workspace.
+
+    Numi is the key.
+
+Numination is being built around one simple idea:
+
+AI should not just generate code. It should understand the workspace, the project, the problems and the developer's intent.Numination is an AI-powered development workspace designed to help people build, debug, manage and understand software from one unified environment.
+
+Instead of forcing developers to jump between an editor, terminal, AI assistant, project manager and other tools, Numination brings these workflows together into a single workspace.
+
+    Numi is the key.
+
+Numination is being built around one simple idea:
+
+AI should not just generate code. It should understand the workspace, the project, the problems and the developer's intent.

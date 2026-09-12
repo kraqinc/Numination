@@ -59,6 +59,24 @@ ThemeData buildTheme() {
   );
 }
 
+/// Monochrome palette used only by the auth wizard (email / sign in /
+/// confirm password), matching the Cursor-style reference designs.
+/// Kept separate from [AppColors] so the rest of the app keeps its
+/// cyan/purple identity.
+class AuthColors {
+  static const background = Color(0xFF000000);
+  static const surface = Color(0xFF0A0A0A);
+  static const card = Color(0xFF111111);
+  static const border = Color(0xFF232323);
+  static const borderStrong = Color(0xFF313131);
+  static const text = Color(0xFFF5F5F5);
+  static const muted = Color(0xFF8A8A8A);
+  static const mutedSoft = Color(0xFF5C5C5C);
+  static const accent = Color(0xFFFFFFFF);
+  static const error = Color(0xFFFF6B6B);
+  static const success = Color(0xFF4ADE80);
+}
+
 class GlassCard extends StatelessWidget {
   final Widget child;
   final EdgeInsets padding;
