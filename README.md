@@ -134,7 +134,7 @@ Instead of:
 Developer → Tool → AI → Tool → Terminal → Tool
 ```
 
-Numination aims for:
+Numinatiporn aims for:
 
 ```text
 Developer
