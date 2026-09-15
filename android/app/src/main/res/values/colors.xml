@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="numination_bg">#F8F5F0</color>
+    <color name="numination_bg_dark">#050607</color>
+    <color name="numination_text">#111111</color>
+    <color name="numination_accent">#2F2F91</color>
+    <color name="numination_accent_warm">#E68B62</color>
+</resources>
