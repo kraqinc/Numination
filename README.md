@@ -1,4 +1,4 @@
-# Numination 67 porn
+# Numination
 
 <p align="center">
   <strong>AI · Workspace · Shell</strong>
