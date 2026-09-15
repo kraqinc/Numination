@@ -1,23 +1,35 @@
 name: Numination Flutter Android
+
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - alvaro-git
+
   pull_request:
-    branches: [main]
+    branches:
+      - main
+      - alvaro-git
+
 permissions:
   contents: read
+
 jobs:
   flutter:
-    name: Flutter analyze & test
+    name: Flutter Analyze & Test
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.47.0'
           channel: stable
           cache: true
+
       - name: Create CI environment
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -33,24 +45,32 @@ jobs:
           SUPABASE_AUTH_REDIRECT_URL=numination://auth
           APP_VERSION=1.0.0
           ENV
-      - run: flutter pub get
-      - run: flutter analyze
-      - run: flutter test
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Run tests
+        run: flutter test
 
   android:
     name: Android APK
     needs: flutter
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.47.0'
           channel: stable
           cache: true
-      - name: Generate Android platform
-        run: flutter create --platforms=android --project-name numination .
+
       - name: Create CI environment
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -66,6 +86,7 @@ jobs:
           SUPABASE_AUTH_REDIRECT_URL=numination://auth
           APP_VERSION=1.0.0
           ENV
+
       - name: Restore release keystore
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -74,8 +95,13 @@ jobs:
           mkdir -p android/keystore
           printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/keystore/numination-release.jks
           test -s android/keystore/numination-release.jks
-      - run: flutter pub get
-      - run: flutter build apk --debug
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build debug APK
+        run: flutter build apk --debug
+
       - name: Build release APK
         env:
           ANDROID_KEYSTORE_PATH: keystore/numination-release.jks
@@ -83,11 +109,13 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: flutter build apk --release
+
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: Numination-debug-apk
           path: build/app/outputs/flutter-apk/app-debug.apk
+
       - name: Upload release APK
         uses: actions/upload-artifact@v4
         with:
