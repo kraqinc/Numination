@@ -29,3 +29,5 @@ flutter:
   assets:
     - .env
     - assets/images/numination_logo_wordmark.png
+    - assets/images/google.png
+    - assets/images/github.png

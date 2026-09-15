@@ -1,99 +1,281 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/auth_controller.dart';
-import '../../core/env.dart';
-import '../../core/theme.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import 'confirm_mail.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key});
-  @override ConsumerState<AuthScreen> createState() => _AuthScreenState();
+
+  @override
+  ConsumerState<AuthScreen> createState() => _AuthScreenState();
 }
+
 class _AuthScreenState extends ConsumerState<AuthScreen> {
-  final email = TextEditingController();
-  final code = TextEditingController();
-  String? error;
-  bool sent = false;
-  @override void dispose(){ email.dispose(); code.dispose(); super.dispose(); }
-  Future<void> submit() async {
-    final value = email.text.trim();
-    if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value)) { setState(() => error = 'Correo inválido'); return; }
-    setState(() { error = null; sent = false; });
-    await ref.read(authControllerProvider.notifier).requestEmailCode(value);
-    if (mounted && ref.read(authControllerProvider) is AuthUnauthenticated) setState(() => sent = true);
+  final _emailController = TextEditingController();
+  bool _isLoading = false;
+  String? _errorText;
+
+  static const _bgGray = Color(0xFFECECEC);
+  static const _blue = Color(0xFF7CCBF2);
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    super.dispose();
   }
-  @override Widget build(BuildContext context) {
-    final state = ref.watch(authControllerProvider);
-    final loading = state is AuthLoading;
-    final remoteError = state is AuthError ? state.message : null;
-    return Scaffold(
-      body: Stack(children: [
-        DecoratedBox(
-          decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [AppColors.obsidian, Color(0xFF151023), AppColors.obsidian])),
-          child: Center(child: SingleChildScrollView(padding: const EdgeInsets.all(28), child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 520), child: GlassCard(
-            padding: const EdgeInsets.all(28),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              Center(child: Image.asset('assets/images/numination_logo_wordmark.png', height: 52)),
-              const SizedBox(height: 24),
-              const Text('La IA para quienes resuelven problemas.', textAlign: TextAlign.center, style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800)),
-              const SizedBox(height: 10),
-              const Text('Construye, piensa y desbloquea ideas desde cualquier lugar.', textAlign: TextAlign.center, style: TextStyle(color: AppColors.muted, height: 1.4)),
-              const SizedBox(height: 26),
-              _ProviderButton(icon: Icons.g_mobiledata, label: 'Continuar con Google', onTap: () => ref.read(authControllerProvider.notifier).googleLogin(), enabled: !loading),
-              const SizedBox(height: 10),
-              _ProviderButton(icon: Icons.code_rounded, label: 'Continuar con GitHub', onTap: () => ref.read(authControllerProvider.notifier).githubLogin(), enabled: !loading),
-              const SizedBox(height: 20),
-              Row(children: [const Expanded(child: Divider(color: AppColors.border)), Padding(padding: const EdgeInsets.symmetric(horizontal: 12), child: Text('o', style: TextStyle(color: AppColors.muted))), const Expanded(child: Divider(color: AppColors.border))]),
-              const SizedBox(height: 18),
-              TextField(controller: email, onSubmitted: (_) => submit(), keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(prefixIcon: Icon(Icons.mail_outline), hintText: 'usuario@email.com')),
-              const SizedBox(height: 12),
-              FilledButton.icon(onPressed: loading ? null : submit, icon: const Icon(Icons.arrow_forward_rounded), label: Text(sent ? 'Se ha enviado un enlace a tu correo' : 'Continuar')),
-              if (sent) ...[
-                const Padding(padding: EdgeInsets.only(top: 12), child: Text('Revisa tu correo e introduce el código recibido.', textAlign: TextAlign.center, style: TextStyle(color: AppColors.green))),
-                const SizedBox(height: 10),
-                TextField(controller: code, maxLength: 8, keyboardType: TextInputType.number, textAlign: TextAlign.center, decoration: const InputDecoration(hintText: 'Código de verificación')),
-                const SizedBox(height: 8),
-                OutlinedButton.icon(onPressed: loading ? null : () => ref.read(authControllerProvider.notifier).verifyEmailCode(email.text, code.text), icon: const Icon(Icons.verified_outlined), label: const Text('Verificar código')),
-              ],
-              if (error != null || remoteError != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(error ?? remoteError!, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.red, fontSize: 12))),
-              const SizedBox(height: 16),
-              Text('Redirect: ${Env.authRedirectUrl}', textAlign: TextAlign.center, style: const TextStyle(color: AppColors.muted, fontSize: 10)),
-              const SizedBox(height: 8),
-              const Text('Al continuar aceptas los Términos de Servicio y la Política de Privacidad.', textAlign: TextAlign.center, style: TextStyle(color: AppColors.muted, fontSize: 10)),
-            ]),
-          )))),
+
+  bool _isValidEmail(String email) {
+    return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email);
+  }
+
+  Future<void> _onContinue() async {
+    final email = _emailController.text.trim();
+
+    if (!_isValidEmail(email)) {
+      setState(() => _errorText = 'Ingresa un correo válido');
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorText = null;
+    });
+
+    try {
+      // No hay endpoint nativo de Supabase para "existe este email" sin
+      // exponer info sensible. Pasamos el email a la siguiente pantalla,
+      // que decide entre signInWithPassword o signUp según la respuesta.
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => ConfirmMailScreen(email: email),
         ),
-        if (loading) const Positioned.fill(child: ColoredBox(color: Color(0x55000000), child: Center(child: CircularProgressIndicator()))),
-      ]),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _onGoogleSignIn() async {
+    setState(() {
+      _isLoading = true;
+      _errorText = null;
+    });
+    try {
+      await Supabase.instance.client.auth.signInWithOAuth(
+        OAuthProvider.google,
+        redirectTo: 'io.numination.app://login-callback',
+      );
+    } on AuthException catch (e) {
+      setState(() => _errorText = e.message);
+    } catch (e) {
+      setState(() => _errorText = 'No se pudo iniciar sesión con Google');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _onGithubSignIn() async {
+    setState(() {
+      _isLoading = true;
+      _errorText = null;
+    });
+    try {
+      await Supabase.instance.client.auth.signInWithOAuth(
+        OAuthProvider.github,
+        redirectTo: 'io.numination.app://login-callback',
+      );
+    } on AuthException catch (e) {
+      setState(() => _errorText = e.message);
+    } catch (e) {
+      setState(() => _errorText = 'No se pudo iniciar sesión con GitHub');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: _bgGray,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 32),
+              const Text(
+                'Welcome back to\nNumination',
+                style: TextStyle(
+                  fontSize: 34,
+                  fontWeight: FontWeight.w700,
+                  height: 1.15,
+                  color: Colors.black,
+                ),
+              ),
+              const SizedBox(height: 48),
+              TextField(
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+                autocorrect: false,
+                textInputAction: TextInputAction.next,
+                onSubmitted: (_) => _onContinue(),
+                decoration: InputDecoration(
+                  hintText: 'example@hey.com',
+                  hintStyle: const TextStyle(color: Colors.grey),
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 18,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(color: Colors.grey.shade400),
+                  ),
+                ),
+              ),
+              if (_errorText != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  _errorText!,
+                  style: const TextStyle(color: Colors.red, fontSize: 13),
+                ),
+              ],
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                height: 58,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _onContinue,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _blue,
+                    foregroundColor: Colors.black,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.4,
+                            color: Colors.black,
+                          ),
+                        )
+                      : const Text(
+                          'Continue →',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                ),
+              ),
+              const Spacer(),
+              Row(
+                children: [
+                  Expanded(child: Divider(color: Colors.grey.shade400)),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12),
+                    child: Text('Or', style: TextStyle(color: Colors.grey)),
+                  ),
+                  Expanded(child: Divider(color: Colors.grey.shade400)),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: _OAuthButton(
+                      label: 'Google',
+                      isLoading: _isLoading,
+                      onTap: _onGoogleSignIn,
+                      icon: Image.asset(
+                        'assets/images/google.png',
+                        width: 20,
+                        height: 20,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _OAuthButton(
+                      label: 'Github',
+                      isLoading: _isLoading,
+                      onTap: _onGithubSignIn,
+                      icon: Image.asset(
+                        'assets/images/github.png',
+                        width: 20,
+                        height: 20,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
-class _ProviderButton extends StatelessWidget {
-  final IconData icon; final String label; final VoidCallback onTap; final bool enabled;
-  const _ProviderButton({required this.icon, required this.label, required this.onTap, required this.enabled});
-  @override Widget build(BuildContext context) => SizedBox(height: 50, child: OutlinedButton.icon(onPressed: enabled ? onTap : null, icon: Icon(icon), label: Text(label, style: const TextStyle(fontWeight: FontWeight.w700))));
+
+class _OAuthButton extends StatelessWidget {
+  const _OAuthButton({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+    required this.isLoading,
+  });
+
+  final String label;
+  final Widget icon;
+  final VoidCallback onTap;
+  final bool isLoading;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 56,
+      child: OutlinedButton(
+        onPressed: isLoading ? null : onTap,
+        style: OutlinedButton.styleFrom(
+          backgroundColor: Colors.white,
+          side: BorderSide(color: Colors.grey.shade300),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            icon,
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.black,
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
-Numination is an AI-powered development workspace designed to help people build, debug, manage and understand software from one unified environment.
-
-Instead of forcing developers to jump between an editor, terminal, AI assistant, project manager and other tools, Numination brings these workflows together into a single workspace.
-
-    Numi is the key.
-
-Numination is being built around one simple idea:
-
-AI should not just generate code. It should understand the workspace, the project, the problems and the developer's intent.Numination is an AI-powered development workspace designed to help people build, debug, manage and understand software from one unified environment.
-
-Instead of forcing developers to jump between an editor, terminal, AI assistant, project manager and other tools, Numination brings these workflows together into a single workspace.
-
-    Numi is the key.
-
-Numination is being built around one simple idea:
-
-AI should not just generate code. It should understand the workspace, the project, the problems and the developer's intent.Numination is an AI-powered development workspace designed to help people build, debug, manage and understand software from one unified environment.
-
-Instead of forcing developers to jump between an editor, terminal, AI assistant, project manager and other tools, Numination brings these workflows together into a single workspace.
-
-    Numi is the key.
-
-Numination is being built around one simple idea:
-
-AI should not just generate code. It should understand the workspace, the project, the problems and the developer's intent.
