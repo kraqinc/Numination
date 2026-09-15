@@ -370,6 +370,11 @@ git clone https://github.com/kraqinc/Numination.git
 cd Numination
 ```
 
+### Links
+
+* Website: [numinationinfo.vercel.app](https://numinationinfo.vercel.app/)
+* Repository: [github.com/kraqinc/Numination](https://github.com/kraqinc/Numination)
+
 Install dependencies:
 
 ```bash
