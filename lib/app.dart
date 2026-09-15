@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/auth_controller.dart';
+import 'core/connectivity_banner.dart';
 import 'core/theme.dart';
 import 'features/screens/auth_screen.dart';
 import 'features/screens/home_screen.dart';
@@ -17,6 +18,9 @@ class NuminationApp extends ConsumerWidget {
       title: 'Numination',
       debugShowCheckedModeBanner: false,
       theme: buildTheme(),
+      builder: (context, child) {
+        return ConnectivityBanner(child: child ?? const SizedBox.shrink());
+      },
       home: switch (auth) {
         AuthAuthenticated() => const HomeScreen(),
         AuthUnauthenticated() => const AuthScreen(),

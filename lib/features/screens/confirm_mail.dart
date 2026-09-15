@@ -42,33 +42,24 @@ class _ConfirmMailScreenState extends ConsumerState<ConfirmMailScreen> {
     final client = Supabase.instance.client;
 
     try {
-      // Intento 1: el usuario ya existe -> sign in.
       await client.auth.signInWithPassword(
         email: widget.email,
         password: password,
       );
-      if (!mounted) return;
-      Navigator.of(context).popUntil((route) => route.isFirst);
+      // No navegamos manualmente: app.dart escucha authControllerProvider
+      // y reconstruye el MaterialApp completo hacia HomeScreen en cuanto
+      // Supabase emite el nuevo AuthState. Si navegáramos con push/pop acá,
+      // esta pantalla quedaría apilada por encima y taparía HomeScreen.
     } on AuthException catch (e) {
       final msg = e.message.toLowerCase();
-      final looksLikeNoUser = msg.contains('invalid login credentials') ||
-          msg.contains('user not found');
-
-      if (looksLikeNoUser) {
-        // Intento 2: no existía -> lo creamos con signUp.
-        try {
-          await client.auth.signUp(
-            email: widget.email,
-            password: password,
-          );
-          if (!mounted) return;
-          Navigator.of(context).popUntil((route) => route.isFirst);
-        } on AuthException catch (signUpError) {
-          setState(() => _errorText = signUpError.message);
-        }
-      } else {
-        setState(() => _errorText = e.message);
-      }
+      final isWrongPassword = msg.contains('invalid login credentials') ||
+          msg.contains('invalid_credentials') ||
+          msg.contains('invalid email or password');
+      setState(() {
+        _errorText = isWrongPassword
+            ? '¡Ups! La contraseña no es correcta'
+            : e.message;
+      });
     } catch (e) {
       setState(() => _errorText = 'Ocurrió un error inesperado');
     } finally {

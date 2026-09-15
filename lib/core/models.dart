@@ -94,10 +94,15 @@ class CreditLog {
   final String id;
   final int amount;
   final String reason;
-  final String timestamp;
+  final String timestamp; 
   const CreditLog({required this.id, required this.amount, required this.reason, required this.timestamp});
   factory CreditLog.fromJson(Map<String, dynamic> json) => CreditLog(id: '${json['id'] ?? ''}', amount: (json['amount'] as num?)?.toInt() ?? 0, reason: '${json['reason'] ?? ''}', timestamp: '${json['timestamp'] ?? ''}');
 }
+
+/// Shared enum for the app's assistant mode. Lives here (instead of inside
+/// home_screen.dart) so both home_screen.dart and hamburger.dart can use it
+/// without importing each other.
+enum ChatMode { chat, coder }
 
 class MemoryItem {
   final String id;
