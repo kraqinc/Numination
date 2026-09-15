@@ -9,11 +9,12 @@
 </p>
 
 <p align="center">
-  <a href="#-overview">Overview</a> •
-  <a href="#-features">Features</a> •
-  <a href="#-architecture">Architecture</a> •
-  <a href="#-roadmap">Roadmap</a> •
-  <a href="#-development">Development</a>
+  <a href="#overview">Overview</a> •
+  <a href="#features">Features</a> •
+  <a href="#architecture">Architecture</a> •
+  <a href="#roadmap">Roadmap</a> •
+  <a href="#development">Development</a> •
+  <a href="#team">Team</a>
 </p>
 
 ---
@@ -47,11 +48,7 @@ You may need:
 
 Numination aims to bring these experiences together.
 
-### One workspace.
-
-### One AI.
-
-### One context.
+### One workspace. One AI. One context.
 
 ---
 
@@ -122,7 +119,7 @@ A dedicated settings system allows Numination to manage application preferences,
 
 ---
 
-# Product Vision
+## Product Vision
 
 Numination is more than an AI chatbot inside an editor.
 
@@ -134,7 +131,7 @@ Instead of:
 Developer → Tool → AI → Tool → Terminal → Tool
 ```
 
-Numinatiporn aims for:
+Numination aims for:
 
 ```text
 Developer
@@ -150,11 +147,11 @@ The AI becomes part of the environment rather than another tab inside it.
 
 ---
 
-# Architecture
+## Architecture
 
 Numination is evolving toward a modern cross-platform architecture.
 
-## Client
+### Client
 
 The application is being built with **Flutter**, providing a flexible foundation for a modern desktop and mobile-oriented interface.
 
@@ -172,7 +169,7 @@ lib/
 
 The application integrates services such as authentication, environment configuration, state management and backend communication.
 
-### Current UI Areas
+#### Current UI Areas
 
 ```text
 Chat
@@ -186,9 +183,7 @@ Settings
 Profile
 ```
 
----
-
-## Backend
+### Backend
 
 Numination is moving toward a **Supabase-centered backend architecture**.
 
@@ -205,9 +200,7 @@ The backend is designed to support:
 
 Supabase provides the foundation for authentication, database services and backend infrastructure.
 
----
-
-## Data Layer
+### Data Layer
 
 The project is designed around structured application data such as:
 
@@ -222,28 +215,25 @@ Additional project, memory and workspace data can evolve as the platform grows.
 
 ---
 
-# Technology
+## Technology
 
 Numination explores a modern development stack including:
 
-### Client
-
+**Client**
 * Flutter
 * Dart
 * Riverpod
 * Supabase Flutter
 * flutter_dotenv
 
-### Backend
-
+**Backend**
 * Supabase
 * PostgreSQL
 * Server-side APIs
 * Edge/server functions
 * Authentication services
 
-### Development
-
+**Development**
 * Git
 * GitHub
 * GitHub Actions
@@ -255,7 +245,7 @@ The stack may evolve as Numination's architecture matures.
 
 ---
 
-# Repository Structure
+## Repository Structure
 
 A simplified view of the project:
 
@@ -282,7 +272,7 @@ The backend is maintained separately from the client application as the architec
 
 ---
 
-# Design Philosophy
+## Design Philosophy
 
 Numination follows a modern, focused interface philosophy.
 
@@ -301,59 +291,59 @@ The interface should stay focused on the work instead of overwhelming the user w
 
 ---
 
-# Roadmap
+## Roadmap
 
 Numination is an actively evolving project.
 
-## Phase 1 — Foundation
+### Phase 1 — Foundation
 
-* [x] Project foundation
-* [x] Authentication architecture
-* [x] User profiles
-* [x] Credits system foundation
-* [x] Core navigation
-* [x] Initial workspace architecture
-* [x] AI chat foundation
-* [x] Terminal concept
-* [x] Memory concept
+- [x] Project foundation
+- [x] Authentication architecture
+- [x] User profiles
+- [x] Credits system foundation
+- [x] Core navigation
+- [x] Initial workspace architecture
+- [x] AI chat foundation
+- [x] Terminal concept
+- [x] Memory concept
 
-## Phase 2 — Workspace
+### Phase 2 — Workspace
 
-* [ ] Complete project management
-* [ ] Improved workspace navigation
-* [ ] File/project context
-* [ ] Persistent AI context
-* [ ] Better terminal integration
-* [ ] Workspace state persistence
+- [ ] Complete project management
+- [ ] Improved workspace navigation
+- [ ] File/project context
+- [ ] Persistent AI context
+- [ ] Better terminal integration
+- [ ] Workspace state persistence
 
-## Phase 3 — Numi
+### Phase 3 — Numi
 
-* [ ] Strong project awareness
-* [ ] Context-aware AI responses
-* [ ] Codebase understanding
-* [ ] Multi-file reasoning
-* [ ] Smarter debugging
-* [ ] Automated development workflows
+- [ ] Strong project awareness
+- [ ] Context-aware AI responses
+- [ ] Codebase understanding
+- [ ] Multi-file reasoning
+- [ ] Smarter debugging
+- [ ] Automated development workflows
 
-## Phase 4 — Platform
+### Phase 4 — Platform
 
-* [ ] Production backend
-* [ ] Payments
-* [ ] Subscriptions
-* [ ] Advanced credits
-* [ ] Usage analytics
-* [ ] More integrations
-* [ ] Expanded platform support
+- [ ] Production backend
+- [ ] Payments
+- [ ] Subscriptions
+- [ ] Advanced credits
+- [ ] Usage analytics
+- [ ] More integrations
+- [ ] Expanded platform support
 
-## Phase 5 — AI-Native Development
+### Phase 5 — AI-Native Development
 
 The long-term objective is to make Numination feel less like an IDE with AI and more like a **development environment designed around AI from the beginning**.
 
 ---
 
-# Development
+## Development
 
-## Requirements
+### Requirements
 
 Recommended development environment:
 
@@ -373,9 +363,7 @@ Verify your environment:
 flutter doctor
 ```
 
----
-
-## Clone
+### Clone
 
 ```bash
 git clone https://github.com/kraqinc/Numination.git
@@ -408,7 +396,7 @@ flutter run
 
 ---
 
-# Environment
+## Environment
 
 Numination uses environment-based configuration for services and secrets.
 
@@ -432,7 +420,7 @@ Use the project's current environment configuration as the source of truth when 
 
 ---
 
-# CI/CD
+## CI/CD
 
 Numination uses GitHub as the primary source-control platform and is designed to make use of automated workflows through **GitHub Actions**.
 
@@ -454,7 +442,7 @@ This keeps builds reproducible and reduces the need for local build environments
 
 ---
 
-# Security
+## Security
 
 Security is a core part of Numination's architecture.
 
@@ -470,7 +458,7 @@ Authentication and privileged operations should remain server-side whenever poss
 
 ---
 
-# Project Status
+## Project Status
 
 > **Numination is under active development.**
 
@@ -480,7 +468,7 @@ Some features, APIs and internal structures may change without notice while the 
 
 ---
 
-# Contributing
+## Contributing
 
 Contributions, ideas and technical discussions are welcome.
 
@@ -499,7 +487,16 @@ AI Capabilities
 
 ---
 
-# Philosophy
+## Team
+
+Numination is created and maintained by:
+
+* [**kraqinc**](https://github.com/kraqinc)
+* [**alvaronegrito230-blip**](https://github.com/alvaronegrito230-blip)
+
+---
+
+## Philosophy
 
 Numination is built around a simple principle:
 
@@ -511,7 +508,7 @@ That is the purpose of Numi.
 
 ---
 
-# License
+## License
 
 License information will be added as the project reaches its release stage.
 
