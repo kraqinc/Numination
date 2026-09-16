@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'home_screen.dart';
+
 class ConfirmMailScreen extends ConsumerStatefulWidget {
   const ConfirmMailScreen({super.key, required this.email});
 
@@ -46,10 +48,16 @@ class _ConfirmMailScreenState extends ConsumerState<ConfirmMailScreen> {
         email: widget.email,
         password: password,
       );
-      // No navegamos manualmente: app.dart escucha authControllerProvider
-      // y reconstruye el MaterialApp completo hacia HomeScreen en cuanto
-      // Supabase emite el nuevo AuthState. Si navegáramos con push/pop acá,
-      // esta pantalla quedaría apilada por encima y taparía HomeScreen.
+      // Forzamos la navegación explícita hacia HomeScreen y limpiamos todo
+      // el stack (AuthScreen + esta pantalla). No confiamos en que cambiar
+      // `home:` en app.dart reemplace automáticamente el Navigator interno,
+      // porque en la práctica el stack puede sobrevivir esa reconstrucción
+      // y dejar esta pantalla tapando HomeScreen.
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        (route) => false,
+      );
     } on AuthException catch (e) {
       final msg = e.message.toLowerCase();
       final isWrongPassword = msg.contains('invalid login credentials') ||
