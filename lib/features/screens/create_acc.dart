@@ -113,7 +113,7 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
                   controller: _passwordController,
                   obscureText: _obscurePassword,
                   textInputAction: TextInputAction.next,
-                  decoration: _fieldDecoration('Enter password').copyWith(
+                  decoration: _fieldDecoration('Enter a password').copyWith(
                     suffixIcon: IconButton(
                       icon: Icon(
                         _obscurePassword
