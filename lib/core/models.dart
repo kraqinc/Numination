@@ -46,6 +46,43 @@ class FileItem {
       );
 }
 
+
+class ChatSession {
+  final String id;
+  final String title;
+  final String mode;
+  final String createdAt;
+  final String updatedAt;
+
+  const ChatSession({
+    required this.id,
+    required this.title,
+    required this.mode,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  factory ChatSession.fromJson(Map<String, dynamic> json) {
+    return ChatSession(
+      id: '${json['id'] ?? json['chat_id'] ?? ''}',
+      title: '${json['title'] ?? json['name'] ?? 'Nuevo chat'}',
+      mode: '${json['mode'] ?? 'chat'}',
+      createdAt: '${json['created_at'] ?? json['createdAt'] ?? ''}',
+      updatedAt: '${json['updated_at'] ?? json['updatedAt'] ?? ''}',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'mode': mode,
+      'created_at': createdAt,
+      'updated_at': updatedAt,
+    };
+  }
+}
+
 class ChatAction {
   final String type;
   final String? path;

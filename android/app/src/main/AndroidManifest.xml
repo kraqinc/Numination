@@ -1,5 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permision android:name="android.permision.RECORD_AUDIO" />
     <application
         android:label="numination"
         android:name="${applicationName}"
@@ -23,7 +25,13 @@
               />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <acategory android:name="android.intent.category.BROWSABLE" />
                 <category android:name="android.intent.category.LAUNCHER"/>
+                <data
+                android:scheme="numination"
+                android:host="numination//auth" />
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
