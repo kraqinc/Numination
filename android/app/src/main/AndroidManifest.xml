@@ -1,4 +1,4 @@
-<manifest xmlns:android="http://android.com"
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.wren.ide.numination">
     
     <uses-permission android:name="android.permission.INTERNET" />
