@@ -15,6 +15,12 @@ class AppColors {
   static const green = Color(0xFF53E08B);
   static const yellow = Color(0xFFFFD36A);
   static const red = Color(0xFFFF7282);
+
+  /// Shared screen background used across the whole app (login wizard,
+  /// home/chat, drawer-driven screens like projects/settings/etc). Only
+  /// the connectivity banner keeps its own red, everything else uses
+  /// this same gray for Scaffold.backgroundColor.
+  static const screenBackground = Color(0xFFECECEC);
 }
 
 ThemeData buildTheme() {

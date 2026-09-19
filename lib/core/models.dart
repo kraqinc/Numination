@@ -5,7 +5,20 @@ class AppUser {
   final String tier;
   final int balance;
   final String? proExpiresAt;
-  const AppUser({required this.id, required this.email, required this.role, required this.tier, required this.balance, this.proExpiresAt});
+  final String? displayName;
+  final String? pronouns;
+  final String? avatarUrl;
+  const AppUser({
+    required this.id,
+    required this.email,
+    required this.role,
+    required this.tier,
+    required this.balance,
+    this.proExpiresAt,
+    this.displayName,
+    this.pronouns,
+    this.avatarUrl,
+  });
 
   factory AppUser.fromJson(Map<String, dynamic> json) => AppUser(
         id: '${json['id'] ?? ''}',
@@ -14,6 +27,9 @@ class AppUser {
         tier: '${json['tier'] ?? 'FREE'}',
         balance: (json['balance'] as num?)?.toInt() ?? 0,
         proExpiresAt: json['proExpiresAt']?.toString(),
+        displayName: json['displayName']?.toString(),
+        pronouns: json['pronouns']?.toString(),
+        avatarUrl: json['avatarUrl']?.toString(),
       );
 }
 
@@ -44,43 +60,6 @@ class FileItem {
         path: '${json['path'] ?? ''}', isDirectory: json['is_directory'] == 1 || json['is_directory'] == true || json['isDirectory'] == true,
         content: '${json['content'] ?? ''}', parentId: json['parent_id']?.toString() ?? json['parentId']?.toString(),
       );
-}
-
-
-class ChatSession {
-  final String id;
-  final String title;
-  final String mode;
-  final String createdAt;
-  final String updatedAt;
-
-  const ChatSession({
-    required this.id,
-    required this.title,
-    required this.mode,
-    required this.createdAt,
-    required this.updatedAt,
-  });
-
-  factory ChatSession.fromJson(Map<String, dynamic> json) {
-    return ChatSession(
-      id: '${json['id'] ?? json['chat_id'] ?? ''}',
-      title: '${json['title'] ?? json['name'] ?? 'Nuevo chat'}',
-      mode: '${json['mode'] ?? 'chat'}',
-      createdAt: '${json['created_at'] ?? json['createdAt'] ?? ''}',
-      updatedAt: '${json['updated_at'] ?? json['updatedAt'] ?? ''}',
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'title': title,
-      'mode': mode,
-      'created_at': createdAt,
-      'updated_at': updatedAt,
-    };
-  }
 }
 
 class ChatAction {
@@ -131,7 +110,7 @@ class CreditLog {
   final String id;
   final int amount;
   final String reason;
-  final String timestamp; 
+  final String timestamp;
   const CreditLog({required this.id, required this.amount, required this.reason, required this.timestamp});
   factory CreditLog.fromJson(Map<String, dynamic> json) => CreditLog(id: '${json['id'] ?? ''}', amount: (json['amount'] as num?)?.toInt() ?? 0, reason: '${json['reason'] ?? ''}', timestamp: '${json['timestamp'] ?? ''}');
 }
@@ -140,6 +119,33 @@ class CreditLog {
 /// home_screen.dart) so both home_screen.dart and hamburger.dart can use it
 /// without importing each other.
 enum ChatMode { chat, coder }
+
+class ChatSession {
+  final String id;
+  final String title;
+  final String mode;
+  final bool isGhost;
+  final String createdAt;
+  final String updatedAt;
+  const ChatSession({required this.id, required this.title, required this.mode, required this.isGhost, required this.createdAt, required this.updatedAt});
+  factory ChatSession.fromJson(Map<String, dynamic> json) => ChatSession(
+        id: '${json['id'] ?? ''}', title: '${json['title'] ?? 'Nuevo chat'}', mode: '${json['mode'] ?? 'chat'}',
+        isGhost: json['isGhost'] == true, createdAt: '${json['createdAt'] ?? ''}', updatedAt: '${json['updatedAt'] ?? ''}',
+      );
+}
+
+class ChatMessageDto {
+  final String id;
+  final String chatId;
+  final String role;
+  final String content;
+  final String createdAt;
+  const ChatMessageDto({required this.id, required this.chatId, required this.role, required this.content, required this.createdAt});
+  factory ChatMessageDto.fromJson(Map<String, dynamic> json) => ChatMessageDto(
+        id: '${json['id'] ?? ''}', chatId: '${json['chatId'] ?? ''}', role: '${json['role'] ?? 'user'}',
+        content: '${json['content'] ?? ''}', createdAt: '${json['createdAt'] ?? ''}',
+      );
+}
 
 class MemoryItem {
   final String id;

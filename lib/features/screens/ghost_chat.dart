@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/api.dart';
 import '../../core/models.dart';
+import '../../core/theme.dart';
 
 class GhostChatScreen extends StatefulWidget {
   const GhostChatScreen({super.key});
@@ -80,17 +81,17 @@ class _GhostChatScreenState extends State<GhostChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: AppColors.screenBackground,
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: AppColors.screenBackground,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: Colors.black),
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: const [
-            Icon(Icons.visibility_off_outlined, color: Colors.white, size: 18),
+            Icon(Icons.visibility_off_outlined, color: Colors.black, size: 18),
             SizedBox(width: 8),
-            Text('Chat incógnito', style: TextStyle(color: Colors.white, fontSize: 16)),
+            Text('Chat incógnito', style: TextStyle(color: Colors.black, fontSize: 16)),
           ],
         ),
       ),
@@ -101,8 +102,9 @@ class _GhostChatScreenState extends State<GhostChatScreen> {
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: const Color(0xFF141414),
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFD8D8D8)),
               ),
               child: const Row(
                 children: [
@@ -138,13 +140,13 @@ class _GhostChatScreenState extends State<GhostChatScreen> {
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                             constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
                             decoration: BoxDecoration(
-                              color: msg.fromUser ? const Color(0xFF252525) : const Color(0xFF2A2A2A),
+                              color: msg.fromUser ? const Color(0xFF1B1B1B) : Colors.white,
                               borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: const Color(0xFF3A3A3A)),
+                              border: Border.all(color: const Color(0xFFD8D8D8)),
                             ),
                             child: Text(
                               msg.text,
-                              style: const TextStyle(color: Colors.white, fontSize: 15, height: 1.35),
+                              style: TextStyle(color: msg.fromUser ? Colors.white : Colors.black, fontSize: 15, height: 1.35),
                             ),
                           ),
                         );
@@ -156,15 +158,16 @@ class _GhostChatScreenState extends State<GhostChatScreen> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF2A2A2A),
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(28),
+                  border: Border.all(color: const Color(0xFFD8D8D8)),
                 ),
                 child: Row(
                   children: [
                     Expanded(
                       child: TextField(
                         controller: _messageController,
-                        style: const TextStyle(color: Colors.white, fontSize: 15),
+                        style: const TextStyle(color: Colors.black, fontSize: 15),
                         textInputAction: TextInputAction.send,
                         onSubmitted: (_) => _sendMessage(),
                         decoration: const InputDecoration(
@@ -182,7 +185,7 @@ class _GhostChatScreenState extends State<GhostChatScreen> {
                             height: 40,
                             child: Padding(
                               padding: EdgeInsets.all(10),
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
                             ),
                           )
                         : IconButton(

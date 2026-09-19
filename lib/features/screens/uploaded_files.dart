@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/api.dart';
+import '../../core/theme.dart';
 
 class UploadedFile {
   final String id;
@@ -86,15 +87,15 @@ class _UploadedFilesScreenState extends State<UploadedFilesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: AppColors.screenBackground,
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: AppColors.screenBackground,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text('Artefactos', style: TextStyle(color: Colors.white)),
+        iconTheme: const IconThemeData(color: Colors.black),
+        title: const Text('Artefactos', style: TextStyle(color: Colors.black)),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Colors.white))
+          ? const Center(child: CircularProgressIndicator(color: Colors.black))
           : _files.isEmpty
               ? _EmptyFilesState(errorText: _errorText)
               : ListView.separated(
@@ -106,12 +107,13 @@ class _UploadedFilesScreenState extends State<UploadedFilesScreen> {
                     return Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF141414),
+                        color: Colors.white,
                         borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFD8D8D8)),
                       ),
                       child: Row(
                         children: [
-                          Icon(file.icon, color: const Color(0xFF6ED7FF)),
+                          Icon(file.icon, color: const Color(0xFF1E88C7)),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
@@ -121,7 +123,7 @@ class _UploadedFilesScreenState extends State<UploadedFilesScreen> {
                                   file.displayName,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600),
+                                  style: const TextStyle(color: Colors.black, fontSize: 15, fontWeight: FontWeight.w600),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(file.sizeLabel, style: const TextStyle(color: Color(0xFF8A8A8A), fontSize: 12)),
@@ -153,15 +155,16 @@ class _EmptyFilesState extends StatelessWidget {
               width: 72,
               height: 72,
               decoration: BoxDecoration(
-                color: const Color(0xFF141414),
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFD8D8D8)),
               ),
-              child: const Icon(Icons.folder_open_outlined, color: Color(0xFF6ED7FF), size: 32),
+              child: const Icon(Icons.folder_open_outlined, color: Color(0xFF1E88C7), size: 32),
             ),
             const SizedBox(height: 20),
             const Text(
               'No tienes archivos todavía',
-              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
+              style: TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.w600),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 6),

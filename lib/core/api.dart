@@ -43,6 +43,7 @@ class ApiClient {
   static Future<http.Response> get(String path) => _send(() => http.get(_uri(path), headers: _headers));
   static Future<http.Response> post(String path, [Map<String, dynamic>? body]) => _send(() => http.post(_uri(path), headers: _headers, body: jsonEncode(body ?? <String, dynamic>{})));
   static Future<http.Response> put(String path, [Map<String, dynamic>? body]) => _send(() => http.put(_uri(path), headers: _headers, body: jsonEncode(body ?? <String, dynamic>{})));
+  static Future<http.Response> patch(String path, [Map<String, dynamic>? body]) => _send(() => http.patch(_uri(path), headers: _headers, body: jsonEncode(body ?? <String, dynamic>{})));
   static Future<http.Response> delete(String path) => _send(() => http.delete(_uri(path), headers: _headers));
 
   static dynamic decode(http.Response response) {
@@ -54,4 +55,4 @@ class ApiClient {
     }
     return data;
   }
-}
+} 
