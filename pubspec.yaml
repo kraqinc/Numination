@@ -1,6 +1,9 @@
 name: numination
+
 description: Numination - AI development workspace
+
 publish_to: none
+
 version: 1.0.0+1
 
 environment:
@@ -10,6 +13,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+
   cupertino_icons: ^1.0.8
   flutter_riverpod: ^3.4.2
   supabase_flutter: ^2.17.2
@@ -25,13 +29,22 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true
+
   assets:
-    - assets/images/numination_logo_wordmark.png
     - assets/images/google.png
     - assets/images/github.png
     - assets/images/microphone.png
     - assets/images/ghost.png
+    - assets/images/logo/logo_n.png
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/logo/logo_n.png"
+  min_sdk_android: 21

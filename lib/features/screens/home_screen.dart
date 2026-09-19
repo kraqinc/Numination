@@ -70,6 +70,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         );
       });
     } catch (e) {
+      debugPrint('No se pudo cargar el perfil: $e');
     }
   }
 
