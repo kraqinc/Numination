@@ -56,6 +56,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         if (mounted) setState(() => _isListening = false);
       },
     );
+
     if (mounted) setState(() {});
   }
 
@@ -63,10 +64,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     try {
       final response = await ApiClient.get('/auth/me');
       final data = ApiClient.decode(response) as Map<String, dynamic>;
-      setState(() => _profile = AppUser.fromJson(data['user'] as Map<String, dynamic>));
+      setState(() {
+        _profile = AppUser.fromJson(
+          data['user'] as Map<String, dynamic>,
+        );
+      });
     } catch (e) {
-      // Silencioso: el drawer y el avatar simplemente muestran el estado
-      // por defecto si no se pudo cargar el perfil.
+      // Silencioso: el drawer y el avatar muestran el estado por defecto.
     }
   }
 
@@ -80,10 +84,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   void _toggleMode(ChatMode mode) {
     if (mode == _mode) return;
+
     if (mode == ChatMode.coder) {
       _showCoderPaywall();
       return;
     }
+
     setState(() => _mode = mode);
   }
 
@@ -110,27 +116,49 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       _mode = chat.mode == 'coder' ? ChatMode.coder : ChatMode.chat;
       _messages.clear();
     });
+
     try {
-      final response = await ApiClient.get('/chats/${chat.id}/messages');
+      final response = await ApiClient.get(
+        '/chats/${chat.id}/messages',
+      );
+
       final data = ApiClient.decode(response) as Map<String, dynamic>;
+
       final list = (data['messages'] as List? ?? [])
-          .map((e) => ChatMessageDto.fromJson(Map<String, dynamic>.from(e as Map)))
+          .map(
+            (e) => ChatMessageDto.fromJson(
+              Map<String, dynamic>.from(e as Map),
+            ),
+          )
           .toList();
+
       setState(() {
         _messages.addAll(
-          list.map((m) => ChatMessage(text: m.content, fromUser: m.role == 'user')),
+          list.map(
+            (m) => ChatMessage(
+              text: m.content,
+              fromUser: m.role == 'user',
+            ),
+          ),
         );
       });
+
       _scrollToBottom();
     } catch (e) {
       setState(() {
-        _messages.add(const ChatMessage(text: 'No se pudo cargar este chat.', fromUser: false));
+        _messages.add(
+          const ChatMessage(
+            text: 'No se pudo cargar este chat.',
+            fromUser: false,
+          ),
+        );
       });
     }
   }
 
   Future<void> _openSearch() async {
     final selected = await showSearchChats(context);
+
     if (selected != null) {
       await _openChat(selected);
     }
@@ -138,33 +166,49 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   void _openGhostChat() {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const GhostChatScreen()),
+      MaterialPageRoute(
+        builder: (_) => const GhostChatScreen(),
+      ),
     );
   }
 
   Future<void> _toggleListening() async {
     if (!_speechAvailable) {
       await _initSpeech();
+
       if (!_speechAvailable) return;
     }
 
     if (_isListening) {
       await _speech.stop();
-      setState(() => _isListening = false);
+
+      if (mounted) {
+        setState(() => _isListening = false);
+      }
+
       return;
     }
 
     setState(() => _isListening = true);
+
     await _speech.listen(
-      localeId: 'es_ES',
+      listenOptions: stt.SpeechListenOptions(
+        localeId: 'es_ES',
+      ),
       onResult: (result) {
+        if (!mounted) return;
+
         setState(() {
           _messageController.text = result.recognizedWords;
           _messageController.selection = TextSelection.fromPosition(
-            TextPosition(offset: _messageController.text.length),
+            TextPosition(
+              offset: _messageController.text.length,
+            ),
           );
         });
-        if (result.finalResult && _messageController.text.trim().isNotEmpty) {
+
+        if (result.finalResult &&
+            _messageController.text.trim().isNotEmpty) {
           _sendMessage();
         }
       },
@@ -173,56 +217,96 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   void _attachFile() {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Adjuntar archivos: próximamente')),
+      const SnackBar(
+        content: Text('Adjuntar archivos: próximamente'),
+      ),
     );
   }
 
   Future<void> _sendMessage() async {
     final text = _messageController.text.trim();
+
     if (text.isEmpty || _isSending) return;
 
     setState(() {
-      _messages.add(ChatMessage(text: text, fromUser: true));
+      _messages.add(
+        ChatMessage(
+          text: text,
+          fromUser: true,
+        ),
+      );
       _isSending = true;
       _messageController.clear();
     });
+
     _scrollToBottom();
 
     try {
       var chatId = _activeChatId;
+
       if (chatId == null) {
-        final createRes = await ApiClient.post('/chats', {
-          'title': text.length > 40 ? '${text.substring(0, 40)}...' : text,
-          'mode': _mode == ChatMode.coder ? 'coder' : 'chat',
-        });
-        final createData = ApiClient.decode(createRes) as Map<String, dynamic>;
+        final createRes = await ApiClient.post(
+          '/chats',
+          {
+            'title': text.length > 40
+                ? '${text.substring(0, 40)}...'
+                : text,
+            'mode': _mode == ChatMode.coder ? 'coder' : 'chat',
+          },
+        );
+
+        final createData =
+            ApiClient.decode(createRes) as Map<String, dynamic>;
+
         chatId = (createData['chat'] as Map<String, dynamic>)['id'] as String;
+
         setState(() => _activeChatId = chatId);
       }
 
-      final response = await ApiClient.post('/ai/chat', {
-        'prompt': text,
-        'mode': _mode == ChatMode.coder ? 'coder' : 'chat',
-        'chatId': chatId,
-      });
+      final response = await ApiClient.post(
+        '/ai/chat',
+        {
+          'prompt': text,
+          'mode': _mode == ChatMode.coder ? 'coder' : 'chat',
+          'chatId': chatId,
+        },
+      );
+
       final data = ApiClient.decode(response) as Map<String, dynamic>;
       final chatResponse = ChatResponse.fromJson(data);
+
       setState(() {
-        _messages.add(ChatMessage(text: chatResponse.response, fromUser: false));
+        _messages.add(
+          ChatMessage(
+            text: chatResponse.response,
+            fromUser: false,
+          ),
+        );
       });
     } on ApiException catch (e) {
       setState(() {
-        _messages.add(ChatMessage(text: 'Error: ${e.message}', fromUser: false));
+        _messages.add(
+          ChatMessage(
+            text: 'Error: ${e.message}',
+            fromUser: false,
+          ),
+        );
       });
     } catch (e) {
       setState(() {
-        _messages.add(const ChatMessage(
-          text: 'No se pudo contactar al servidor. Intenta de nuevo.',
-          fromUser: false,
-        ));
+        _messages.add(
+          const ChatMessage(
+            text:
+                'No se pudo contactar al servidor. Intenta de nuevo.',
+            fromUser: false,
+          ),
+        );
       });
     } finally {
-      if (mounted) setState(() => _isSending = false);
+      if (mounted) {
+        setState(() => _isSending = false);
+      }
+
       _scrollToBottom();
     }
   }
@@ -230,6 +314,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scrollController.hasClients) return;
+
       _scrollController.animateTo(
         _scrollController.position.maxScrollExtent,
         duration: const Duration(milliseconds: 250),
@@ -258,7 +343,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         child: Column(
           children: [
             _TopBar(
-              onMenuTap: () => _scaffoldKey.currentState?.openDrawer(),
+              onMenuTap: () =>
+                  _scaffoldKey.currentState?.openDrawer(),
               onSearchTap: _openSearch,
               onGhostTap: _openGhostChat,
             ),
@@ -267,7 +353,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ? const _EmptyState()
                   : ListView.builder(
                       controller: _scrollController,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                       itemCount: _messages.length,
                       itemBuilder: (context, index) {
                         final msg = _messages[index];
@@ -293,7 +382,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 }
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.onMenuTap, required this.onSearchTap, required this.onGhostTap});
+  const _TopBar({
+    required this.onMenuTap,
+    required this.onSearchTap,
+    required this.onGhostTap,
+  });
+
   final VoidCallback onMenuTap;
   final VoidCallback onSearchTap;
   final VoidCallback onGhostTap;
@@ -306,7 +400,10 @@ class _TopBar extends StatelessWidget {
         children: [
           IconButton(
             onPressed: onMenuTap,
-            icon: const Icon(Icons.menu, color: Colors.black),
+            icon: const Icon(
+              Icons.menu,
+              color: Colors.black,
+            ),
           ),
           Expanded(
             child: GestureDetector(
@@ -320,15 +417,26 @@ class _TopBar extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.search, color: Color(0xFF8A8A8A), size: 20),
+                    const Icon(
+                      Icons.search,
+                      color: Color(0xFF8A8A8A),
+                      size: 20,
+                    ),
                     const SizedBox(width: 8),
                     const Expanded(
                       child: Text(
                         'Buscar chats',
-                        style: TextStyle(color: Color(0xFF8A8A8A), fontSize: 15),
+                        style: TextStyle(
+                          color: Color(0xFF8A8A8A),
+                          fontSize: 15,
+                        ),
                       ),
                     ),
-                    const Icon(Icons.grid_view_rounded, color: Color(0xFF8A8A8A), size: 20),
+                    const Icon(
+                      Icons.grid_view_rounded,
+                      color: Color(0xFF8A8A8A),
+                      size: 20,
+                    ),
                   ],
                 ),
               ),
@@ -358,29 +466,46 @@ class _EmptyState extends StatelessWidget {
     return const Center(
       child: Text(
         '¿En qué trabajamos hoy?',
-        style: TextStyle(color: Color(0xFF8A8A8A), fontSize: 16),
+        style: TextStyle(
+          color: Color(0xFF8A8A8A),
+          fontSize: 16,
+        ),
       ),
     );
   }
 }
 
 class _MessageBubble extends StatelessWidget {
-  const _MessageBubble({required this.message});
+  const _MessageBubble({
+    required this.message,
+  });
+
   final ChatMessage message;
 
   @override
   Widget build(BuildContext context) {
     final isUser = message.fromUser;
+
     return Align(
-      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+      alignment:
+          isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 6),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
+        ),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.78,
+        ),
         decoration: BoxDecoration(
-          color: isUser ? const Color(0xFF1B1B1B) : Colors.white,
+          color: isUser
+              ? const Color(0xFF1B1B1B)
+              : Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFD8D8D8)),
+          border: Border.all(
+            color: const Color(0xFFD8D8D8),
+          ),
         ),
         child: Text(
           message.text,
@@ -422,11 +547,16 @@ class _BottomInputBar extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(8, 8, 8, 12),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 8,
+          vertical: 8,
+        ),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: const Color(0xFFD8D8D8)),
+          border: Border.all(
+            color: const Color(0xFFD8D8D8),
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -437,13 +567,19 @@ class _BottomInputBar extends StatelessWidget {
                 controller: controller,
                 minLines: 1,
                 maxLines: 5,
-                style: const TextStyle(color: Colors.black, fontSize: 15),
+                style: const TextStyle(
+                  color: Colors.black,
+                  fontSize: 15,
+                ),
                 decoration: const InputDecoration(
                   hintText: 'Pregunta algo...',
-                  hintStyle: TextStyle(color: Color(0xFF8A8A8A)),
+                  hintStyle: TextStyle(
+                    color: Color(0xFF8A8A8A),
+                  ),
                   border: InputBorder.none,
                   isCollapsed: true,
-                  contentPadding: EdgeInsets.symmetric(vertical: 12),
+                  contentPadding:
+                      EdgeInsets.symmetric(vertical: 12),
                 ),
               ),
             ),
@@ -452,18 +588,23 @@ class _BottomInputBar extends StatelessWidget {
               children: [
                 IconButton(
                   onPressed: onAttachTap,
-                  icon: const Icon(Icons.add_circle_outline, color: Colors.black),
+                  icon: const Icon(
+                    Icons.add_circle_outline,
+                    color: Colors.black,
+                  ),
                 ),
                 _ModeChip(
                   label: 'Chat',
                   selected: mode == ChatMode.chat,
-                  onTap: () => onModeChange(ChatMode.chat),
+                  onTap: () =>
+                      onModeChange(ChatMode.chat),
                 ),
                 const SizedBox(width: 6),
                 _ModeChip(
                   label: 'Coder',
                   selected: mode == ChatMode.coder,
-                  onTap: () => onModeChange(ChatMode.coder),
+                  onTap: () =>
+                      onModeChange(ChatMode.coder),
                 ),
                 const Spacer(),
                 IconButton(
@@ -472,7 +613,9 @@ class _BottomInputBar extends StatelessWidget {
                     'assets/images/microphone.png',
                     width: 22,
                     height: 22,
-                    color: isListening ? const Color(0xFF6ED7FF) : Colors.black,
+                    color: isListening
+                        ? const Color(0xFF6ED7FF)
+                        : Colors.black,
                   ),
                 ),
                 isSending
@@ -481,12 +624,18 @@ class _BottomInputBar extends StatelessWidget {
                         height: 40,
                         child: Padding(
                           padding: EdgeInsets.all(10),
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.black,
+                          ),
                         ),
                       )
                     : IconButton(
                         onPressed: onSend,
-                        icon: const Icon(Icons.send_rounded, color: Color(0xFF1E88C7)),
+                        icon: const Icon(
+                          Icons.send_rounded,
+                          color: Color(0xFF1E88C7),
+                        ),
                       ),
               ],
             ),
@@ -498,7 +647,12 @@ class _BottomInputBar extends StatelessWidget {
 }
 
 class _ModeChip extends StatelessWidget {
-  const _ModeChip({required this.label, required this.selected, required this.onTap});
+  const _ModeChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
   final String label;
   final bool selected;
   final VoidCallback onTap;
@@ -508,15 +662,22 @@ class _ModeChip extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 8,
+        ),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFFE0E0E0) : Colors.transparent,
+          color: selected
+              ? const Color(0xFFE0E0E0)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: selected ? Colors.black : const Color(0xFF8A8A8A),
+            color: selected
+                ? Colors.black
+                : const Color(0xFF8A8A8A),
             fontSize: 13,
             fontWeight: FontWeight.w600,
           ),
@@ -527,7 +688,10 @@ class _ModeChip extends StatelessWidget {
 }
 
 class _CoderPaywallDialog extends StatelessWidget {
-  const _CoderPaywallDialog({required this.onClose});
+  const _CoderPaywallDialog({
+    required this.onClose,
+  });
+
   final VoidCallback onClose;
 
   Future<void> _openPaypal() async {}
@@ -536,9 +700,16 @@ class _CoderPaywallDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: const Color(0xFF2A2A2A),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+        padding: const EdgeInsets.fromLTRB(
+          24,
+          20,
+          24,
+          24,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -548,18 +719,29 @@ class _CoderPaywallDialog extends StatelessWidget {
               children: [
                 IconButton(
                   onPressed: onClose,
-                  icon: const Icon(Icons.close, color: Colors.white),
+                  icon: const Icon(
+                    Icons.close,
+                    color: Colors.white,
+                  ),
                 ),
               ],
             ),
             const Text(
               'Paga para continuar',
-              style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700),
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const SizedBox(height: 10),
             const Text(
               'Coder desbloquea envío de imágenes ilimitado y prioridad en las respuestas.',
-              style: TextStyle(color: Color(0xFF8A8A8A), fontSize: 14, height: 1.4),
+              style: TextStyle(
+                color: Color(0xFF8A8A8A),
+                fontSize: 14,
+                height: 1.4,
+              ),
             ),
             const SizedBox(height: 18),
             Container(
@@ -567,13 +749,30 @@ class _CoderPaywallDialog extends StatelessWidget {
               decoration: BoxDecoration(
                 color: const Color(0xFF1E1E1E),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFF3A3A3A)),
+                border: Border.all(
+                  color: const Color(0xFF3A3A3A),
+                ),
               ),
               child: const Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisAlignment:
+                    MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Plan Coder', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
-                  Text('\$75 COP/mes', style: TextStyle(color: Color(0xFF6ED7FF), fontSize: 16, fontWeight: FontWeight.w700)),
+                  Text(
+                    'Plan Coder',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    '\$75 COP/mes',
+                    style: TextStyle(
+                      color: Color(0xFF6ED7FF),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -584,11 +783,20 @@ class _CoderPaywallDialog extends StatelessWidget {
               child: ElevatedButton(
                 onPressed: _openPaypal,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6ED7FF),
+                  backgroundColor:
+                      const Color(0xFF6ED7FF),
                   foregroundColor: Colors.black,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                 ),
-                child: const Text('Pagar con PayPal', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                child: const Text(
+                  'Pagar con PayPal',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                  ),
+                ),
               ),
             ),
           ],
