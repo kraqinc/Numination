@@ -1,5 +1,5 @@
 <manifest xmlns:android="http://android.com"
-    package="com.wren.ide.nomination">
+    package="com.wren.ide.numination">
     
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
