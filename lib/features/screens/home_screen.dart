@@ -70,7 +70,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         );
       });
     } catch (e) {
-      // Silencioso: el drawer y el avatar muestran el estado por defecto.
     }
   }
 
