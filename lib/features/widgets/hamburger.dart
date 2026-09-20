@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api.dart';
 import '../../core/auth_controller.dart';
+import '../../core/i18n.dart';
 import '../../core/models.dart' show ChatMode, ChatSession;
+import '../../core/theme_controller.dart';
 import '../screens/projects_screen.dart';
 import '../screens/settings_screen.dart';
 import '../screens/uploaded_files.dart';
@@ -60,10 +62,13 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
 
   @override
   Widget build(BuildContext context) {
-    final username = widget.email.isNotEmpty ? widget.email.split('@').first : 'Usuario';
+    final palette = ref.watch(appPaletteProvider);
+    final username = widget.email.isNotEmpty
+        ? widget.email.split('@').first
+        : 'Usuario';
 
     return Drawer(
-      backgroundColor: Colors.black,
+      backgroundColor: palette.surface,
       child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -76,15 +81,23 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                     onPressed: () {
                       Navigator.of(context).pop();
                       Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                        MaterialPageRoute(
+                          builder: (_) => const SettingsScreen(),
+                        ),
                       );
                     },
                     icon: CircleAvatar(
                       radius: 14,
-                      backgroundColor: const Color(0xFF232323),
-                      backgroundImage: widget.avatarUrl != null ? NetworkImage(widget.avatarUrl!) : null,
+                      backgroundColor: palette.surfaceAlt,
+                      backgroundImage: widget.avatarUrl != null
+                          ? NetworkImage(widget.avatarUrl!)
+                          : null,
                       child: widget.avatarUrl == null
-                          ? const Icon(Icons.person, size: 16, color: Colors.white70)
+                          ? Icon(
+                              Icons.person,
+                              size: 16,
+                              color: palette.textSecondary,
+                            )
                           : null,
                     ),
                   ),
@@ -93,8 +106,8 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                     child: Text(
                       username,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: palette.textPrimary,
                         fontSize: 20,
                         fontWeight: FontWeight.w600,
                       ),
@@ -104,14 +117,15 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                     onPressed: () async {
                       await ref.read(authControllerProvider.notifier).signOut();
                     },
-                    icon: const Icon(Icons.logout, color: Colors.white),
+                    icon: Icon(Icons.logout, color: palette.textPrimary),
                   ),
                 ],
               ),
               const SizedBox(height: 24),
               _DrawerItem(
                 icon: Icons.folder_copy_outlined,
-                label: 'Proyectos',
+                label: AppLocale.t('projects'),
+                color: palette.textPrimary,
                 onTap: () {
                   Navigator.of(context).pop();
                   Navigator.of(context).push(
@@ -122,60 +136,86 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
               const SizedBox(height: 18),
               _DrawerItem(
                 icon: Icons.description_outlined,
-                label: 'Artefactos',
+                label: AppLocale.t('artifacts'),
+                color: palette.textPrimary,
                 onTap: () {
                   Navigator.of(context).pop();
                   Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const UploadedFilesScreen()),
+                    MaterialPageRoute(
+                      builder: (_) => const UploadedFilesScreen(),
+                    ),
                   );
                 },
               ),
               const SizedBox(height: 18),
-              _DrawerItem(icon: Icons.power_off_outlined, label: 'Conectores', onTap: () {}),
+              _DrawerItem(
+                icon: Icons.power_off_outlined,
+                label: AppLocale.t('connectors'),
+                color: palette.textPrimary,
+                onTap: () {},
+              ),
               const SizedBox(height: 16),
-              const Divider(color: Color(0xFF232323)),
+              Divider(color: palette.border),
               const SizedBox(height: 8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Sesiones', style: TextStyle(color: Colors.white, fontSize: 18)),
-                  ModePillDropdown(mode: widget.mode, onSelectMode: widget.onSelectMode),
+                  Text(
+                    AppLocale.t('sessions'),
+                    style: TextStyle(color: palette.textPrimary, fontSize: 18),
+                  ),
+                  ModePillDropdown(
+                    mode: widget.mode,
+                    onSelectMode: widget.onSelectMode,
+                  ),
                 ],
               ),
               const SizedBox(height: 16),
               Expanded(
                 child: _isLoading
-                    ? const Center(child: CircularProgressIndicator(color: Colors.white))
+                    ? Center(
+                        child: CircularProgressIndicator(
+                          color: palette.textPrimary,
+                        ),
+                      )
                     : _chats.isEmpty
-                        ? const Center(
-                            child: Text(
-                              'Sin resultados',
-                              style: TextStyle(color: Color(0xFF5C5C5C), fontSize: 15),
-                            ),
-                          )
-                        : ListView.builder(
-                            itemCount: _chats.length,
-                            itemBuilder: (context, index) {
-                              final chat = _chats[index];
-                              return ListTile(
-                                contentPadding: EdgeInsets.zero,
-                                leading: Icon(
-                                  chat.mode == 'coder' ? Icons.code_rounded : Icons.chat_bubble_outline,
-                                  color: const Color(0xFF6ED7FF),
-                                  size: 20,
-                                ),
-                                title: Text(
-                                  chat.title,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(color: Colors.white, fontSize: 15),
-                                ),
-                                onTap: () {
-                                  Navigator.of(context).pop();
-                                  widget.onSelectChat(chat);
-                                },
-                              );
-                            },
+                    ? Center(
+                        child: Text(
+                          AppLocale.t('no_results'),
+                          style: TextStyle(
+                            color: palette.textSecondary,
+                            fontSize: 15,
                           ),
+                        ),
+                      )
+                    : ListView.builder(
+                        itemCount: _chats.length,
+                        itemBuilder: (context, index) {
+                          final chat = _chats[index];
+                          return ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: Icon(
+                              chat.mode == 'coder'
+                                  ? Icons.code_rounded
+                                  : Icons.chat_bubble_outline,
+                              color: palette.accent,
+                              size: 20,
+                            ),
+                            title: Text(
+                              chat.title,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: palette.textPrimary,
+                                fontSize: 15,
+                              ),
+                            ),
+                            onTap: () {
+                              Navigator.of(context).pop();
+                              widget.onSelectChat(chat);
+                            },
+                          );
+                        },
+                      ),
               ),
               Align(
                 alignment: Alignment.centerRight,
@@ -184,7 +224,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                     Navigator.of(context).pop();
                     widget.onNewChat();
                   },
-                  backgroundColor: const Color(0xFF6ED7FF),
+                  backgroundColor: palette.accent,
                   child: const Icon(Icons.add, color: Colors.black),
                 ),
               ),
@@ -197,9 +237,15 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
 }
 
 class _DrawerItem extends StatelessWidget {
-  const _DrawerItem({required this.icon, required this.label, required this.onTap});
+  const _DrawerItem({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
   final IconData icon;
   final String label;
+  final Color color;
   final VoidCallback onTap;
 
   @override
@@ -208,49 +254,63 @@ class _DrawerItem extends StatelessWidget {
       onTap: onTap,
       child: Row(
         children: [
-          Icon(icon, color: Colors.white, size: 22),
+          Icon(icon, color: color, size: 22),
           const SizedBox(width: 16),
-          Text(label, style: const TextStyle(color: Colors.white, fontSize: 17)),
+          Text(label, style: TextStyle(color: color, fontSize: 17)),
         ],
       ),
     );
   }
 }
 
-/// Dropdown pill used both in the drawer ("Sesiones" header) and mirrored
-/// visually by the Chat/Coder chips in the bottom input bar. Both call the
-/// same [onSelectMode] callback owned by HomeScreen, so picking either one
-/// keeps the whole screen in sync.
-class ModePillDropdown extends StatelessWidget {
-  const ModePillDropdown({super.key, required this.mode, required this.onSelectMode});
+/// Dropdown pill usado tanto en el drawer ("Sesiones") como espejado
+/// visualmente por los chips Chat/Coder de la barra inferior. Ambos
+/// llaman el mismo callback [onSelectMode] de HomeScreen.
+class ModePillDropdown extends ConsumerWidget {
+  const ModePillDropdown({
+    super.key,
+    required this.mode,
+    required this.onSelectMode,
+  });
   final ChatMode mode;
   final ValueChanged<ChatMode> onSelectMode;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = ref.watch(appPaletteProvider);
     return PopupMenuButton<ChatMode>(
-      color: const Color(0xFF1B1B1B),
+      color: palette.surfaceAlt,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       onSelected: onSelectMode,
-      itemBuilder: (context) => const [
-        PopupMenuItem(value: ChatMode.chat, child: Text('Chat', style: TextStyle(color: Colors.white))),
-        PopupMenuItem(value: ChatMode.coder, child: Text('Coder', style: TextStyle(color: Colors.white))),
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          value: ChatMode.chat,
+          child: Text('Chat', style: TextStyle(color: palette.textPrimary)),
+        ),
+        PopupMenuItem(
+          value: ChatMode.coder,
+          child: Text('Coder', style: TextStyle(color: palette.textPrimary)),
+        ),
       ],
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFF313131)),
+          border: Border.all(color: palette.border),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               mode == ChatMode.coder ? 'Coder' : 'Chat',
-              style: const TextStyle(color: Colors.white, fontSize: 15),
+              style: TextStyle(color: palette.textPrimary, fontSize: 15),
             ),
             const SizedBox(width: 6),
-            const Icon(Icons.keyboard_arrow_down, color: Colors.white, size: 18),
+            Icon(
+              Icons.keyboard_arrow_down,
+              color: palette.textPrimary,
+              size: 18,
+            ),
           ],
         ),
       ),

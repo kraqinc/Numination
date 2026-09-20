@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/auth_controller.dart';
 import 'core/connectivity_banner.dart';
+import 'core/i18n.dart';
 import 'core/theme.dart';
 import 'features/screens/auth_screen.dart';
 import 'features/screens/home_screen.dart';
@@ -12,6 +13,7 @@ class NuminationApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    AppLocale.init();
     final AuthState auth = ref.watch(authControllerProvider);
 
     return MaterialApp(

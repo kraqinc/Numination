@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api.dart';
+import '../../core/i18n.dart';
 import '../../core/models.dart';
-import '../../core/theme.dart';
+import '../../core/theme_controller.dart';
 
-class GhostChatScreen extends StatefulWidget {
+class GhostChatScreen extends ConsumerStatefulWidget {
   const GhostChatScreen({super.key});
 
   @override
-  State<GhostChatScreen> createState() => _GhostChatScreenState();
+  ConsumerState<GhostChatScreen> createState() => _GhostChatScreenState();
 }
 
 class _GhostMessage {
@@ -17,7 +19,7 @@ class _GhostMessage {
   const _GhostMessage({required this.text, required this.fromUser});
 }
 
-class _GhostChatScreenState extends State<GhostChatScreen> {
+class _GhostChatScreenState extends ConsumerState<GhostChatScreen> {
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
   final List<_GhostMessage> _messages = [];
@@ -42,9 +44,7 @@ class _GhostChatScreenState extends State<GhostChatScreen> {
     _scrollToBottom();
 
     try {
-      // Modo incógnito: nunca mandamos chatId, así el backend no persiste
-      // nada en las tablas Chat/Message. La conversación solo vive en
-      // memoria mientras esta pantalla está abierta.
+      // Nunca mandamos chatId: el backend no persiste nada en Chat/Message.
       final response = await ApiClient.post('/ai/chat', {
         'prompt': text,
         'mode': 'chat',
@@ -52,14 +52,18 @@ class _GhostChatScreenState extends State<GhostChatScreen> {
       final data = ApiClient.decode(response) as Map<String, dynamic>;
       final chatResponse = ChatResponse.fromJson(data);
       setState(() {
-        _messages.add(_GhostMessage(text: chatResponse.response, fromUser: false));
+        _messages.add(
+          _GhostMessage(text: chatResponse.response, fromUser: false),
+        );
       });
     } catch (e) {
       setState(() {
-        _messages.add(const _GhostMessage(
-          text: 'No se pudo contactar al servidor. Intenta de nuevo.',
-          fromUser: false,
-        ));
+        _messages.add(
+          const _GhostMessage(
+            text: 'No se pudo contactar al servidor. Intenta de nuevo.',
+            fromUser: false,
+          ),
+        );
       });
     } finally {
       if (mounted) setState(() => _isSending = false);
@@ -80,18 +84,27 @@ class _GhostChatScreenState extends State<GhostChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = ref.watch(appPaletteProvider);
+
     return Scaffold(
-      backgroundColor: AppColors.screenBackground,
+      backgroundColor: palette.background,
       appBar: AppBar(
-        backgroundColor: AppColors.screenBackground,
+        backgroundColor: palette.background,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
+        iconTheme: IconThemeData(color: palette.textPrimary),
         title: Row(
           mainAxisSize: MainAxisSize.min,
-          children: const [
-            Icon(Icons.visibility_off_outlined, color: Colors.black, size: 18),
-            SizedBox(width: 8),
-            Text('Chat incógnito', style: TextStyle(color: Colors.black, fontSize: 16)),
+          children: [
+            Icon(
+              Icons.visibility_off_outlined,
+              color: palette.textPrimary,
+              size: 18,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              AppLocale.t('incognito_chat'),
+              style: TextStyle(color: palette.textPrimary, fontSize: 16),
+            ),
           ],
         ),
       ),
@@ -102,18 +115,25 @@ class _GhostChatScreenState extends State<GhostChatScreen> {
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: palette.surface,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFD8D8D8)),
+                border: Border.all(color: palette.border),
               ),
-              child: const Row(
+              child: Row(
                 children: [
-                  Icon(Icons.info_outline, color: Color(0xFF8A8A8A), size: 16),
-                  SizedBox(width: 8),
+                  Icon(
+                    Icons.info_outline,
+                    color: palette.textSecondary,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Este chat no se guarda ni aparece en tu historial.',
-                      style: TextStyle(color: Color(0xFF8A8A8A), fontSize: 12.5),
+                      AppLocale.t('incognito_notice'),
+                      style: TextStyle(
+                        color: palette.textSecondary,
+                        fontSize: 12.5,
+                      ),
                     ),
                   ),
                 ],
@@ -121,32 +141,52 @@ class _GhostChatScreenState extends State<GhostChatScreen> {
             ),
             Expanded(
               child: _messages.isEmpty
-                  ? const Center(
+                  ? Center(
                       child: Text(
                         'Preguntá lo que quieras, sin dejar rastro',
-                        style: TextStyle(color: Color(0xFF5C5C5C), fontSize: 15),
+                        style: TextStyle(
+                          color: palette.textSecondary,
+                          fontSize: 15,
+                        ),
                       ),
                     )
                   : ListView.builder(
                       controller: _scrollController,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                       itemCount: _messages.length,
                       itemBuilder: (context, index) {
                         final msg = _messages[index];
                         return Align(
-                          alignment: msg.fromUser ? Alignment.centerRight : Alignment.centerLeft,
+                          alignment: msg.fromUser
+                              ? Alignment.centerRight
+                              : Alignment.centerLeft,
                           child: Container(
                             margin: const EdgeInsets.symmetric(vertical: 6),
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                            constraints: BoxConstraints(
+                              maxWidth:
+                                  MediaQuery.of(context).size.width * 0.78,
+                            ),
                             decoration: BoxDecoration(
-                              color: msg.fromUser ? const Color(0xFF1B1B1B) : Colors.white,
+                              color: msg.fromUser
+                                  ? palette.accent.withValues(alpha: 0.18)
+                                  : palette.surface,
                               borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: const Color(0xFFD8D8D8)),
+                              border: Border.all(color: palette.border),
                             ),
                             child: Text(
                               msg.text,
-                              style: TextStyle(color: msg.fromUser ? Colors.white : Colors.black, fontSize: 15, height: 1.35),
+                              style: TextStyle(
+                                color: palette.textPrimary,
+                                fontSize: 15,
+                                height: 1.35,
+                              ),
                             ),
                           ),
                         );
@@ -156,41 +196,56 @@ class _GhostChatScreenState extends State<GhostChatScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: palette.surface,
                   borderRadius: BorderRadius.circular(28),
-                  border: Border.all(color: const Color(0xFFD8D8D8)),
+                  border: Border.all(color: palette.border),
                 ),
                 child: Row(
                   children: [
                     Expanded(
                       child: TextField(
                         controller: _messageController,
-                        style: const TextStyle(color: Colors.black, fontSize: 15),
+                        style: TextStyle(
+                          color: palette.textPrimary,
+                          fontSize: 15,
+                        ),
+                        cursorColor: palette.accent,
                         textInputAction: TextInputAction.send,
                         onSubmitted: (_) => _sendMessage(),
-                        decoration: const InputDecoration(
-                          hintText: 'Pregunta algo...',
-                          hintStyle: TextStyle(color: Color(0xFF8A8A8A)),
+                        decoration: InputDecoration(
+                          hintText: AppLocale.t('ask_something'),
+                          hintStyle: TextStyle(color: palette.textSecondary),
                           border: InputBorder.none,
                           isCollapsed: true,
-                          contentPadding: EdgeInsets.symmetric(vertical: 14),
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 14,
+                          ),
                         ),
                       ),
                     ),
                     _isSending
-                        ? const SizedBox(
+                        ? SizedBox(
                             width: 40,
                             height: 40,
                             child: Padding(
-                              padding: EdgeInsets.all(10),
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+                              padding: const EdgeInsets.all(10),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: palette.textPrimary,
+                              ),
                             ),
                           )
                         : IconButton(
                             onPressed: _sendMessage,
-                            icon: const Icon(Icons.send_rounded, color: Color(0xFF6ED7FF)),
+                            icon: Icon(
+                              Icons.send_rounded,
+                              color: palette.accent,
+                            ),
                           ),
                   ],
                 ),

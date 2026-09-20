@@ -22,7 +22,13 @@ class ApiClient {
         if (_token != null) 'Authorization': 'Bearer $_token',
       };
 
-  static Uri _uri(String path) => Uri.parse('${Env.apiBaseUrl.replaceAll(RegExp(r'/$'), '')}$path');
+  static Uri _uri(String path) {
+    final base = Env.apiBaseUrl.trim();
+    if (base.isEmpty || !(base.startsWith('http://') || base.startsWith('https://'))) {
+      throw ApiException(-1, 'Numination no tiene configurado API_BASE_URL correctamente. Revisa tu .env.');
+    }
+    return Uri.parse('${base.replaceAll(RegExp(r'/$'), '')}$path');
+  }
 
   static Future<http.Response> _send(Future<http.Response> Function() request) async {
     Object? lastError;
@@ -30,6 +36,8 @@ class ApiClient {
       try {
         final response = await request().timeout(const Duration(seconds: 35));
         return response;
+      } on ApiException {
+        rethrow;
       } on TimeoutException catch (e) {
         lastError = e;
       } catch (e) {
@@ -55,4 +63,4 @@ class ApiClient {
     }
     return data;
   }
-} 
+}

@@ -42,6 +42,7 @@ flutter:
     - assets/images/github.png
     - assets/images/microphone.png
     - assets/images/ghost.png
+    - assets/images/add_files.png
     - assets/images/logo/logo_n.png
 
 flutter_launcher_icons:

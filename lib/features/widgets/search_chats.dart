@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api.dart';
+import '../../core/i18n.dart';
 import '../../core/models.dart';
+import '../../core/theme_controller.dart';
 
-/// Shows the "buscar chats" overlay as a modal bottom sheet. Call
-/// [showSearchChats] from wherever the search bar/icon lives. Resolves
-/// with the [ChatSession] the user tapped, or null if dismissed.
 Future<ChatSession?> showSearchChats(BuildContext context) {
   return showModalBottomSheet<ChatSession>(
     context: context,
@@ -15,14 +15,14 @@ Future<ChatSession?> showSearchChats(BuildContext context) {
   );
 }
 
-class SearchChatsSheet extends StatefulWidget {
+class SearchChatsSheet extends ConsumerStatefulWidget {
   const SearchChatsSheet({super.key});
 
   @override
-  State<SearchChatsSheet> createState() => _SearchChatsSheetState();
+  ConsumerState<SearchChatsSheet> createState() => _SearchChatsSheetState();
 }
 
-class _SearchChatsSheetState extends State<SearchChatsSheet> {
+class _SearchChatsSheetState extends ConsumerState<SearchChatsSheet> {
   final _queryController = TextEditingController();
   List<ChatSession> _allChats = [];
   List<ChatSession> _filtered = [];
@@ -62,19 +62,27 @@ class _SearchChatsSheetState extends State<SearchChatsSheet> {
     setState(() {
       _filtered = normalized.isEmpty
           ? _allChats
-          : _allChats.where((c) => c.title.toLowerCase().contains(normalized)).toList();
+          : _allChats
+                .where((c) => c.title.toLowerCase().contains(normalized))
+                .toList();
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final palette = ref.watch(appPaletteProvider);
+
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: Container(
-        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.75),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.75,
+        ),
+        decoration: BoxDecoration(
+          color: palette.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -84,7 +92,7 @@ class _SearchChatsSheetState extends State<SearchChatsSheet> {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: const Color(0xFFD8D8D8),
+                color: palette.border,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -94,13 +102,14 @@ class _SearchChatsSheetState extends State<SearchChatsSheet> {
                 controller: _queryController,
                 autofocus: true,
                 onChanged: _onQueryChanged,
-                style: const TextStyle(color: Colors.black),
+                style: TextStyle(color: palette.textPrimary),
+                cursorColor: palette.accent,
                 decoration: InputDecoration(
-                  hintText: 'Escribe lo que buscas',
-                  hintStyle: const TextStyle(color: Color(0xFF8A8A8A)),
-                  prefixIcon: const Icon(Icons.search, color: Color(0xFF8A8A8A)),
+                  hintText: AppLocale.t('search_hint'),
+                  hintStyle: TextStyle(color: palette.textSecondary),
+                  prefixIcon: Icon(Icons.search, color: palette.textSecondary),
                   filled: true,
-                  fillColor: const Color(0xFFF0F0F0),
+                  fillColor: palette.surfaceAlt,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
                     borderSide: BorderSide.none,
@@ -110,34 +119,47 @@ class _SearchChatsSheetState extends State<SearchChatsSheet> {
             ),
             Flexible(
               child: _isLoading
-                  ? const Padding(
-                      padding: EdgeInsets.all(24),
-                      child: CircularProgressIndicator(color: Colors.black),
+                  ? Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: CircularProgressIndicator(
+                        color: palette.textPrimary,
+                      ),
                     )
                   : _filtered.isEmpty
-                      ? const Padding(
-                          padding: EdgeInsets.all(24),
-                          child: Text(
-                            'Sin resultados',
-                            style: TextStyle(color: Color(0xFF5C5C5C), fontSize: 15),
-                          ),
-                        )
-                      : ListView.builder(
-                          shrinkWrap: true,
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          itemCount: _filtered.length,
-                          itemBuilder: (context, index) {
-                            final chat = _filtered[index];
-                            return ListTile(
-                              leading: Icon(
-                                chat.mode == 'coder' ? Icons.code_rounded : Icons.chat_bubble_outline,
-                                color: const Color(0xFF1E88C7),
-                              ),
-                              title: Text(chat.title, style: const TextStyle(color: Colors.black)),
-                              onTap: () => Navigator.of(context).pop(chat),
-                            );
-                          },
+                  ? Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        AppLocale.t('no_results'),
+                        style: TextStyle(
+                          color: palette.textSecondary,
+                          fontSize: 15,
                         ),
+                      ),
+                    )
+                  : ListView.builder(
+                      shrinkWrap: true,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      itemCount: _filtered.length,
+                      itemBuilder: (context, index) {
+                        final chat = _filtered[index];
+                        return ListTile(
+                          leading: Icon(
+                            chat.mode == 'coder'
+                                ? Icons.code_rounded
+                                : Icons.chat_bubble_outline,
+                            color: palette.accent,
+                          ),
+                          title: Text(
+                            chat.title,
+                            style: TextStyle(color: palette.textPrimary),
+                          ),
+                          onTap: () => Navigator.of(context).pop(chat),
+                        );
+                      },
+                    ),
             ),
             const SizedBox(height: 12),
           ],

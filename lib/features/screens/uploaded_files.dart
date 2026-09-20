@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api.dart';
+import '../../core/i18n.dart';
 import '../../core/theme.dart';
+import '../../core/theme_controller.dart';
 
 class UploadedFile {
   final String id;
@@ -20,13 +23,13 @@ class UploadedFile {
   });
 
   factory UploadedFile.fromJson(Map<String, dynamic> json) => UploadedFile(
-        id: '${json['id'] ?? ''}',
-        key: '${json['key'] ?? ''}',
-        url: '${json['url'] ?? ''}',
-        size: (json['size'] as num?)?.toInt() ?? 0,
-        mimeType: json['mimeType']?.toString(),
-        createdAt: '${json['createdAt'] ?? ''}',
-      );
+    id: '${json['id'] ?? ''}',
+    key: '${json['key'] ?? ''}',
+    url: '${json['url'] ?? ''}',
+    size: (json['size'] as num?)?.toInt() ?? 0,
+    mimeType: json['mimeType']?.toString(),
+    createdAt: '${json['createdAt'] ?? ''}',
+  );
 
   String get displayName => key.split('/').last;
 
@@ -46,14 +49,15 @@ class UploadedFile {
   }
 }
 
-class UploadedFilesScreen extends StatefulWidget {
+class UploadedFilesScreen extends ConsumerStatefulWidget {
   const UploadedFilesScreen({super.key});
 
   @override
-  State<UploadedFilesScreen> createState() => _UploadedFilesScreenState();
+  ConsumerState<UploadedFilesScreen> createState() =>
+      _UploadedFilesScreenState();
 }
 
-class _UploadedFilesScreenState extends State<UploadedFilesScreen> {
+class _UploadedFilesScreenState extends ConsumerState<UploadedFilesScreen> {
   bool _isLoading = true;
   List<UploadedFile> _files = [];
   String? _errorText;
@@ -70,7 +74,9 @@ class _UploadedFilesScreenState extends State<UploadedFilesScreen> {
       final response = await ApiClient.get('/storage/files');
       final data = ApiClient.decode(response) as Map<String, dynamic>;
       final list = (data['files'] as List? ?? [])
-          .map((e) => UploadedFile.fromJson(Map<String, dynamic>.from(e as Map)))
+          .map(
+            (e) => UploadedFile.fromJson(Map<String, dynamic>.from(e as Map)),
+          )
           .toList();
       setState(() {
         _files = list;
@@ -86,62 +92,78 @@ class _UploadedFilesScreenState extends State<UploadedFilesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = ref.watch(appPaletteProvider);
+
     return Scaffold(
-      backgroundColor: AppColors.screenBackground,
+      backgroundColor: palette.background,
       appBar: AppBar(
-        backgroundColor: AppColors.screenBackground,
+        backgroundColor: palette.background,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
-        title: const Text('Artefactos', style: TextStyle(color: Colors.black)),
+        iconTheme: IconThemeData(color: palette.textPrimary),
+        title: Text(
+          AppLocale.t('artifacts'),
+          style: TextStyle(color: palette.textPrimary),
+        ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Colors.black))
+          ? Center(child: CircularProgressIndicator(color: palette.textPrimary))
           : _files.isEmpty
-              ? _EmptyFilesState(errorText: _errorText)
-              : ListView.separated(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _files.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 8),
-                  itemBuilder: (context, index) {
-                    final file = _files[index];
-                    return Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: const Color(0xFFD8D8D8)),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(file.icon, color: const Color(0xFF1E88C7)),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  file.displayName,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(color: Colors.black, fontSize: 15, fontWeight: FontWeight.w600),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(file.sizeLabel, style: const TextStyle(color: Color(0xFF8A8A8A), fontSize: 12)),
-                              ],
+          ? _EmptyFilesState(errorText: _errorText, palette: palette)
+          : ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: _files.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 8),
+              itemBuilder: (context, index) {
+                final file = _files[index];
+                return Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: palette.surface,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: palette.border),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(file.icon, color: palette.accent),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              file.displayName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: palette.textPrimary,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 2),
+                            Text(
+                              file.sizeLabel,
+                              style: TextStyle(
+                                color: palette.textSecondary,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    );
-                  },
-                ),
+                    ],
+                  ),
+                );
+              },
+            ),
     );
   }
 }
 
 class _EmptyFilesState extends StatelessWidget {
-  const _EmptyFilesState({this.errorText});
+  const _EmptyFilesState({this.errorText, required this.palette});
   final String? errorText;
+  final AppPalette palette;
 
   @override
   Widget build(BuildContext context) {
@@ -155,27 +177,38 @@ class _EmptyFilesState extends StatelessWidget {
               width: 72,
               height: 72,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: palette.surface,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFFD8D8D8)),
+                border: Border.all(color: palette.border),
               ),
-              child: const Icon(Icons.folder_open_outlined, color: Color(0xFF1E88C7), size: 32),
+              child: Icon(
+                Icons.folder_open_outlined,
+                color: palette.accent,
+                size: 32,
+              ),
             ),
             const SizedBox(height: 20),
-            const Text(
-              'No tienes archivos todavía',
-              style: TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.w600),
+            Text(
+              AppLocale.t('no_files_title'),
+              style: TextStyle(
+                color: palette.textPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 6),
-            const Text(
+            Text(
               'Los archivos que envíes en tus chats aparecerán aquí',
-              style: TextStyle(color: Color(0xFF8A8A8A), fontSize: 14),
+              style: TextStyle(color: palette.textSecondary, fontSize: 14),
               textAlign: TextAlign.center,
             ),
             if (errorText != null) ...[
               const SizedBox(height: 16),
-              Text(errorText!, style: const TextStyle(color: Colors.redAccent, fontSize: 13)),
+              Text(
+                errorText!,
+                style: const TextStyle(color: Colors.redAccent, fontSize: 13),
+              ),
             ],
           ],
         ),

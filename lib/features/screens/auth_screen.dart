@@ -49,9 +49,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       // que decide entre signInWithPassword o signUp según la respuesta.
       if (!mounted) return;
       await Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => ConfirmMailScreen(email: email),
-        ),
+        MaterialPageRoute(builder: (_) => ConfirmMailScreen(email: email)),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);

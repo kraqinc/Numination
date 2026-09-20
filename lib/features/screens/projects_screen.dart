@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api.dart';
+import '../../core/i18n.dart';
 import '../../core/models.dart';
 import '../../core/theme.dart';
+import '../../core/theme_controller.dart';
 
-class ProjectsScreen extends StatefulWidget {
+class ProjectsScreen extends ConsumerStatefulWidget {
   const ProjectsScreen({super.key});
 
   @override
-  State<ProjectsScreen> createState() => _ProjectsScreenState();
+  ConsumerState<ProjectsScreen> createState() => _ProjectsScreenState();
 }
 
-class _ProjectsScreenState extends State<ProjectsScreen> {
+class _ProjectsScreenState extends ConsumerState<ProjectsScreen> {
   bool _isLoading = true;
   List<Project> _projects = [];
   String? _errorText;
@@ -43,29 +46,40 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
   }
 
   Future<void> _createProject() async {
+    final palette = ref.read(appPaletteProvider);
     final controller = TextEditingController();
     final name = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: Colors.white,
-        title: const Text('Nuevo proyecto', style: TextStyle(color: Colors.black)),
+        backgroundColor: palette.surface,
+        title: Text(
+          AppLocale.t('create'),
+          style: TextStyle(color: palette.textPrimary),
+        ),
         content: TextField(
           controller: controller,
           autofocus: true,
-          style: const TextStyle(color: Colors.black),
-          decoration: const InputDecoration(
+          style: TextStyle(color: palette.textPrimary),
+          decoration: InputDecoration(
             hintText: 'Nombre del proyecto',
-            hintStyle: TextStyle(color: Color(0xFF8A8A8A)),
+            hintStyle: TextStyle(color: palette.textSecondary),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancelar', style: TextStyle(color: Color(0xFF8A8A8A))),
+            child: Text(
+              AppLocale.t('cancel'),
+              style: TextStyle(color: palette.textSecondary),
+            ),
           ),
           TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(controller.text.trim()),
-            child: const Text('Crear', style: TextStyle(color: Color(0xFF6ED7FF))),
+            onPressed: () =>
+                Navigator.of(dialogContext).pop(controller.text.trim()),
+            child: Text(
+              AppLocale.t('create'),
+              style: TextStyle(color: palette.accent),
+            ),
           ),
         ],
       ),
@@ -83,69 +97,85 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = ref.watch(appPaletteProvider);
+
     return Scaffold(
-      backgroundColor: AppColors.screenBackground,
+      backgroundColor: palette.background,
       appBar: AppBar(
-        backgroundColor: AppColors.screenBackground,
+        backgroundColor: palette.background,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
-        title: const Text('Proyectos', style: TextStyle(color: Colors.black)),
+        iconTheme: IconThemeData(color: palette.textPrimary),
+        title: Text(
+          AppLocale.t('projects'),
+          style: TextStyle(color: palette.textPrimary),
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _createProject,
-        backgroundColor: const Color(0xFF6ED7FF),
+        backgroundColor: palette.accent,
         child: const Icon(Icons.add, color: Colors.black),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Colors.black))
+          ? Center(child: CircularProgressIndicator(color: palette.textPrimary))
           : _projects.isEmpty
-              ? _EmptyProjectsState(errorText: _errorText)
-              : ListView.separated(
+          ? _EmptyProjectsState(errorText: _errorText, palette: palette)
+          : ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: _projects.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 10),
+              itemBuilder: (context, index) {
+                final project = _projects[index];
+                return Container(
                   padding: const EdgeInsets.all(16),
-                  itemCount: _projects.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 10),
-                  itemBuilder: (context, index) {
-                    final project = _projects[index];
-                    return Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: const Color(0xFFD8D8D8)),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.folder_copy_outlined, color: Color(0xFF1E88C7)),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(project.name, style: const TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.w600)),
-                                if (project.description.isNotEmpty) ...[
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    project.description,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(color: Color(0xFF8A8A8A), fontSize: 13),
-                                  ),
-                                ],
-                              ],
+                  decoration: BoxDecoration(
+                    color: palette.surface,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: palette.border),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.folder_copy_outlined, color: palette.accent),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              project.name,
+                              style: TextStyle(
+                                color: palette.textPrimary,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
-                          ),
-                        ],
+                            if (project.description.isNotEmpty) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                project.description,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: palette.textSecondary,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
                       ),
-                    );
-                  },
-                ),
+                    ],
+                  ),
+                );
+              },
+            ),
     );
   }
 }
 
 class _EmptyProjectsState extends StatelessWidget {
-  const _EmptyProjectsState({this.errorText});
+  const _EmptyProjectsState({this.errorText, required this.palette});
   final String? errorText;
+  final AppPalette palette;
 
   @override
   Widget build(BuildContext context) {
@@ -159,27 +189,34 @@ class _EmptyProjectsState extends StatelessWidget {
               width: 72,
               height: 72,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: palette.surface,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFFD8D8D8)),
+                border: Border.all(color: palette.border),
               ),
-              child: const Icon(Icons.add_rounded, color: Color(0xFF1E88C7), size: 36),
+              child: Icon(Icons.add_rounded, color: palette.accent, size: 36),
             ),
             const SizedBox(height: 20),
-            const Text(
-              'No tienes proyectos',
-              style: TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.w600),
+            Text(
+              AppLocale.t('no_projects_title'),
+              style: TextStyle(
+                color: palette.textPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 6),
-            const Text(
-              'Crea uno y empieza a chatear',
-              style: TextStyle(color: Color(0xFF8A8A8A), fontSize: 14),
+            Text(
+              AppLocale.t('no_projects_subtitle'),
+              style: TextStyle(color: palette.textSecondary, fontSize: 14),
               textAlign: TextAlign.center,
             ),
             if (errorText != null) ...[
               const SizedBox(height: 16),
-              Text(errorText!, style: const TextStyle(color: Colors.redAccent, fontSize: 13)),
+              Text(
+                errorText!,
+                style: const TextStyle(color: Colors.redAccent, fontSize: 13),
+              ),
             ],
           ],
         ),

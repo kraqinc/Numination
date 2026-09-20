@@ -1,33 +1,28 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class Env {
-  static String get supabaseUrl => dotenv.get(
-        'SUPABASE_URL',
-        fallback: 'https://whxqciwphwgzcshejpty.supabase.co',
-      );
+  static String _val(String key, String fallback) {
+    final v = dotenv.env[key];
+    if (v == null || v.trim().isEmpty) return fallback;
+    return v.trim();
+  }
 
-  static String get supabasePublishableKey => dotenv.get(
-        'SUPABASE_PUBLISHABLE_KEY',
-        fallback: '',
-      );
+  static String get supabaseUrl =>
+      _val('SUPABASE_URL', 'https://whxqciwphwgzcshejpty.supabase.co');
 
-  static String get googleClientId => dotenv.get(
-        'SUPABASE_AUTH_GOOGLE_CLIENT_ID',
-        fallback: '',
-      );
+  static String get supabasePublishableKey =>
+      _val('SUPABASE_PUBLISHABLE_KEY', '');
 
-  static String get apiBaseUrl => dotenv.get(
+  static String get googleClientId =>
+      _val('SUPABASE_AUTH_GOOGLE_CLIENT_ID', '');
+
+  static String get apiBaseUrl => _val(
         'API_BASE_URL',
-        fallback: 'https://whxqciwphwgzcshejpty.supabase.co/functions/v1/api',
+        'https://whxqciwphwgzcshejpty.supabase.co/functions/v1/api',
       );
 
-  static String get authRedirectUrl => dotenv.get(
-        'SUPABASE_AUTH_REDIRECT_URL',
-        fallback: 'numination://auth',
-      );
+  static String get authRedirectUrl =>
+      _val('SUPABASE_AUTH_REDIRECT_URL', 'numination://auth');
 
-  static String get appVersion => dotenv.get(
-        'APP_VERSION',
-        fallback: '1.0.0',
-      );
+  static String get appVersion => _val('APP_VERSION', '1.0.0');
 }

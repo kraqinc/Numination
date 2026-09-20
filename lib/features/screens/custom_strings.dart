@@ -7,14 +7,16 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/api.dart';
 import '../../core/auth_controller.dart';
+import '../../core/i18n.dart';
 import '../../core/models.dart';
-import '../../core/theme.dart';
+import '../../core/theme_controller.dart';
 
 class CustomStringsScreen extends ConsumerStatefulWidget {
   const CustomStringsScreen({super.key});
 
   @override
-  ConsumerState<CustomStringsScreen> createState() => _CustomStringsScreenState();
+  ConsumerState<CustomStringsScreen> createState() =>
+      _CustomStringsScreenState();
 }
 
 class _CustomStringsScreenState extends ConsumerState<CustomStringsScreen> {
@@ -60,7 +62,11 @@ class _CustomStringsScreenState extends ConsumerState<CustomStringsScreen> {
 
   Future<void> _pickAndUploadAvatar() async {
     final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85, maxWidth: 512);
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+      maxWidth: 512,
+    );
     if (picked == null) return;
 
     setState(() => _isUploadingAvatar = true);
@@ -73,14 +79,17 @@ class _CustomStringsScreenState extends ConsumerState<CustomStringsScreen> {
       final ext = picked.path.split('.').last.toLowerCase();
       final storagePath = '$userId/avatar.$ext';
 
-      await client.storage.from('avatars').upload(
+      await client.storage
+          .from('avatars')
+          .upload(
             storagePath,
             File(picked.path),
             fileOptions: const FileOptions(upsert: true),
           );
 
-      final publicUrl = client.storage.from('avatars').getPublicUrl(storagePath);
-      // Cache-bust para que la UI refresque la imagen tras sobrescribir el archivo.
+      final publicUrl = client.storage
+          .from('avatars')
+          .getPublicUrl(storagePath);
       final bustedUrl = '$publicUrl?t=${DateTime.now().millisecondsSinceEpoch}';
 
       await ApiClient.patch('/auth/me', {'avatarUrl': bustedUrl});
@@ -122,18 +131,22 @@ class _CustomStringsScreenState extends ConsumerState<CustomStringsScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authControllerProvider);
+    final palette = ref.watch(appPaletteProvider);
     final email = auth is AuthAuthenticated ? auth.email : '';
 
     return Scaffold(
-      backgroundColor: AppColors.screenBackground,
+      backgroundColor: palette.background,
       appBar: AppBar(
-        backgroundColor: AppColors.screenBackground,
+        backgroundColor: palette.background,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
-        title: const Text('Tu perfil', style: TextStyle(color: Colors.black)),
+        iconTheme: IconThemeData(color: palette.textPrimary),
+        title: Text(
+          AppLocale.t('profile'),
+          style: TextStyle(color: palette.textPrimary),
+        ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Colors.black))
+          ? Center(child: CircularProgressIndicator(color: palette.textPrimary))
           : ListView(
               padding: const EdgeInsets.all(20),
               children: [
@@ -145,21 +158,33 @@ class _CustomStringsScreenState extends ConsumerState<CustomStringsScreen> {
                       children: [
                         CircleAvatar(
                           radius: 48,
-                          backgroundColor: Colors.white,
-                          backgroundImage: _avatarUrl != null ? NetworkImage(_avatarUrl!) : null,
+                          backgroundColor: palette.surfaceAlt,
+                          backgroundImage: _avatarUrl != null
+                              ? NetworkImage(_avatarUrl!)
+                              : null,
                           child: _isUploadingAvatar
-                              ? const CircularProgressIndicator(color: Colors.black)
+                              ? CircularProgressIndicator(
+                                  color: palette.textPrimary,
+                                )
                               : (_avatarUrl == null
-                                  ? const Icon(Icons.person, color: Color(0xFF8A8A8A), size: 44)
-                                  : null),
+                                    ? Icon(
+                                        Icons.person,
+                                        color: palette.textSecondary,
+                                        size: 44,
+                                      )
+                                    : null),
                         ),
                         Container(
                           padding: const EdgeInsets.all(6),
-                          decoration: const BoxDecoration(
-                            color: Color(0xFF6ED7FF),
+                          decoration: BoxDecoration(
+                            color: palette.accent,
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(Icons.camera_alt, size: 16, color: Colors.black),
+                          child: const Icon(
+                            Icons.camera_alt,
+                            size: 16,
+                            color: Colors.black,
+                          ),
                         ),
                       ],
                     ),
@@ -167,19 +192,48 @@ class _CustomStringsScreenState extends ConsumerState<CustomStringsScreen> {
                 ),
                 const SizedBox(height: 8),
                 Center(
-                  child: Text(email, style: const TextStyle(color: Color(0xFF8A8A8A), fontSize: 13)),
+                  child: Text(
+                    email,
+                    style: TextStyle(
+                      color: palette.textSecondary,
+                      fontSize: 13,
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 32),
-                const Text('Nombre', style: TextStyle(color: Colors.black, fontSize: 13, fontWeight: FontWeight.w600)),
+                Text(
+                  AppLocale.t('name'),
+                  style: TextStyle(
+                    color: palette.textPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 const SizedBox(height: 8),
                 _ProfileField(controller: _nameController, hint: 'Tu nombre'),
                 const SizedBox(height: 20),
-                const Text('Pronombres', style: TextStyle(color: Colors.black, fontSize: 13, fontWeight: FontWeight.w600)),
+                Text(
+                  AppLocale.t('pronouns'),
+                  style: TextStyle(
+                    color: palette.textPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 const SizedBox(height: 8),
-                _ProfileField(controller: _pronounsController, hint: 'ej. él/ella/elle'),
+                _ProfileField(
+                  controller: _pronounsController,
+                  hint: 'ej. él/ella/elle',
+                ),
                 if (_errorText != null) ...[
                   const SizedBox(height: 12),
-                  Text(_errorText!, style: const TextStyle(color: Colors.redAccent, fontSize: 13)),
+                  Text(
+                    _errorText!,
+                    style: const TextStyle(
+                      color: Colors.redAccent,
+                      fontSize: 13,
+                    ),
+                  ),
                 ],
                 const SizedBox(height: 28),
                 SizedBox(
@@ -188,15 +242,28 @@ class _CustomStringsScreenState extends ConsumerState<CustomStringsScreen> {
                   child: ElevatedButton(
                     onPressed: _isSaving ? null : _save,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF6ED7FF),
+                      backgroundColor: palette.accent,
                       foregroundColor: Colors.black,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                     ),
                     child: _isSaving
                         ? const SizedBox(
-                            width: 20, height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
-                        : const Text('Guardar', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.black,
+                            ),
+                          )
+                        : Text(
+                            AppLocale.t('save'),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
+                            ),
+                          ),
                   ),
                 ),
               ],
@@ -205,23 +272,31 @@ class _CustomStringsScreenState extends ConsumerState<CustomStringsScreen> {
   }
 }
 
-class _ProfileField extends StatelessWidget {
+class _ProfileField extends ConsumerWidget {
   const _ProfileField({required this.controller, required this.hint});
   final TextEditingController controller;
   final String hint;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = ref.watch(appPaletteProvider);
     return TextField(
       controller: controller,
-      style: const TextStyle(color: Colors.black),
+      style: TextStyle(color: palette.textPrimary),
+      cursorColor: palette.accent,
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(color: Color(0xFF8A8A8A)),
+        hintStyle: TextStyle(color: palette.textSecondary),
         filled: true,
-        fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+        fillColor: palette.surfaceAlt,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
       ),
     );
   }

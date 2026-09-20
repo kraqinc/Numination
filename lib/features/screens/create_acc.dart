@@ -6,7 +6,8 @@ class CreateAccountScreen extends ConsumerStatefulWidget {
   const CreateAccountScreen({super.key});
 
   @override
-  ConsumerState<CreateAccountScreen> createState() => _CreateAccountScreenState();
+  ConsumerState<CreateAccountScreen> createState() =>
+      _CreateAccountScreenState();
 }
 
 class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
@@ -43,7 +44,9 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
       return;
     }
     if (password.length < 6) {
-      setState(() => _errorText = 'La contraseña debe tener al menos 6 caracteres');
+      setState(
+        () => _errorText = 'La contraseña debe tener al menos 6 caracteres',
+      );
       return;
     }
     if (password != confirm) {
@@ -189,7 +192,9 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
                 const SizedBox(height: 16),
                 Center(
                   child: GestureDetector(
-                    onTap: _isLoading ? null : () => Navigator.of(context).pop(),
+                    onTap: _isLoading
+                        ? null
+                        : () => Navigator.of(context).pop(),
                     child: RichText(
                       text: const TextSpan(
                         style: TextStyle(fontSize: 14, color: Colors.grey),

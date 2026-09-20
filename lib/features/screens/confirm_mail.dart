@@ -60,7 +60,8 @@ class _ConfirmMailScreenState extends ConsumerState<ConfirmMailScreen> {
       );
     } on AuthException catch (e) {
       final msg = e.message.toLowerCase();
-      final isWrongPassword = msg.contains('invalid login credentials') ||
+      final isWrongPassword =
+          msg.contains('invalid login credentials') ||
           msg.contains('invalid_credentials') ||
           msg.contains('invalid email or password');
       setState(() {
@@ -181,9 +182,7 @@ class _ConfirmMailScreenState extends ConsumerState<ConfirmMailScreen> {
               ),
               const SizedBox(height: 16),
               GestureDetector(
-                onTap: _isLoading
-                    ? null
-                    : () => Navigator.of(context).pop(),
+                onTap: _isLoading ? null : () => Navigator.of(context).pop(),
                 child: const Text(
                   'Wrong email?',
                   style: TextStyle(
