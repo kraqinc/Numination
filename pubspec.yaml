@@ -37,6 +37,7 @@ flutter:
   uses-material-design: true
 
   assets:
+    - .env
     - assets/images/google.png
     - assets/images/github.png
     - assets/images/microphone.png
