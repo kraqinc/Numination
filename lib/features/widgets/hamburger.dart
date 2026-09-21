@@ -5,7 +5,6 @@ import '../../core/api.dart';
 import '../../core/auth_controller.dart';
 import '../../core/i18n.dart';
 import '../../core/models.dart' show AiModeConfig, ChatSession;
-import '../../core/theme.dart';
 import '../../core/theme_controller.dart';
 import '../screens/artifacts_screen.dart';
 import '../screens/projects_screen.dart';
