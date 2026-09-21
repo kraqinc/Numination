@@ -1,6 +1,6 @@
 import 'dart:ui';
 
-/// Sistema de idiomas propio, liviano (sin ARB/flutter_localizations).
+    /// Sistema de idiomas propio, liviano (sin ARB/flutter_localizations).
 /// Detecta el idioma del sistema operativo del usuario automáticamente
 /// (sin preguntarle nada) y elige el diccionario más cercano. Si el
 /// idioma del dispositivo no está soportado todavía, cae a español.

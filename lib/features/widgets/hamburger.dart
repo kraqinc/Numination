@@ -4,18 +4,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api.dart';
 import '../../core/auth_controller.dart';
 import '../../core/i18n.dart';
-import '../../core/models.dart' show ChatMode, ChatSession;
+import '../../core/models.dart' show AiModeConfig, ChatSession;
+import '../../core/theme.dart';
 import '../../core/theme_controller.dart';
+import '../screens/artifacts_screen.dart';
 import '../screens/projects_screen.dart';
 import '../screens/settings_screen.dart';
-import '../screens/uploaded_files.dart';
 
 class AppDrawer extends ConsumerStatefulWidget {
   const AppDrawer({
     super.key,
     required this.email,
     required this.avatarUrl,
-    required this.mode,
+    required this.modeId,
+    required this.availableModes,
     required this.onSelectMode,
     required this.onSelectChat,
     required this.onNewChat,
@@ -23,8 +25,9 @@ class AppDrawer extends ConsumerStatefulWidget {
 
   final String email;
   final String? avatarUrl;
-  final ChatMode mode;
-  final ValueChanged<ChatMode> onSelectMode;
+  final String modeId;
+  final List<AiModeConfig> availableModes;
+  final ValueChanged<String> onSelectMode;
   final ValueChanged<ChatSession> onSelectChat;
   final VoidCallback onNewChat;
 
@@ -63,9 +66,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
   @override
   Widget build(BuildContext context) {
     final palette = ref.watch(appPaletteProvider);
-    final username = widget.email.isNotEmpty
-        ? widget.email.split('@').first
-        : 'Usuario';
+    final username = widget.email.isNotEmpty ? widget.email.split('@').first : 'Usuario';
 
     return Drawer(
       backgroundColor: palette.surface,
@@ -81,23 +82,15 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                     onPressed: () {
                       Navigator.of(context).pop();
                       Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const SettingsScreen(),
-                        ),
+                        MaterialPageRoute(builder: (_) => const SettingsScreen()),
                       );
                     },
                     icon: CircleAvatar(
                       radius: 14,
                       backgroundColor: palette.surfaceAlt,
-                      backgroundImage: widget.avatarUrl != null
-                          ? NetworkImage(widget.avatarUrl!)
-                          : null,
+                      backgroundImage: widget.avatarUrl != null ? NetworkImage(widget.avatarUrl!) : null,
                       child: widget.avatarUrl == null
-                          ? Icon(
-                              Icons.person,
-                              size: 16,
-                              color: palette.textSecondary,
-                            )
+                          ? Icon(Icons.person, size: 16, color: palette.textSecondary)
                           : null,
                     ),
                   ),
@@ -141,9 +134,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                 onTap: () {
                   Navigator.of(context).pop();
                   Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const UploadedFilesScreen(),
-                    ),
+                    MaterialPageRoute(builder: (_) => const ArtifactsScreen()),
                   );
                 },
               ),
@@ -160,62 +151,44 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    AppLocale.t('sessions'),
-                    style: TextStyle(color: palette.textPrimary, fontSize: 18),
-                  ),
-                  ModePillDropdown(
-                    mode: widget.mode,
-                    onSelectMode: widget.onSelectMode,
-                  ),
+                  Text(AppLocale.t('sessions'), style: TextStyle(color: palette.textPrimary, fontSize: 18)),
+                  ModePillDropdown(modeId: widget.modeId, availableModes: widget.availableModes, onSelectMode: widget.onSelectMode),
                 ],
               ),
               const SizedBox(height: 16),
               Expanded(
                 child: _isLoading
-                    ? Center(
-                        child: CircularProgressIndicator(
-                          color: palette.textPrimary,
-                        ),
-                      )
+                    ? Center(child: CircularProgressIndicator(color: palette.textPrimary))
                     : _chats.isEmpty
-                    ? Center(
-                        child: Text(
-                          AppLocale.t('no_results'),
-                          style: TextStyle(
-                            color: palette.textSecondary,
-                            fontSize: 15,
-                          ),
-                        ),
-                      )
-                    : ListView.builder(
-                        itemCount: _chats.length,
-                        itemBuilder: (context, index) {
-                          final chat = _chats[index];
-                          return ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            leading: Icon(
-                              chat.mode == 'coder'
-                                  ? Icons.code_rounded
-                                  : Icons.chat_bubble_outline,
-                              color: palette.accent,
-                              size: 20,
+                        ? Center(
+                            child: Text(
+                              AppLocale.t('no_results'),
+                              style: TextStyle(color: palette.textSecondary, fontSize: 15),
                             ),
-                            title: Text(
-                              chat.title,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: palette.textPrimary,
-                                fontSize: 15,
-                              ),
-                            ),
-                            onTap: () {
-                              Navigator.of(context).pop();
-                              widget.onSelectChat(chat);
+                          )
+                        : ListView.builder(
+                            itemCount: _chats.length,
+                            itemBuilder: (context, index) {
+                              final chat = _chats[index];
+                              return ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: Icon(
+                                  chat.mode == 'coder' ? Icons.code_rounded : Icons.chat_bubble_outline,
+                                  color: palette.accent,
+                                  size: 20,
+                                ),
+                                title: Text(
+                                  chat.title,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(color: palette.textPrimary, fontSize: 15),
+                                ),
+                                onTap: () {
+                                  Navigator.of(context).pop();
+                                  widget.onSelectChat(chat);
+                                },
+                              );
                             },
-                          );
-                        },
-                      ),
+                          ),
               ),
               Align(
                 alignment: Alignment.centerRight,
@@ -237,12 +210,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
 }
 
 class _DrawerItem extends StatelessWidget {
-  const _DrawerItem({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.onTap,
-  });
+  const _DrawerItem({required this.icon, required this.label, required this.color, required this.onTap});
   final IconData icon;
   final String label;
   final Color color;
@@ -269,29 +237,34 @@ class _DrawerItem extends StatelessWidget {
 class ModePillDropdown extends ConsumerWidget {
   const ModePillDropdown({
     super.key,
-    required this.mode,
+    required this.modeId,
+    required this.availableModes,
     required this.onSelectMode,
   });
-  final ChatMode mode;
-  final ValueChanged<ChatMode> onSelectMode;
+  final String modeId;
+  final List<AiModeConfig> availableModes;
+  final ValueChanged<String> onSelectMode;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = ref.watch(appPaletteProvider);
-    return PopupMenuButton<ChatMode>(
+    final current = availableModes.where((m) => m.id == modeId);
+    final currentLabel = current.isNotEmpty ? current.first.label : 'Chat';
+    return PopupMenuButton<String>(
       color: palette.surfaceAlt,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       onSelected: onSelectMode,
-      itemBuilder: (context) => [
-        PopupMenuItem(
-          value: ChatMode.chat,
-          child: Text('Chat', style: TextStyle(color: palette.textPrimary)),
-        ),
-        PopupMenuItem(
-          value: ChatMode.coder,
-          child: Text('Coder', style: TextStyle(color: palette.textPrimary)),
-        ),
-      ],
+      // Los items del menú son los modos que devuelve GET /modes, así que
+      // agregar un modo nuevo en Supabase lo hace aparecer aquí también,
+      // sin recompilar la app.
+      itemBuilder: (context) => availableModes
+          .map(
+            (m) => PopupMenuItem(
+              value: m.id,
+              child: Text(m.label, style: TextStyle(color: palette.textPrimary)),
+            ),
+          )
+          .toList(),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
@@ -302,15 +275,11 @@ class ModePillDropdown extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              mode == ChatMode.coder ? 'Coder' : 'Chat',
+              currentLabel,
               style: TextStyle(color: palette.textPrimary, fontSize: 15),
             ),
             const SizedBox(width: 6),
-            Icon(
-              Icons.keyboard_arrow_down,
-              color: palette.textPrimary,
-              size: 18,
-            ),
+            Icon(Icons.keyboard_arrow_down, color: palette.textPrimary, size: 18),
           ],
         ),
       ),

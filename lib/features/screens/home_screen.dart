@@ -6,6 +6,7 @@ import '../../core/api.dart';
 import '../../core/auth_controller.dart';
 import '../../core/i18n.dart';
 import '../../core/models.dart';
+import '../../core/theme.dart';
 import '../../core/theme_controller.dart';
 import '../widgets/hamburger.dart';
 import '../widgets/search_chats.dart';
@@ -30,7 +31,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final stt.SpeechToText _speech = stt.SpeechToText();
 
-  ChatMode _mode = ChatMode.chat;
+  List<AiModeConfig> _availableModes = [];
+  String _modeId = 'chat';
   bool _isSending = false;
   bool _isListening = false;
   bool _speechAvailable = false;
@@ -44,6 +46,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     super.initState();
     _initSpeech();
     _loadProfile();
+    _loadModes();
+  }
+
+  /// Pide los modos disponibles (Chat, Coder, y cualquier otro que hayas
+  /// agregado en la tabla AiMode de Supabase) en vez de tenerlos
+  /// hardcodeados. Así un modo nuevo aparece en la app sin recompilar.
+  Future<void> _loadModes() async {
+    try {
+      final response = await ApiClient.get('/modes');
+      final data = ApiClient.decode(response) as Map<String, dynamic>;
+      final list = (data['modes'] as List? ?? [])
+          .map((e) => AiModeConfig.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList()
+        ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+      if (list.isEmpty) return;
+      setState(() {
+        _availableModes = list;
+        if (!list.any((m) => m.id == _modeId)) {
+          _modeId = list.first.id;
+        }
+      });
+    } catch (e) {
+      // Silencioso: si falla, la barra de modos simplemente no muestra
+      // chips hasta el próximo reintento; el chat sigue funcionando con
+      // el modo por defecto 'chat'.
+    }
   }
 
   Future<void> _initSpeech() async {
@@ -64,9 +92,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     try {
       final response = await ApiClient.get('/auth/me');
       final data = ApiClient.decode(response) as Map<String, dynamic>;
-      setState(
-        () => _profile = AppUser.fromJson(data['user'] as Map<String, dynamic>),
-      );
+      setState(() => _profile = AppUser.fromJson(data['user'] as Map<String, dynamic>));
     } catch (e) {
       // Silencioso: drawer y avatar muestran el estado por defecto.
     }
@@ -80,21 +106,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     super.dispose();
   }
 
-  void _toggleMode(ChatMode mode) {
-    if (mode == _mode) return;
-    if (mode == ChatMode.coder) {
+  void _toggleMode(String modeId) {
+    if (modeId == _modeId) return;
+    AiModeConfig? config;
+    for (final m in _availableModes) {
+      if (m.id == modeId) {
+        config = m;
+        break;
+      }
+    }
+    if (config != null && config.requiresPro) {
       _showCoderPaywall();
       return;
     }
-    setState(() => _mode = mode);
+    setState(() => _modeId = modeId);
   }
 
   void _showCoderPaywall() {
     showDialog(
       context: context,
       barrierDismissible: true,
-      builder: (dialogContext) =>
-          _CoderPaywallDialog(onClose: () => Navigator.of(dialogContext).pop()),
+      builder: (dialogContext) => _CoderPaywallDialog(
+        onClose: () => Navigator.of(dialogContext).pop(),
+      ),
     );
   }
 
@@ -108,33 +142,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Future<void> _openChat(ChatSession chat) async {
     setState(() {
       _activeChatId = chat.id;
-      _mode = chat.mode == 'coder' ? ChatMode.coder : ChatMode.chat;
+      _modeId = chat.mode;
       _messages.clear();
     });
     try {
       final response = await ApiClient.get('/chats/${chat.id}/messages');
       final data = ApiClient.decode(response) as Map<String, dynamic>;
       final list = (data['messages'] as List? ?? [])
-          .map(
-            (e) => ChatMessageDto.fromJson(Map<String, dynamic>.from(e as Map)),
-          )
+          .map((e) => ChatMessageDto.fromJson(Map<String, dynamic>.from(e as Map)))
           .toList();
       setState(() {
         _messages.addAll(
-          list.map(
-            (m) => ChatMessage(text: m.content, fromUser: m.role == 'user'),
-          ),
+          list.map((m) => ChatMessage(text: m.content, fromUser: m.role == 'user')),
         );
       });
       _scrollToBottom();
     } catch (e) {
       setState(() {
-        _messages.add(
-          const ChatMessage(
-            text: 'No se pudo cargar este chat.',
-            fromUser: false,
-          ),
-        );
+        _messages.add(const ChatMessage(text: 'No se pudo cargar este chat.', fromUser: false));
       });
     }
   }
@@ -147,9 +172,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   void _openGhostChat() {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const GhostChatScreen()));
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const GhostChatScreen()),
+    );
   }
 
   Future<void> _toggleListening() async {
@@ -204,7 +229,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       if (chatId == null) {
         final createRes = await ApiClient.post('/chats', {
           'title': text.length > 40 ? '${text.substring(0, 40)}...' : text,
-          'mode': _mode == ChatMode.coder ? 'coder' : 'chat',
+          'mode': _modeId,
         });
         final createData = ApiClient.decode(createRes) as Map<String, dynamic>;
         chatId = (createData['chat'] as Map<String, dynamic>)['id'] as String;
@@ -213,30 +238,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
       final response = await ApiClient.post('/ai/chat', {
         'prompt': text,
-        'mode': _mode == ChatMode.coder ? 'coder' : 'chat',
+        'mode': _modeId,
         'chatId': chatId,
       });
       final data = ApiClient.decode(response) as Map<String, dynamic>;
       final chatResponse = ChatResponse.fromJson(data);
       setState(() {
-        _messages.add(
-          ChatMessage(text: chatResponse.response, fromUser: false),
-        );
+        _messages.add(ChatMessage(text: chatResponse.response, fromUser: false));
       });
     } on ApiException catch (e) {
       setState(() {
-        _messages.add(
-          ChatMessage(text: 'Error: ${e.message}', fromUser: false),
-        );
+        _messages.add(ChatMessage(text: 'Error: ${e.message}', fromUser: false));
       });
     } catch (e) {
       setState(() {
-        _messages.add(
-          const ChatMessage(
-            text: 'No se pudo contactar al servidor. Intenta de nuevo.',
-            fromUser: false,
-          ),
-        );
+        _messages.add(const ChatMessage(
+          text: 'No se pudo contactar al servidor. Intenta de nuevo.',
+          fromUser: false,
+        ));
       });
     } finally {
       if (mounted) setState(() => _isSending = false);
@@ -267,7 +286,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       drawer: AppDrawer(
         email: email,
         avatarUrl: _profile?.avatarUrl,
-        mode: _mode,
+        modeId: _modeId,
+        availableModes: _availableModes,
         onSelectMode: _toggleMode,
         onSelectChat: _openChat,
         onNewChat: _startNewChat,
@@ -285,10 +305,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ? const _EmptyState()
                   : ListView.builder(
                       controller: _scrollController,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       itemCount: _messages.length,
                       itemBuilder: (context, index) {
                         final msg = _messages[index];
@@ -298,7 +315,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
             _BottomInputBar(
               controller: _messageController,
-              mode: _mode,
+              modeId: _modeId,
+              availableModes: _availableModes,
               isSending: _isSending,
               isListening: _isListening,
               onModeChange: _toggleMode,
@@ -314,11 +332,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 }
 
 class _TopBar extends ConsumerWidget {
-  const _TopBar({
-    required this.onMenuTap,
-    required this.onSearchTap,
-    required this.onGhostTap,
-  });
+  const _TopBar({required this.onMenuTap, required this.onSearchTap, required this.onGhostTap});
   final VoidCallback onMenuTap;
   final VoidCallback onSearchTap;
   final VoidCallback onGhostTap;
@@ -352,17 +366,10 @@ class _TopBar extends ConsumerWidget {
                     Expanded(
                       child: Text(
                         AppLocale.t('search_chats'),
-                        style: TextStyle(
-                          color: palette.textSecondary,
-                          fontSize: 15,
-                        ),
+                        style: TextStyle(color: palette.textSecondary, fontSize: 15),
                       ),
                     ),
-                    Icon(
-                      Icons.grid_view_rounded,
-                      color: palette.textSecondary,
-                      size: 20,
-                    ),
+                    Icon(Icons.grid_view_rounded, color: palette.textSecondary, size: 20),
                   ],
                 ),
               ),
@@ -407,9 +414,7 @@ class _MessageBubble extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = ref.watch(appPaletteProvider);
     final isUser = message.fromUser;
-    final bubbleColor = isUser
-        ? palette.accent.withValues(alpha: 0.18)
-        : palette.surface;
+    final bubbleColor = isUser ? palette.accent.withValues(alpha: 0.18) : palette.surface;
     final textColor = palette.textPrimary;
 
     return Align(
@@ -417,9 +422,7 @@ class _MessageBubble extends ConsumerWidget {
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 6),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.78,
-        ),
+        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
         decoration: BoxDecoration(
           color: bubbleColor,
           borderRadius: BorderRadius.circular(16),
@@ -437,7 +440,8 @@ class _MessageBubble extends ConsumerWidget {
 class _BottomInputBar extends ConsumerWidget {
   const _BottomInputBar({
     required this.controller,
-    required this.mode,
+    required this.modeId,
+    required this.availableModes,
     required this.isSending,
     required this.isListening,
     required this.onModeChange,
@@ -447,10 +451,11 @@ class _BottomInputBar extends ConsumerWidget {
   });
 
   final TextEditingController controller;
-  final ChatMode mode;
+  final String modeId;
+  final List<AiModeConfig> availableModes;
   final bool isSending;
   final bool isListening;
-  final ValueChanged<ChatMode> onModeChange;
+  final ValueChanged<String> onModeChange;
   final VoidCallback onSend;
   final VoidCallback onMicTap;
   final VoidCallback onAttachTap;
@@ -504,18 +509,30 @@ class _BottomInputBar extends ConsumerWidget {
                     color: palette.textPrimary,
                   ),
                 ),
-                _ModeChip(
-                  label: 'Chat',
-                  selected: mode == ChatMode.chat,
-                  onTap: () => onModeChange(ChatMode.chat),
+                // Los chips se generan a partir de lo que devuelva GET
+                // /modes, no de una lista fija en el código. Un modo nuevo
+                // agregado en la tabla AiMode de Supabase aparece aquí solo,
+                // sin recompilar la app. Van en scroll horizontal propio
+                // para que agregar varios modos no rompa el layout.
+                Expanded(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: availableModes
+                          .map(
+                            (m) => Padding(
+                              padding: const EdgeInsets.only(right: 6),
+                              child: _ModeChip(
+                                label: m.label,
+                                selected: modeId == m.id,
+                                onTap: () => onModeChange(m.id),
+                              ),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ),
                 ),
-                const SizedBox(width: 6),
-                _ModeChip(
-                  label: 'Coder',
-                  selected: mode == ChatMode.coder,
-                  onTap: () => onModeChange(ChatMode.coder),
-                ),
-                const Spacer(),
                 IconButton(
                   onPressed: onMicTap,
                   icon: Image.asset(
@@ -531,10 +548,7 @@ class _BottomInputBar extends ConsumerWidget {
                         height: 40,
                         child: Padding(
                           padding: const EdgeInsets.all(10),
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: palette.textPrimary,
-                          ),
+                          child: CircularProgressIndicator(strokeWidth: 2, color: palette.textPrimary),
                         ),
                       )
                     : IconButton(
@@ -551,11 +565,7 @@ class _BottomInputBar extends ConsumerWidget {
 }
 
 class _ModeChip extends ConsumerWidget {
-  const _ModeChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
+  const _ModeChip({required this.label, required this.selected, required this.onTap});
   final String label;
   final bool selected;
   final VoidCallback onTap;
@@ -612,20 +622,12 @@ class _CoderPaywallDialog extends StatelessWidget {
             ),
             const Text(
               'Paga para continuar',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-              ),
+              style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 10),
             const Text(
               'Coder desbloquea envío de imágenes ilimitado y prioridad en las respuestas.',
-              style: TextStyle(
-                color: Color(0xFF8A8A8A),
-                fontSize: 14,
-                height: 1.4,
-              ),
+              style: TextStyle(color: Color(0xFF8A8A8A), fontSize: 14, height: 1.4),
             ),
             const SizedBox(height: 18),
             Container(
@@ -638,22 +640,8 @@ class _CoderPaywallDialog extends StatelessWidget {
               child: const Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Plan Coder',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  Text(
-                    '\$75 COP/mes',
-                    style: TextStyle(
-                      color: Color(0xFF6ED7FF),
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+                  Text('Plan Coder', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
+                  Text('\$75 COP/mes', style: TextStyle(color: Color(0xFF6ED7FF), fontSize: 16, fontWeight: FontWeight.w700)),
                 ],
               ),
             ),
@@ -666,14 +654,9 @@ class _CoderPaywallDialog extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF6ED7FF),
                   foregroundColor: Colors.black,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
-                child: const Text(
-                  'Pagar con PayPal',
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
-                ),
+                child: const Text('Pagar con PayPal', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
               ),
             ),
           ],
