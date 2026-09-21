@@ -6,7 +6,6 @@ import '../../core/api.dart';
 import '../../core/auth_controller.dart';
 import '../../core/i18n.dart';
 import '../../core/models.dart';
-import '../../core/theme.dart';
 import '../../core/theme_controller.dart';
 import '../widgets/hamburger.dart';
 import '../widgets/search_chats.dart';
