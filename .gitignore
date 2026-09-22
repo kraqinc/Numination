@@ -7,7 +7,7 @@
 .pub/
 build/
 coverage/
-
+.idea
 # Android
 a**/local.properties
 android/.gradle/
@@ -36,3 +36,29 @@ generated_plugin_registrant.dart
 
 # Logs
 *.log
+
+# Flutter / Dart generated
+.dart_tool/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# IDE
+.idea/
+*.iml
+
+# Local configuration / secrets
+.env
+android/local.properties
+
+# iOS generated
+ios/Flutter/ephemeral/
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+
+# Signing keys
+keystore/
+*.jks
+
+# Generated localizations
+lib/l10n/gen/
