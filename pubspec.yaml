@@ -13,6 +13,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  intl: ^0.20.3
 
   cupertino_icons: ^1.0.8
   flutter_riverpod: ^3.4.2
@@ -25,6 +28,7 @@ dependencies:
   connectivity_plus: ^6.1.0
   speech_to_text: ^7.0.0
   image_picker: ^1.1.2
+  file_picker: ^8.1.2
 
 dev_dependencies:
   flutter_test:
@@ -35,6 +39,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  generate: true
 
   assets:
     - .env

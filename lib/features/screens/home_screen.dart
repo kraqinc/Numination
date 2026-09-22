@@ -1,11 +1,17 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/ai_modes_controller.dart';
 import '../../core/api.dart';
 import '../../core/auth_controller.dart';
-import '../../core/i18n.dart';
+import '../../core/l10n_extensions.dart';
 import '../../core/models.dart';
+import '../../core/theme.dart';
 import '../../core/theme_controller.dart';
 import '../widgets/hamburger.dart';
 import '../widgets/search_chats.dart';
@@ -30,7 +36,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final stt.SpeechToText _speech = stt.SpeechToText();
 
-  List<AiModeConfig> _availableModes = [];
   String _modeId = 'chat';
   bool _isSending = false;
   bool _isListening = false;
@@ -45,32 +50,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     super.initState();
     _initSpeech();
     _loadProfile();
-    _loadModes();
-  }
-
-  /// Pide los modos disponibles (Chat, Coder, y cualquier otro que hayas
-  /// agregado en la tabla AiMode de Supabase) en vez de tenerlos
-  /// hardcodeados. Así un modo nuevo aparece en la app sin recompilar.
-  Future<void> _loadModes() async {
-    try {
-      final response = await ApiClient.get('/modes');
-      final data = ApiClient.decode(response) as Map<String, dynamic>;
-      final list = (data['modes'] as List? ?? [])
-          .map((e) => AiModeConfig.fromJson(Map<String, dynamic>.from(e as Map)))
-          .toList()
-        ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
-      if (list.isEmpty) return;
-      setState(() {
-        _availableModes = list;
-        if (!list.any((m) => m.id == _modeId)) {
-          _modeId = list.first.id;
-        }
-      });
-    } catch (e) {
-      // Silencioso: si falla, la barra de modos simplemente no muestra
-      // chips hasta el próximo reintento; el chat sigue funcionando con
-      // el modo por defecto 'chat'.
-    }
   }
 
   Future<void> _initSpeech() async {
@@ -107,13 +86,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   void _toggleMode(String modeId) {
     if (modeId == _modeId) return;
-    AiModeConfig? config;
-    for (final m in _availableModes) {
-      if (m.id == modeId) {
-        config = m;
-        break;
-      }
-    }
+    final config = ref.read(aiModesControllerProvider.notifier).findById(modeId);
     if (config != null && config.requiresPro) {
       _showCoderPaywall();
       return;
@@ -206,10 +179,48 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  void _attachFile() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Adjuntar archivos: próximamente')),
-    );
+  bool _isAttaching = false;
+
+  Future<void> _attachFile() async {
+    if (_isAttaching) return;
+    final result = await FilePicker.platform.pickFiles(withData: false);
+    final picked = result?.files.single;
+    if (picked == null || picked.path == null) return;
+
+    setState(() => _isAttaching = true);
+    try {
+      final client = Supabase.instance.client;
+      final userId = client.auth.currentUser?.id;
+      if (userId == null) throw Exception('Sesión no encontrada');
+
+      // Se sube directo al bucket "artifacts" desde el cliente (igual que
+      // el avatar en custom_strings.dart) porque subir binarios grandes a
+      // través de la Edge Function con JSON no es práctico. La Edge
+      // Function solo guarda la referencia (storagePath) + metadata.
+      final storagePath = '$userId/${DateTime.now().millisecondsSinceEpoch}_${picked.name}';
+      await client.storage.from('artifacts').upload(storagePath, File(picked.path!));
+
+      await ApiClient.post('/artifacts', {
+        'title': picked.name,
+        'kind': 'file',
+        'storagePath': storagePath,
+        'mimeType': picked.extension ?? '',
+        'sizeBytes': picked.size,
+        'chatId': _activeChatId,
+      });
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('"${picked.name}" se guardó en Artefactos')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo adjuntar el archivo. Inténtalo de nuevo.')),
+      );
+    } finally {
+      if (mounted) setState(() => _isAttaching = false);
+    }
   }
 
   Future<void> _sendMessage() async {
@@ -278,6 +289,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final auth = ref.watch(authControllerProvider);
     final palette = ref.watch(appPaletteProvider);
     final email = auth is AuthAuthenticated ? auth.email : '';
+    final availableModes = ref.watch(aiModesControllerProvider).valueOrNull ?? const <AiModeConfig>[];
+
+    // Si el modo activo (por ejemplo, uno que ya no existe o se
+    // deshabilitó en Supabase) ya no está en la lista, cae al primero
+    // disponible automáticamente.
+    ref.listen(aiModesControllerProvider, (previous, next) {
+      final list = next.valueOrNull;
+      if (list != null && list.isNotEmpty && !list.any((m) => m.id == _modeId)) {
+        setState(() => _modeId = list.first.id);
+      }
+    });
 
     return Scaffold(
       key: _scaffoldKey,
@@ -286,7 +308,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         email: email,
         avatarUrl: _profile?.avatarUrl,
         modeId: _modeId,
-        availableModes: _availableModes,
+        availableModes: availableModes,
         onSelectMode: _toggleMode,
         onSelectChat: _openChat,
         onNewChat: _startNewChat,
@@ -315,9 +337,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             _BottomInputBar(
               controller: _messageController,
               modeId: _modeId,
-              availableModes: _availableModes,
+              availableModes: availableModes,
               isSending: _isSending,
               isListening: _isListening,
+              isAttaching: _isAttaching,
               onModeChange: _toggleMode,
               onSend: _sendMessage,
               onMicTap: _toggleListening,
@@ -364,7 +387,7 @@ class _TopBar extends ConsumerWidget {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        AppLocale.t('search_chats'),
+                        context.l10n.searchChats,
                         style: TextStyle(color: palette.textSecondary, fontSize: 15),
                       ),
                     ),
@@ -398,7 +421,7 @@ class _EmptyState extends ConsumerWidget {
     final palette = ref.watch(appPaletteProvider);
     return Center(
       child: Text(
-        AppLocale.t('what_are_we_working_on'),
+        context.l10n.whatAreWeWorkingOn,
         style: TextStyle(color: palette.textSecondary, fontSize: 16),
       ),
     );
@@ -443,6 +466,7 @@ class _BottomInputBar extends ConsumerWidget {
     required this.availableModes,
     required this.isSending,
     required this.isListening,
+    required this.isAttaching,
     required this.onModeChange,
     required this.onSend,
     required this.onMicTap,
@@ -454,6 +478,7 @@ class _BottomInputBar extends ConsumerWidget {
   final List<AiModeConfig> availableModes;
   final bool isSending;
   final bool isListening;
+  final bool isAttaching;
   final ValueChanged<String> onModeChange;
   final VoidCallback onSend;
   final VoidCallback onMicTap;
@@ -488,7 +513,7 @@ class _BottomInputBar extends ConsumerWidget {
                 // palette.surface, que es el fondo de este contenedor.
                 style: TextStyle(color: palette.textPrimary, fontSize: 15),
                 decoration: InputDecoration(
-                  hintText: AppLocale.t('ask_something'),
+                  hintText: context.l10n.askSomething,
                   hintStyle: TextStyle(color: palette.textSecondary),
                   border: InputBorder.none,
                   isCollapsed: true,
@@ -500,13 +525,19 @@ class _BottomInputBar extends ConsumerWidget {
             Row(
               children: [
                 IconButton(
-                  onPressed: onAttachTap,
-                  icon: Image.asset(
-                    'assets/images/add_files.png',
-                    width: 22,
-                    height: 22,
-                    color: palette.textPrimary,
-                  ),
+                  onPressed: isAttaching ? null : onAttachTap,
+                  icon: isAttaching
+                      ? SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: palette.textSecondary),
+                        )
+                      : Image.asset(
+                          'assets/images/add_files.png',
+                          width: 22,
+                          height: 22,
+                          color: palette.textPrimary,
+                        ),
                 ),
                 // Los chips se generan a partir de lo que devuelva GET
                 // /modes, no de una lista fija en el código. Un modo nuevo

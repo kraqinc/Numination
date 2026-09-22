@@ -52,25 +52,39 @@ class ArtifactItem {
   final String id;
   final String? chatId;
   final String title;
+  final String kind; // 'snippet' (código/texto) o 'file' (archivo adjunto)
   final String language;
   final String content;
+  final String? storagePath;
+  final String? mimeType;
+  final int? sizeBytes;
   final String createdAt;
   const ArtifactItem({
     required this.id,
     this.chatId,
     required this.title,
+    required this.kind,
     required this.language,
     required this.content,
+    this.storagePath,
+    this.mimeType,
+    this.sizeBytes,
     required this.createdAt,
   });
   factory ArtifactItem.fromJson(Map<String, dynamic> json) => ArtifactItem(
         id: '${json['id'] ?? ''}',
         chatId: json['chatId']?.toString(),
         title: '${json['title'] ?? 'Sin título'}',
+        kind: '${json['kind'] ?? 'snippet'}',
         language: '${json['language'] ?? 'plaintext'}',
         content: '${json['content'] ?? ''}',
+        storagePath: json['storagePath']?.toString(),
+        mimeType: json['mimeType']?.toString(),
+        sizeBytes: (json['sizeBytes'] as num?)?.toInt(),
         createdAt: '${json['createdAt'] ?? ''}',
       );
+
+  bool get isFile => kind == 'file';
 }
 
 /// Un modo de IA (Chat, Coder, o cualquiera que agregues después) tal como

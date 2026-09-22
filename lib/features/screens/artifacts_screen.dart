@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/api.dart';
-import '../../core/i18n.dart';
+import '../../core/l10n_extensions.dart';
 import '../../core/models.dart';
 import '../../core/theme.dart';
 import '../../core/theme_controller.dart';
@@ -63,7 +65,7 @@ class _ArtifactsScreenState extends ConsumerState<ArtifactsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(AppLocale.t('cancel'), style: TextStyle(color: palette.textSecondary)),
+            child: Text(context.l10n.cancel, style: TextStyle(color: palette.textSecondary)),
           ),
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
@@ -86,6 +88,36 @@ class _ArtifactsScreenState extends ConsumerState<ArtifactsScreen> {
   }
 
   void _openArtifact(ArtifactItem artifact) {
+    if (artifact.isFile) {
+      _openFile(artifact);
+      return;
+    }
+    _openSnippet(artifact);
+  }
+
+  Future<void> _openFile(ArtifactItem artifact) async {
+    if (artifact.storagePath == null) return;
+    try {
+      final signed = await Supabase.instance.client.storage
+          .from('artifacts')
+          .createSignedUrl(artifact.storagePath!, 600); // 10 min
+      final uri = Uri.parse(signed);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo abrir el archivo')),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo generar el enlace del archivo')),
+      );
+    }
+  }
+
+  void _openSnippet(ArtifactItem artifact) {
     final palette = ref.read(appPaletteProvider);
     showModalBottomSheet(
       context: context,
@@ -161,7 +193,7 @@ class _ArtifactsScreenState extends ConsumerState<ArtifactsScreen> {
         backgroundColor: palette.background,
         elevation: 0,
         iconTheme: IconThemeData(color: palette.textPrimary),
-        title: Text(AppLocale.t('artifacts'), style: TextStyle(color: palette.textPrimary)),
+        title: Text(context.l10n.artifacts, style: TextStyle(color: palette.textPrimary)),
       ),
       body: RefreshIndicator(
         onRefresh: _load,
@@ -172,7 +204,7 @@ class _ArtifactsScreenState extends ConsumerState<ArtifactsScreen> {
                 : ListView.separated(
                     padding: const EdgeInsets.all(16),
                     itemCount: _artifacts.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 10),
+                    separatorBuilder: (_, __) => const SizedBox(height: 10),
                     itemBuilder: (context, index) {
                       final artifact = _artifacts[index];
                       return InkWell(
@@ -195,7 +227,11 @@ class _ArtifactsScreenState extends ConsumerState<ArtifactsScreen> {
                                   borderRadius: BorderRadius.circular(10),
                                   border: Border.all(color: palette.border),
                                 ),
-                                child: Icon(Icons.code_rounded, color: palette.accent, size: 20),
+                                child: Icon(
+                                  artifact.isFile ? Icons.attach_file_rounded : Icons.code_rounded,
+                                  color: palette.accent,
+                                  size: 20,
+                                ),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
@@ -210,7 +246,9 @@ class _ArtifactsScreenState extends ConsumerState<ArtifactsScreen> {
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
-                                      artifact.language,
+                                      artifact.isFile
+                                          ? (artifact.mimeType?.isNotEmpty == true ? artifact.mimeType! : 'Archivo')
+                                          : artifact.language,
                                       style: TextStyle(color: palette.textSecondary, fontSize: 12),
                                     ),
                                   ],

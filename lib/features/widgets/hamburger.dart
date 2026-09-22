@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api.dart';
 import '../../core/auth_controller.dart';
-import '../../core/i18n.dart';
+import '../../core/l10n_extensions.dart';
 import '../../core/models.dart' show AiModeConfig, ChatSession;
+import '../../core/theme.dart';
 import '../../core/theme_controller.dart';
 import '../screens/artifacts_screen.dart';
+import '../screens/connectors_screen.dart';
 import '../screens/projects_screen.dart';
 import '../screens/settings_screen.dart';
 
@@ -116,7 +118,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
               const SizedBox(height: 24),
               _DrawerItem(
                 icon: Icons.folder_copy_outlined,
-                label: AppLocale.t('projects'),
+                label: context.l10n.projects,
                 color: palette.textPrimary,
                 onTap: () {
                   Navigator.of(context).pop();
@@ -128,7 +130,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
               const SizedBox(height: 18),
               _DrawerItem(
                 icon: Icons.description_outlined,
-                label: AppLocale.t('artifacts'),
+                label: context.l10n.artifacts,
                 color: palette.textPrimary,
                 onTap: () {
                   Navigator.of(context).pop();
@@ -140,9 +142,14 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
               const SizedBox(height: 18),
               _DrawerItem(
                 icon: Icons.power_off_outlined,
-                label: AppLocale.t('connectors'),
+                label: context.l10n.connectors,
                 color: palette.textPrimary,
-                onTap: () {},
+                onTap: () {
+                  Navigator.of(context).pop();
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const ConnectorsScreen()),
+                  );
+                },
               ),
               const SizedBox(height: 16),
               Divider(color: palette.border),
@@ -150,7 +157,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(AppLocale.t('sessions'), style: TextStyle(color: palette.textPrimary, fontSize: 18)),
+                  Text(context.l10n.sessions, style: TextStyle(color: palette.textPrimary, fontSize: 18)),
                   ModePillDropdown(modeId: widget.modeId, availableModes: widget.availableModes, onSelectMode: widget.onSelectMode),
                 ],
               ),
@@ -161,7 +168,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                     : _chats.isEmpty
                         ? Center(
                             child: Text(
-                              AppLocale.t('no_results'),
+                              context.l10n.noResults,
                               style: TextStyle(color: palette.textSecondary, fontSize: 15),
                             ),
                           )
