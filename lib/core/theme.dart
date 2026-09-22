@@ -26,26 +26,26 @@ enum AppThemeMode { dark, gray, light, midnight }
 
 extension AppThemeModeLabel on AppThemeMode {
   String get label => switch (this) {
-        AppThemeMode.dark => 'Oscuro',
-        AppThemeMode.gray => 'Gris',
-        AppThemeMode.light => 'Blanco',
-        AppThemeMode.midnight => 'Medianoche',
-      };
+    AppThemeMode.dark => 'Oscuro',
+    AppThemeMode.gray => 'Gris',
+    AppThemeMode.light => 'Blanco',
+    AppThemeMode.midnight => 'Medianoche',
+  };
 
   String get storageKey => switch (this) {
-        AppThemeMode.dark => 'dark',
-        AppThemeMode.gray => 'gray',
-        AppThemeMode.light => 'light',
-        AppThemeMode.midnight => 'midnight',
-      };
+    AppThemeMode.dark => 'dark',
+    AppThemeMode.gray => 'gray',
+    AppThemeMode.light => 'light',
+    AppThemeMode.midnight => 'midnight',
+  };
 
   static AppThemeMode fromStorageKey(String? key) => switch (key) {
-        'dark' => AppThemeMode.dark,
-        'gray' => AppThemeMode.gray,
-        'light' => AppThemeMode.light,
-        'midnight' => AppThemeMode.midnight,
-        _ => AppThemeMode.gray,
-      };
+    'dark' => AppThemeMode.dark,
+    'gray' => AppThemeMode.gray,
+    'light' => AppThemeMode.light,
+    'midnight' => AppThemeMode.midnight,
+    _ => AppThemeMode.gray,
+  };
 }
 
 /// Paleta resuelta para el tema activo. Todas las pantallas post-login
@@ -165,9 +165,7 @@ ThemeData buildTheme() {
         borderSide: BorderSide(color: AppColors.purpleSoft),
       ),
     ),
-    snackBarTheme: const SnackBarThemeData(
-      behavior: SnackBarBehavior.floating,
-    ),
+    snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),
   );
 }
 
@@ -191,7 +189,12 @@ class GlassCard extends StatelessWidget {
   final Widget child;
   final EdgeInsets padding;
   final VoidCallback? onTap;
-  const GlassCard({super.key, required this.child, this.padding = const EdgeInsets.all(16), this.onTap});
+  const GlassCard({
+    super.key,
+    required this.child,
+    this.padding = const EdgeInsets.all(16),
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -206,6 +209,10 @@ class GlassCard extends StatelessWidget {
     );
     return onTap == null
         ? content
-        : InkWell(onTap: onTap, borderRadius: BorderRadius.circular(18), child: content);
+        : InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(18),
+            child: content,
+          );
   }
 }

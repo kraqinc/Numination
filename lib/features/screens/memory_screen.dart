@@ -50,7 +50,10 @@ class _MemoryScreenState extends ConsumerState<MemoryScreen> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: palette.surface,
-        title: Text(context.l10n.create, style: TextStyle(color: palette.textPrimary)),
+        title: Text(
+          context.l10n.create,
+          style: TextStyle(color: palette.textPrimary),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -78,11 +81,17 @@ class _MemoryScreenState extends ConsumerState<MemoryScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(context.l10n.cancel, style: TextStyle(color: palette.textSecondary)),
+            child: Text(
+              context.l10n.cancel,
+              style: TextStyle(color: palette.textSecondary),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(context.l10n.save, style: TextStyle(color: palette.accent)),
+            child: Text(
+              context.l10n.save,
+              style: TextStyle(color: palette.accent),
+            ),
           ),
         ],
       ),
@@ -94,7 +103,11 @@ class _MemoryScreenState extends ConsumerState<MemoryScreen> {
     if (title.isEmpty || content.isEmpty) return;
 
     try {
-      await ApiClient.post('/memory', {'title': title, 'content': content, 'type': 'PROJECT'});
+      await ApiClient.post('/memory', {
+        'title': title,
+        'content': content,
+        'type': 'PROJECT',
+      });
       _load();
     } catch (e) {
       if (!mounted) return;
@@ -114,7 +127,10 @@ class _MemoryScreenState extends ConsumerState<MemoryScreen> {
         backgroundColor: palette.background,
         elevation: 0,
         iconTheme: IconThemeData(color: palette.textPrimary),
-        title: Text(context.l10n.memory, style: TextStyle(color: palette.textPrimary)),
+        title: Text(
+          context.l10n.memory,
+          style: TextStyle(color: palette.textPrimary),
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: palette.accent,
@@ -124,46 +140,63 @@ class _MemoryScreenState extends ConsumerState<MemoryScreen> {
       body: RefreshIndicator(
         onRefresh: _load,
         child: _isLoading
-            ? Center(child: CircularProgressIndicator(color: palette.textPrimary))
+            ? Center(
+                child: CircularProgressIndicator(color: palette.textPrimary),
+              )
             : _memories.isEmpty
-                ? _EmptyMemoryState(palette: palette)
-                : ListView.separated(
+            ? _EmptyMemoryState(palette: palette)
+            : ListView.separated(
+                padding: const EdgeInsets.all(16),
+                itemCount: _memories.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 10),
+                itemBuilder: (context, index) {
+                  final memory = _memories[index];
+                  return Container(
                     padding: const EdgeInsets.all(16),
-                    itemCount: _memories.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (context, index) {
-                      final memory = _memories[index];
-                      return Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: palette.surface,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: palette.border),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                    decoration: BoxDecoration(
+                      color: palette.surface,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: palette.border),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
                           children: [
-                            Row(
-                              children: [
-                                if (memory.pinned) ...[
-                                  Icon(Icons.push_pin, size: 14, color: palette.accent),
-                                  const SizedBox(width: 6),
-                                ],
-                                Expanded(
-                                  child: Text(
-                                    memory.title,
-                                    style: TextStyle(color: palette.textPrimary, fontSize: 15, fontWeight: FontWeight.w600),
-                                  ),
+                            if (memory.pinned) ...[
+                              Icon(
+                                Icons.push_pin,
+                                size: 14,
+                                color: palette.accent,
+                              ),
+                              const SizedBox(width: 6),
+                            ],
+                            Expanded(
+                              child: Text(
+                                memory.title,
+                                style: TextStyle(
+                                  color: palette.textPrimary,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
                                 ),
-                              ],
+                              ),
                             ),
-                            const SizedBox(height: 6),
-                            Text(memory.content, style: TextStyle(color: palette.textSecondary, fontSize: 13, height: 1.4)),
                           ],
                         ),
-                      );
-                    },
-                  ),
+                        const SizedBox(height: 6),
+                        Text(
+                          memory.content,
+                          style: TextStyle(
+                            color: palette.textSecondary,
+                            fontSize: 13,
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
       ),
     );
   }
@@ -191,13 +224,21 @@ class _EmptyMemoryState extends StatelessWidget {
                   Text(
                     'Numination todavía no ha guardado memorias sobre ti.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: palette.textPrimary, fontSize: 16, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      color: palette.textPrimary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'Toca "+" para guardar algo manualmente, o sigue conversando: lo relevante se guardará solo.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: palette.textSecondary, fontSize: 13, height: 1.4),
+                    style: TextStyle(
+                      color: palette.textSecondary,
+                      fontSize: 13,
+                      height: 1.4,
+                    ),
                   ),
                 ],
               ),

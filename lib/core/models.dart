@@ -23,16 +23,16 @@ class AppUser {
   });
 
   factory AppUser.fromJson(Map<String, dynamic> json) => AppUser(
-        id: '${json['id'] ?? ''}',
-        email: '${json['email'] ?? ''}',
-        role: '${json['role'] ?? 'USER'}',
-        tier: '${json['tier'] ?? 'FREE'}',
-        balance: (json['balance'] as num?)?.toInt() ?? 0,
-        proExpiresAt: json['proExpiresAt']?.toString(),
-        displayName: json['displayName']?.toString(),
-        pronouns: json['pronouns']?.toString(),
-        avatarUrl: json['avatarUrl']?.toString(),
-      );
+    id: '${json['id'] ?? ''}',
+    email: '${json['email'] ?? ''}',
+    role: '${json['role'] ?? 'USER'}',
+    tier: '${json['tier'] ?? 'FREE'}',
+    balance: (json['balance'] as num?)?.toInt() ?? 0,
+    proExpiresAt: json['proExpiresAt']?.toString(),
+    displayName: json['displayName']?.toString(),
+    pronouns: json['pronouns']?.toString(),
+    avatarUrl: json['avatarUrl']?.toString(),
+  );
 }
 
 class Project {
@@ -41,11 +41,20 @@ class Project {
   final String description;
   final String createdAt;
   final String updatedAt;
-  const Project({required this.id, required this.name, required this.description, required this.createdAt, required this.updatedAt});
+  const Project({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.createdAt,
+    required this.updatedAt,
+  });
   factory Project.fromJson(Map<String, dynamic> json) => Project(
-        id: '${json['id'] ?? ''}', name: '${json['name'] ?? ''}', description: '${json['description'] ?? ''}',
-        createdAt: '${json['created_at'] ?? json['createdAt'] ?? ''}', updatedAt: '${json['updated_at'] ?? json['updatedAt'] ?? ''}',
-      );
+    id: '${json['id'] ?? ''}',
+    name: '${json['name'] ?? ''}',
+    description: '${json['description'] ?? ''}',
+    createdAt: '${json['created_at'] ?? json['createdAt'] ?? ''}',
+    updatedAt: '${json['updated_at'] ?? json['updatedAt'] ?? ''}',
+  );
 }
 
 class ArtifactItem {
@@ -72,17 +81,17 @@ class ArtifactItem {
     required this.createdAt,
   });
   factory ArtifactItem.fromJson(Map<String, dynamic> json) => ArtifactItem(
-        id: '${json['id'] ?? ''}',
-        chatId: json['chatId']?.toString(),
-        title: '${json['title'] ?? 'Sin título'}',
-        kind: '${json['kind'] ?? 'snippet'}',
-        language: '${json['language'] ?? 'plaintext'}',
-        content: '${json['content'] ?? ''}',
-        storagePath: json['storagePath']?.toString(),
-        mimeType: json['mimeType']?.toString(),
-        sizeBytes: (json['sizeBytes'] as num?)?.toInt(),
-        createdAt: '${json['createdAt'] ?? ''}',
-      );
+    id: '${json['id'] ?? ''}',
+    chatId: json['chatId']?.toString(),
+    title: '${json['title'] ?? 'Sin título'}',
+    kind: '${json['kind'] ?? 'snippet'}',
+    language: '${json['language'] ?? 'plaintext'}',
+    content: '${json['content'] ?? ''}',
+    storagePath: json['storagePath']?.toString(),
+    mimeType: json['mimeType']?.toString(),
+    sizeBytes: (json['sizeBytes'] as num?)?.toInt(),
+    createdAt: '${json['createdAt'] ?? ''}',
+  );
 
   bool get isFile => kind == 'file';
 }
@@ -108,13 +117,13 @@ class AiModeConfig {
     required this.sortOrder,
   });
   factory AiModeConfig.fromJson(Map<String, dynamic> json) => AiModeConfig(
-        id: '${json['id'] ?? 'chat'}',
-        label: '${json['label'] ?? json['id'] ?? 'Chat'}',
-        iconName: '${json['iconName'] ?? 'chat_bubble_outline'}',
-        description: '${json['description'] ?? ''}',
-        requiresPro: json['requiresPro'] == true,
-        sortOrder: (json['sortOrder'] as num?)?.toInt() ?? 0,
-      );
+    id: '${json['id'] ?? 'chat'}',
+    label: '${json['label'] ?? json['id'] ?? 'Chat'}',
+    iconName: '${json['iconName'] ?? 'chat_bubble_outline'}',
+    description: '${json['description'] ?? ''}',
+    requiresPro: json['requiresPro'] == true,
+    sortOrder: (json['sortOrder'] as num?)?.toInt() ?? 0,
+  );
 
   /// Íconos conocidos por nombre. Si el backend manda un iconName que no
   /// está en este mapa (porque agregaste un modo nuevo y no actualizaste
@@ -139,12 +148,27 @@ class FileItem {
   final bool isDirectory;
   final String content;
   final String? parentId;
-  const FileItem({required this.id, required this.projectId, required this.name, required this.path, required this.isDirectory, required this.content, this.parentId});
+  const FileItem({
+    required this.id,
+    required this.projectId,
+    required this.name,
+    required this.path,
+    required this.isDirectory,
+    required this.content,
+    this.parentId,
+  });
   factory FileItem.fromJson(Map<String, dynamic> json) => FileItem(
-        id: '${json['id'] ?? ''}', projectId: '${json['project_id'] ?? json['projectId'] ?? ''}', name: '${json['name'] ?? ''}',
-        path: '${json['path'] ?? ''}', isDirectory: json['is_directory'] == 1 || json['is_directory'] == true || json['isDirectory'] == true,
-        content: '${json['content'] ?? ''}', parentId: json['parent_id']?.toString() ?? json['parentId']?.toString(),
-      );
+    id: '${json['id'] ?? ''}',
+    projectId: '${json['project_id'] ?? json['projectId'] ?? ''}',
+    name: '${json['name'] ?? ''}',
+    path: '${json['path'] ?? ''}',
+    isDirectory:
+        json['is_directory'] == 1 ||
+        json['is_directory'] == true ||
+        json['isDirectory'] == true,
+    content: '${json['content'] ?? ''}',
+    parentId: json['parent_id']?.toString() ?? json['parentId']?.toString(),
+  );
 }
 
 class ChatAction {
@@ -153,10 +177,20 @@ class ChatAction {
   final String? content;
   final String? command;
   final String description;
-  const ChatAction({required this.type, this.path, this.content, this.command, required this.description});
+  const ChatAction({
+    required this.type,
+    this.path,
+    this.content,
+    this.command,
+    required this.description,
+  });
   factory ChatAction.fromJson(Map<String, dynamic> json) => ChatAction(
-        type: '${json['type'] ?? ''}', path: json['path']?.toString(), content: json['content']?.toString(), command: json['command']?.toString(), description: '${json['description'] ?? ''}',
-      );
+    type: '${json['type'] ?? ''}',
+    path: json['path']?.toString(),
+    content: json['content']?.toString(),
+    command: json['command']?.toString(),
+    description: '${json['description'] ?? ''}',
+  );
 }
 
 class ChatResponse {
@@ -166,12 +200,24 @@ class ChatResponse {
   final List<ChatAction> actions;
   final int remainingCredits;
   final String timestamp;
-  const ChatResponse({required this.success, required this.mode, required this.response, required this.actions, required this.remainingCredits, required this.timestamp});
+  const ChatResponse({
+    required this.success,
+    required this.mode,
+    required this.response,
+    required this.actions,
+    required this.remainingCredits,
+    required this.timestamp,
+  });
   factory ChatResponse.fromJson(Map<String, dynamic> json) => ChatResponse(
-        success: json['success'] == true, mode: '${json['mode'] ?? 'chat'}', response: '${json['response'] ?? ''}',
-        actions: ((json['actions'] as List?) ?? const []).map((e) => ChatAction.fromJson(Map<String, dynamic>.from(e as Map))).toList(),
-        remainingCredits: (json['remainingCredits'] as num?)?.toInt() ?? 0, timestamp: '${json['timestamp'] ?? ''}',
-      );
+    success: json['success'] == true,
+    mode: '${json['mode'] ?? 'chat'}',
+    response: '${json['response'] ?? ''}',
+    actions: ((json['actions'] as List?) ?? const [])
+        .map((e) => ChatAction.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList(),
+    remainingCredits: (json['remainingCredits'] as num?)?.toInt() ?? 0,
+    timestamp: '${json['timestamp'] ?? ''}',
+  );
 }
 
 class BillingPlan {
@@ -183,12 +229,26 @@ class BillingPlan {
   final bool bestValue;
   final String? tier;
   final int? tierDurationDays;
-  const BillingPlan({required this.id, required this.title, required this.credits, required this.priceUsd, required this.priceLabel, this.bestValue = false, this.tier, this.tierDurationDays});
+  const BillingPlan({
+    required this.id,
+    required this.title,
+    required this.credits,
+    required this.priceUsd,
+    required this.priceLabel,
+    this.bestValue = false,
+    this.tier,
+    this.tierDurationDays,
+  });
   factory BillingPlan.fromJson(Map<String, dynamic> json) => BillingPlan(
-        id: '${json['id'] ?? ''}', title: '${json['title'] ?? ''}', credits: (json['credits'] as num?)?.toInt() ?? 0,
-        priceUsd: '${json['priceUsd'] ?? ''}', priceLabel: '${json['priceLabel'] ?? ''}', bestValue: json['bestValue'] == true,
-        tier: json['tier']?.toString(), tierDurationDays: (json['tierDurationDays'] as num?)?.toInt(),
-      );
+    id: '${json['id'] ?? ''}',
+    title: '${json['title'] ?? ''}',
+    credits: (json['credits'] as num?)?.toInt() ?? 0,
+    priceUsd: '${json['priceUsd'] ?? ''}',
+    priceLabel: '${json['priceLabel'] ?? ''}',
+    bestValue: json['bestValue'] == true,
+    tier: json['tier']?.toString(),
+    tierDurationDays: (json['tierDurationDays'] as num?)?.toInt(),
+  );
 }
 
 class CreditLog {
@@ -196,8 +256,18 @@ class CreditLog {
   final int amount;
   final String reason;
   final String timestamp;
-  const CreditLog({required this.id, required this.amount, required this.reason, required this.timestamp});
-  factory CreditLog.fromJson(Map<String, dynamic> json) => CreditLog(id: '${json['id'] ?? ''}', amount: (json['amount'] as num?)?.toInt() ?? 0, reason: '${json['reason'] ?? ''}', timestamp: '${json['timestamp'] ?? ''}');
+  const CreditLog({
+    required this.id,
+    required this.amount,
+    required this.reason,
+    required this.timestamp,
+  });
+  factory CreditLog.fromJson(Map<String, dynamic> json) => CreditLog(
+    id: '${json['id'] ?? ''}',
+    amount: (json['amount'] as num?)?.toInt() ?? 0,
+    reason: '${json['reason'] ?? ''}',
+    timestamp: '${json['timestamp'] ?? ''}',
+  );
 }
 
 /// Shared enum for the app's assistant mode. Lives here (instead of inside
@@ -213,11 +283,22 @@ class ChatSession {
   final bool isGhost;
   final String createdAt;
   final String updatedAt;
-  const ChatSession({required this.id, required this.title, required this.mode, required this.isGhost, required this.createdAt, required this.updatedAt});
+  const ChatSession({
+    required this.id,
+    required this.title,
+    required this.mode,
+    required this.isGhost,
+    required this.createdAt,
+    required this.updatedAt,
+  });
   factory ChatSession.fromJson(Map<String, dynamic> json) => ChatSession(
-        id: '${json['id'] ?? ''}', title: '${json['title'] ?? 'Nuevo chat'}', mode: '${json['mode'] ?? 'chat'}',
-        isGhost: json['isGhost'] == true, createdAt: '${json['createdAt'] ?? ''}', updatedAt: '${json['updatedAt'] ?? ''}',
-      );
+    id: '${json['id'] ?? ''}',
+    title: '${json['title'] ?? 'Nuevo chat'}',
+    mode: '${json['mode'] ?? 'chat'}',
+    isGhost: json['isGhost'] == true,
+    createdAt: '${json['createdAt'] ?? ''}',
+    updatedAt: '${json['updatedAt'] ?? ''}',
+  );
 }
 
 class ChatMessageDto {
@@ -226,11 +307,20 @@ class ChatMessageDto {
   final String role;
   final String content;
   final String createdAt;
-  const ChatMessageDto({required this.id, required this.chatId, required this.role, required this.content, required this.createdAt});
+  const ChatMessageDto({
+    required this.id,
+    required this.chatId,
+    required this.role,
+    required this.content,
+    required this.createdAt,
+  });
   factory ChatMessageDto.fromJson(Map<String, dynamic> json) => ChatMessageDto(
-        id: '${json['id'] ?? ''}', chatId: '${json['chatId'] ?? ''}', role: '${json['role'] ?? 'user'}',
-        content: '${json['content'] ?? ''}', createdAt: '${json['createdAt'] ?? ''}',
-      );
+    id: '${json['id'] ?? ''}',
+    chatId: '${json['chatId'] ?? ''}',
+    role: '${json['role'] ?? 'user'}',
+    content: '${json['content'] ?? ''}',
+    createdAt: '${json['createdAt'] ?? ''}',
+  );
 }
 
 class MemoryItem {
@@ -241,6 +331,22 @@ class MemoryItem {
   final String? projectId;
   final bool pinned;
   final String createdAt;
-  const MemoryItem({required this.id, required this.title, required this.content, required this.type, this.projectId, required this.pinned, required this.createdAt});
-  factory MemoryItem.fromJson(Map<String, dynamic> json) => MemoryItem(id: '${json['id'] ?? ''}', title: '${json['title'] ?? ''}', content: '${json['content'] ?? ''}', type: '${json['type'] ?? 'PROJECT'}', projectId: json['projectId']?.toString(), pinned: json['pinned'] == true, createdAt: '${json['createdAt'] ?? ''}');
+  const MemoryItem({
+    required this.id,
+    required this.title,
+    required this.content,
+    required this.type,
+    this.projectId,
+    required this.pinned,
+    required this.createdAt,
+  });
+  factory MemoryItem.fromJson(Map<String, dynamic> json) => MemoryItem(
+    id: '${json['id'] ?? ''}',
+    title: '${json['title'] ?? ''}',
+    content: '${json['content'] ?? ''}',
+    type: '${json['type'] ?? 'PROJECT'}',
+    projectId: json['projectId']?.toString(),
+    pinned: json['pinned'] == true,
+    createdAt: '${json['createdAt'] ?? ''}',
+  );
 }

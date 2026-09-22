@@ -13,11 +13,7 @@ Future<void> main() async {
   await dotenv.load(fileName: '.env');
 
   if (Env.supabaseUrl.isEmpty || Env.supabasePublishableKey.isEmpty) {
-    runApp(
-      const ProviderScope(
-        child: _MissingEnvApp(),
-      ),
-    );
+    runApp(const ProviderScope(child: _MissingEnvApp()));
     return;
   }
 
@@ -26,11 +22,7 @@ Future<void> main() async {
     publishableKey: Env.supabasePublishableKey,
   );
 
-  runApp(
-    const ProviderScope(
-      child: NuminationApp(),
-    ),
-  );
+  runApp(const ProviderScope(child: NuminationApp()));
 }
 
 class _MissingEnvApp extends StatelessWidget {

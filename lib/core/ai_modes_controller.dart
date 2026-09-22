@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'api.dart';
 import 'models.dart';
 
-
 class AiModesController extends AsyncNotifier<List<AiModeConfig>> {
   @override
   Future<List<AiModeConfig>> build() => _fetch();
@@ -12,10 +11,14 @@ class AiModesController extends AsyncNotifier<List<AiModeConfig>> {
     try {
       final response = await ApiClient.get('/modes');
       final data = ApiClient.decode(response) as Map<String, dynamic>;
-      final list = (data['modes'] as List? ?? [])
-          .map((e) => AiModeConfig.fromJson(Map<String, dynamic>.from(e as Map)))
-          .toList()
-        ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+      final list =
+          (data['modes'] as List? ?? [])
+              .map(
+                (e) =>
+                    AiModeConfig.fromJson(Map<String, dynamic>.from(e as Map)),
+              )
+              .toList()
+            ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
       return list;
     } catch (e) {
       return const [];
@@ -26,8 +29,9 @@ class AiModesController extends AsyncNotifier<List<AiModeConfig>> {
     state = const AsyncLoading();
     state = AsyncData(await _fetch());
   }
+
   AiModeConfig? findById(String id) {
-    for (final m in state.valueOrNull ?? const <AiModeConfig>[]) {
+    for (final m in state.value ?? const <AiModeConfig>[]) {
       if (m.id == id) return m;
     }
     return null;
@@ -35,4 +39,6 @@ class AiModesController extends AsyncNotifier<List<AiModeConfig>> {
 }
 
 final aiModesControllerProvider =
-    AsyncNotifierProvider<AiModesController, List<AiModeConfig>>(AiModesController.new);
+    AsyncNotifierProvider<AiModesController, List<AiModeConfig>>(
+      AiModesController.new,
+    );

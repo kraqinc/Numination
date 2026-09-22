@@ -17,7 +17,10 @@ class ConnectorsScreen extends ConsumerWidget {
         backgroundColor: palette.background,
         elevation: 0,
         iconTheme: IconThemeData(color: palette.textPrimary),
-        title: Text(context.l10n.connectors, style: TextStyle(color: palette.textPrimary)),
+        title: Text(
+          context.l10n.connectors,
+          style: TextStyle(color: palette.textPrimary),
+        ),
       ),
       body: Center(
         child: Padding(
@@ -33,18 +36,30 @@ class ConnectorsScreen extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(color: palette.border),
                 ),
-                child: Icon(Icons.power_off_outlined, color: palette.accent, size: 34),
+                child: Icon(
+                  Icons.power_off_outlined,
+                  color: palette.accent,
+                  size: 34,
+                ),
               ),
               const SizedBox(height: 20),
               Text(
                 '!Aun seguimos en ello¡',
-                style: TextStyle(color: palette.textPrimary, fontSize: 18, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  color: palette.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
               Text(
                 'Los conectores con otras apps (Drive, Notion, GitHub y más) todavía no están listos. Mientras tanto, explora Numination o pídele algo directamente a la IA en el chat.',
-                style: TextStyle(color: palette.textSecondary, fontSize: 14, height: 1.4),
+                style: TextStyle(
+                  color: palette.textSecondary,
+                  fontSize: 14,
+                  height: 1.4,
+                ),
                 textAlign: TextAlign.center,
               ),
             ],

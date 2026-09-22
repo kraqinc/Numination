@@ -37,7 +37,9 @@ class _ArtifactsScreenState extends ConsumerState<ArtifactsScreen> {
       final response = await ApiClient.get('/artifacts');
       final data = ApiClient.decode(response) as Map<String, dynamic>;
       final list = (data['artifacts'] as List? ?? [])
-          .map((e) => ArtifactItem.fromJson(Map<String, dynamic>.from(e as Map)))
+          .map(
+            (e) => ArtifactItem.fromJson(Map<String, dynamic>.from(e as Map)),
+          )
           .toList();
       setState(() {
         _artifacts = list;
@@ -57,7 +59,10 @@ class _ArtifactsScreenState extends ConsumerState<ArtifactsScreen> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: palette.surface,
-        title: Text('Eliminar artifact', style: TextStyle(color: palette.textPrimary)),
+        title: Text(
+          'Eliminar artifact',
+          style: TextStyle(color: palette.textPrimary),
+        ),
         content: Text(
           '¿Seguro que quieres eliminar "${artifact.title}"?',
           style: TextStyle(color: palette.textSecondary),
@@ -65,11 +70,17 @@ class _ArtifactsScreenState extends ConsumerState<ArtifactsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(context.l10n.cancel, style: TextStyle(color: palette.textSecondary)),
+            child: Text(
+              context.l10n.cancel,
+              style: TextStyle(color: palette.textSecondary),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Eliminar', style: TextStyle(color: Colors.redAccent)),
+            child: const Text(
+              'Eliminar',
+              style: TextStyle(color: Colors.redAccent),
+            ),
           ),
         ],
       ),
@@ -112,7 +123,9 @@ class _ArtifactsScreenState extends ConsumerState<ArtifactsScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo generar el enlace del archivo')),
+        const SnackBar(
+          content: Text('No se pudo generar el enlace del archivo'),
+        ),
       );
     }
   }
@@ -140,22 +153,36 @@ class _ArtifactsScreenState extends ConsumerState<ArtifactsScreen> {
                   Expanded(
                     child: Text(
                       artifact.title,
-                      style: TextStyle(color: palette.textPrimary, fontSize: 16, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        color: palette.textPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   IconButton(
-                    icon: Icon(Icons.copy, color: palette.textSecondary, size: 20),
+                    icon: Icon(
+                      Icons.copy,
+                      color: palette.textSecondary,
+                      size: 20,
+                    ),
                     onPressed: () {
                       Clipboard.setData(ClipboardData(text: artifact.content));
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Copiado al portapapeles')),
+                        const SnackBar(
+                          content: Text('Copiado al portapapeles'),
+                        ),
                       );
                     },
                   ),
                   IconButton(
-                    icon: Icon(Icons.close, color: palette.textSecondary, size: 20),
+                    icon: Icon(
+                      Icons.close,
+                      color: palette.textSecondary,
+                      size: 20,
+                    ),
                     onPressed: () => Navigator.of(sheetContext).pop(),
                   ),
                 ],
@@ -193,77 +220,97 @@ class _ArtifactsScreenState extends ConsumerState<ArtifactsScreen> {
         backgroundColor: palette.background,
         elevation: 0,
         iconTheme: IconThemeData(color: palette.textPrimary),
-        title: Text(context.l10n.artifacts, style: TextStyle(color: palette.textPrimary)),
+        title: Text(
+          context.l10n.artifacts,
+          style: TextStyle(color: palette.textPrimary),
+        ),
       ),
       body: RefreshIndicator(
         onRefresh: _load,
         child: _isLoading
-            ? Center(child: CircularProgressIndicator(color: palette.textPrimary))
+            ? Center(
+                child: CircularProgressIndicator(color: palette.textPrimary),
+              )
             : _artifacts.isEmpty
-                ? _EmptyArtifactsState(errorText: _errorText, palette: palette)
-                : ListView.separated(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _artifacts.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (context, index) {
-                      final artifact = _artifacts[index];
-                      return InkWell(
+            ? _EmptyArtifactsState(errorText: _errorText, palette: palette)
+            : ListView.separated(
+                padding: const EdgeInsets.all(16),
+                itemCount: _artifacts.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 10),
+                itemBuilder: (context, index) {
+                  final artifact = _artifacts[index];
+                  return InkWell(
+                    borderRadius: BorderRadius.circular(14),
+                    onTap: () => _openArtifact(artifact),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: palette.surface,
                         borderRadius: BorderRadius.circular(14),
-                        onTap: () => _openArtifact(artifact),
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: palette.surface,
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: palette.border),
+                        border: Border.all(color: palette.border),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: palette.background,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: palette.border),
+                            ),
+                            child: Icon(
+                              artifact.isFile
+                                  ? Icons.attach_file_rounded
+                                  : Icons.code_rounded,
+                              color: palette.accent,
+                              size: 20,
+                            ),
                           ),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 40,
-                                height: 40,
-                                decoration: BoxDecoration(
-                                  color: palette.background,
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(color: palette.border),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  artifact.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: palette.textPrimary,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
-                                child: Icon(
-                                  artifact.isFile ? Icons.attach_file_rounded : Icons.code_rounded,
-                                  color: palette.accent,
-                                  size: 20,
+                                const SizedBox(height: 2),
+                                Text(
+                                  artifact.isFile
+                                      ? (artifact.mimeType?.isNotEmpty == true
+                                            ? artifact.mimeType!
+                                            : 'Archivo')
+                                      : artifact.language,
+                                  style: TextStyle(
+                                    color: palette.textSecondary,
+                                    fontSize: 12,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      artifact.title,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(color: palette.textPrimary, fontSize: 15, fontWeight: FontWeight.w600),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      artifact.isFile
-                                          ? (artifact.mimeType?.isNotEmpty == true ? artifact.mimeType! : 'Archivo')
-                                          : artifact.language,
-                                      style: TextStyle(color: palette.textSecondary, fontSize: 12),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              IconButton(
-                                icon: Icon(Icons.delete_outline, color: palette.textSecondary, size: 20),
-                                onPressed: () => _delete(artifact),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                      );
-                    },
-                  ),
+                          IconButton(
+                            icon: Icon(
+                              Icons.delete_outline,
+                              color: palette.textSecondary,
+                              size: 20,
+                            ),
+                            onPressed: () => _delete(artifact),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
       ),
     );
   }
@@ -295,23 +342,40 @@ class _EmptyArtifactsState extends StatelessWidget {
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(color: palette.border),
                     ),
-                    child: Icon(Icons.code_rounded, color: palette.accent, size: 36),
+                    child: Icon(
+                      Icons.code_rounded,
+                      color: palette.accent,
+                      size: 36,
+                    ),
                   ),
                   const SizedBox(height: 20),
                   Text(
                     'Sin artifacts todavía',
-                    style: TextStyle(color: palette.textPrimary, fontSize: 18, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      color: palette.textPrimary,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 6),
                   Text(
                     'Los snippets de código que guardes desde el chat en modo Coder aparecerán aquí.',
-                    style: TextStyle(color: palette.textSecondary, fontSize: 14),
+                    style: TextStyle(
+                      color: palette.textSecondary,
+                      fontSize: 14,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                   if (errorText != null) ...[
                     const SizedBox(height: 16),
-                    Text(errorText!, style: const TextStyle(color: Colors.redAccent, fontSize: 13)),
+                    Text(
+                      errorText!,
+                      style: const TextStyle(
+                        color: Colors.redAccent,
+                        fontSize: 13,
+                      ),
+                    ),
                   ],
                 ],
               ),

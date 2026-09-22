@@ -40,18 +40,20 @@ class AuthController extends Notifier<AuthState> {
       _sub?.cancel();
     });
 
-    _sub = client.auth.onAuthStateChange.map((event) {
-      final session = event.session;
-      if (session == null) {
-        ApiClient.setToken(null);
-        return const AuthUnauthenticated();
-      }
-      ApiClient.setToken(session.accessToken);
-      return AuthAuthenticated(
-        userId: session.user.id,
-        email: session.user.email ?? '',
-      );
-    }).listen((next) => state = next);
+    _sub = client.auth.onAuthStateChange
+        .map((event) {
+          final session = event.session;
+          if (session == null) {
+            ApiClient.setToken(null);
+            return const AuthUnauthenticated();
+          }
+          ApiClient.setToken(session.accessToken);
+          return AuthAuthenticated(
+            userId: session.user.id,
+            email: session.user.email ?? '',
+          );
+        })
+        .listen((next) => state = next);
 
     final currentSession = client.auth.currentSession;
     if (currentSession != null) {

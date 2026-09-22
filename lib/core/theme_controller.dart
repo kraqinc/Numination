@@ -27,7 +27,9 @@ class ThemeController extends Notifier<AppThemeMode> {
   }
 }
 
-final themeControllerProvider = NotifierProvider<ThemeController, AppThemeMode>(ThemeController.new);
+final themeControllerProvider = NotifierProvider<ThemeController, AppThemeMode>(
+  ThemeController.new,
+);
 
 final appPaletteProvider = Provider<AppPalette>((ref) {
   final mode = ref.watch(themeControllerProvider);

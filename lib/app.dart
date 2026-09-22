@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/auth_controller.dart';
 import 'core/connectivity_banner.dart';
+import 'core/i18n.dart';
 import 'core/theme.dart';
 import 'features/screens/auth_screen.dart';
 import 'features/screens/home_screen.dart';
@@ -39,6 +40,7 @@ class NuminationApp extends ConsumerWidget {
         return const Locale('es');
       },
       builder: (context, child) {
+        AppLocale.bind(context);
         return ConnectivityBanner(child: child ?? const SizedBox.shrink());
       },
       home: switch (auth) {
@@ -57,9 +59,7 @@ class _SplashScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Scaffold(
       backgroundColor: Color(0xFFECECEC),
-      body: Center(
-        child: CircularProgressIndicator(color: Colors.black54),
-      ),
+      body: Center(child: CircularProgressIndicator(color: Colors.black54)),
     );
   }
 }

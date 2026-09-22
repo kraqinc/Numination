@@ -62,16 +62,26 @@ class _ConnectivityBannerState extends State<ConnectivityBanner> {
                 duration: const Duration(milliseconds: 200),
                 opacity: _isOffline ? 1 : 0,
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   child: Material(
                     elevation: 6,
                     borderRadius: BorderRadius.circular(14),
                     color: const Color(0xFFB3261E),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
                       child: Row(
                         children: const [
-                          Icon(Icons.wifi_off_rounded, color: Colors.white, size: 20),
+                          Icon(
+                            Icons.wifi_off_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
                           SizedBox(width: 12),
                           Expanded(
                             child: Text(

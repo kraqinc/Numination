@@ -17,9 +17,9 @@ class Env {
       _val('SUPABASE_AUTH_GOOGLE_CLIENT_ID', '');
 
   static String get apiBaseUrl => _val(
-        'API_BASE_URL',
-        'https://whxqciwphwgzcshejpty.supabase.co/functions/v1/api',
-      );
+    'API_BASE_URL',
+    'https://whxqciwphwgzcshejpty.supabase.co/functions/v1/api',
+  );
 
   static String get authRedirectUrl =>
       _val('SUPABASE_AUTH_REDIRECT_URL', 'numination://auth');

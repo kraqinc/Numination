@@ -18,14 +18,31 @@ class WorkspaceStore {
 
   static Future<void> saveProjects(List<Project> projects) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_projectsKey, jsonEncode(projects.map((p) => {
-          'id': p.id, 'name': p.name, 'description': p.description, 'created_at': p.createdAt, 'updated_at': p.updatedAt,
-        }).toList()));
+    await prefs.setString(
+      _projectsKey,
+      jsonEncode(
+        projects
+            .map(
+              (p) => {
+                'id': p.id,
+                'name': p.name,
+                'description': p.description,
+                'created_at': p.createdAt,
+                'updated_at': p.updatedAt,
+              },
+            )
+            .toList(),
+      ),
+    );
   }
 
   static Future<void> setActiveProject(String? id) async {
     final prefs = await SharedPreferences.getInstance();
-    if (id == null) { await prefs.remove(_activeProjectKey); } else { await prefs.setString(_activeProjectKey, id); }
+    if (id == null) {
+      await prefs.remove(_activeProjectKey);
+    } else {
+      await prefs.setString(_activeProjectKey, id);
+    }
   }
 
   static Future<String> localProjectRoot(String projectName) async {

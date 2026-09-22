@@ -13,24 +13,34 @@ class ApiException implements Exception {
 
 class ApiClient {
   static String? _token;
-  static const _delays = [Duration(seconds: 1), Duration(seconds: 2), Duration(seconds: 4)];
+  static const _delays = [
+    Duration(seconds: 1),
+    Duration(seconds: 2),
+    Duration(seconds: 4),
+  ];
   static void setToken(String? token) => _token = token;
 
   static Map<String, String> get _headers => {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        if (_token != null) 'Authorization': 'Bearer $_token',
-      };
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    if (_token != null) 'Authorization': 'Bearer $_token',
+  };
 
   static Uri _uri(String path) {
     final base = Env.apiBaseUrl.trim();
-    if (base.isEmpty || !(base.startsWith('http://') || base.startsWith('https://'))) {
-      throw ApiException(-1, 'Numination no tiene configurado API_BASE_URL correctamente. Revisa tu .env.');
+    if (base.isEmpty ||
+        !(base.startsWith('http://') || base.startsWith('https://'))) {
+      throw ApiException(
+        -1,
+        'Numination no tiene configurado API_BASE_URL correctamente. Revisa tu .env.',
+      );
     }
     return Uri.parse('${base.replaceAll(RegExp(r'/$'), '')}$path');
   }
 
-  static Future<http.Response> _send(Future<http.Response> Function() request) async {
+  static Future<http.Response> _send(
+    Future<http.Response> Function() request,
+  ) async {
     Object? lastError;
     for (var attempt = 0; attempt < 4; attempt++) {
       try {
@@ -45,20 +55,58 @@ class ApiClient {
       }
       if (attempt < 3) await Future<void>.delayed(_delays[attempt]);
     }
-    throw ApiException(-1, 'No se pudo conectar con Numination. Revisa tu conexión e inténtalo de nuevo.\nDetalle: $lastError');
+    throw ApiException(
+      -1,
+      'No se pudo conectar con Numination. Revisa tu conexión e inténtalo de nuevo.\nDetalle: $lastError',
+    );
   }
 
-  static Future<http.Response> get(String path) => _send(() => http.get(_uri(path), headers: _headers));
-  static Future<http.Response> post(String path, [Map<String, dynamic>? body]) => _send(() => http.post(_uri(path), headers: _headers, body: jsonEncode(body ?? <String, dynamic>{})));
-  static Future<http.Response> put(String path, [Map<String, dynamic>? body]) => _send(() => http.put(_uri(path), headers: _headers, body: jsonEncode(body ?? <String, dynamic>{})));
-  static Future<http.Response> patch(String path, [Map<String, dynamic>? body]) => _send(() => http.patch(_uri(path), headers: _headers, body: jsonEncode(body ?? <String, dynamic>{})));
-  static Future<http.Response> delete(String path) => _send(() => http.delete(_uri(path), headers: _headers));
+  static Future<http.Response> get(String path) =>
+      _send(() => http.get(_uri(path), headers: _headers));
+  static Future<http.Response> post(
+    String path, [
+    Map<String, dynamic>? body,
+  ]) => _send(
+    () => http.post(
+      _uri(path),
+      headers: _headers,
+      body: jsonEncode(body ?? <String, dynamic>{}),
+    ),
+  );
+  static Future<http.Response> put(String path, [Map<String, dynamic>? body]) =>
+      _send(
+        () => http.put(
+          _uri(path),
+          headers: _headers,
+          body: jsonEncode(body ?? <String, dynamic>{}),
+        ),
+      );
+  static Future<http.Response> patch(
+    String path, [
+    Map<String, dynamic>? body,
+  ]) => _send(
+    () => http.patch(
+      _uri(path),
+      headers: _headers,
+      body: jsonEncode(body ?? <String, dynamic>{}),
+    ),
+  );
+  static Future<http.Response> delete(String path) =>
+      _send(() => http.delete(_uri(path), headers: _headers));
 
   static dynamic decode(http.Response response) {
     dynamic data;
-    try { data = response.body.isEmpty ? <String, dynamic>{} : jsonDecode(response.body); } catch (_) { data = <String, dynamic>{}; }
+    try {
+      data = response.body.isEmpty
+          ? <String, dynamic>{}
+          : jsonDecode(response.body);
+    } catch (_) {
+      data = <String, dynamic>{};
+    }
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      final message = data is Map ? '${data['error'] ?? data['message'] ?? 'Error del servidor'}' : 'Error ${response.statusCode}';
+      final message = data is Map
+          ? '${data['error'] ?? data['message'] ?? 'Error del servidor'}'
+          : 'Error ${response.statusCode}';
       throw ApiException(response.statusCode, message);
     }
     return data;
