@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.wren.ide.numination"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
