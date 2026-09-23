@@ -20,10 +20,7 @@ class ChatMessage {
   final String text;
   final bool fromUser;
 
-  const ChatMessage({
-    required this.text,
-    required this.fromUser,
-  });
+  const ChatMessage({required this.text, required this.fromUser});
 }
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -43,7 +40,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _isSending = false;
   bool _isListening = false;
   bool _speechAvailable = false;
+  bool _isAttaching = false;
+
   String? _activeChatId;
+
   final List<ChatMessage> _messages = [];
 
   AppUser? _profile;
@@ -81,13 +81,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       final response = await ApiClient.get('/auth/me');
       final data = ApiClient.decode(response) as Map<String, dynamic>;
 
+      if (!mounted) return;
+
       setState(
-        () => _profile = AppUser.fromJson(
-          data['user'] as Map<String, dynamic>,
-        ),
+        () => _profile = AppUser.fromJson(data['user'] as Map<String, dynamic>),
       );
-    } catch (e) {
-      // Silencioso: drawer y avatar muestran el estado por defecto.
+    } catch (_) {
+      // El perfil es opcional para cargar la pantalla.
     }
   }
 
@@ -115,12 +115,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   void _showCoderPaywall() {
-    showDialog(
+    showDialog<void>(
       context: context,
       barrierDismissible: true,
-      builder: (dialogContext) => _CoderPaywallDialog(
-        onClose: () => Navigator.of(dialogContext).pop(),
-      ),
+      builder: (dialogContext) =>
+          _CoderPaywallDialog(onClose: () => Navigator.of(dialogContext).pop()),
     );
   }
 
@@ -139,33 +138,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     });
 
     try {
-      final response = await ApiClient.get(
-        '/chats/${chat.id}/messages',
-      );
+      final response = await ApiClient.get('/chats/${chat.id}/messages');
 
       final data = ApiClient.decode(response) as Map<String, dynamic>;
 
       final list = (data['messages'] as List? ?? [])
           .map(
-            (e) => ChatMessageDto.fromJson(
-              Map<String, dynamic>.from(e as Map),
-            ),
+            (e) => ChatMessageDto.fromJson(Map<String, dynamic>.from(e as Map)),
           )
           .toList();
+
+      if (!mounted) return;
 
       setState(() {
         _messages.addAll(
           list.map(
-            (m) => ChatMessage(
-              text: m.content,
-              fromUser: m.role == 'user',
-            ),
+            (m) => ChatMessage(text: m.content, fromUser: m.role == 'user'),
           ),
         );
       });
 
       _scrollToBottom();
-    } catch (e) {
+    } catch (_) {
+      if (!mounted) return;
+
       setState(() {
         _messages.add(
           const ChatMessage(
@@ -186,11 +182,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   void _openGhostChat() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => const GhostChatScreen(),
-      ),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const GhostChatScreen()));
   }
 
   Future<void> _toggleListening() async {
@@ -215,31 +209,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     setState(() => _isListening = true);
 
     await _speech.listen(
-      listenOptions: stt.SpeechListenOptions(
-        localeId: 'es_ES',
-      ),
+      listenOptions: stt.SpeechListenOptions(localeId: 'es_ES'),
       onResult: (result) {
         if (!mounted) return;
 
         setState(() {
           _messageController.text = result.recognizedWords;
-          _messageController.selection =
-              TextSelection.fromPosition(
-            TextPosition(
-              offset: _messageController.text.length,
-            ),
+          _messageController.selection = TextSelection.fromPosition(
+            TextPosition(offset: _messageController.text.length),
           );
         });
 
-        if (result.finalResult &&
-            _messageController.text.trim().isNotEmpty) {
+        if (result.finalResult && _messageController.text.trim().isNotEmpty) {
           _sendMessage();
         }
       },
     );
   }
-
-  bool _isAttaching = false;
 
   Future<void> _attachFile() async {
     if (_isAttaching) return;
@@ -265,16 +251,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       final storagePath =
           '$userId/${DateTime.now().millisecondsSinceEpoch}_${picked.name}';
 
-      await client.storage.from('artifacts').upload(
-            storagePath,
-            file,
-          );
+      await client.storage.from('artifacts').upload(storagePath, file);
 
-      final sizeBytes = await file.length();
+      final sizeBytes = picked.lengthSync() ?? await picked.length();
 
-      final extension = picked.name.contains('.')
-          ? picked.name.split('.').last
-          : '';
+      final extension = picked.extension ?? '';
 
       await ApiClient.post('/artifacts', {
         'title': picked.name,
@@ -288,20 +269,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '"${picked.name}" se guardó en Artefactos',
-          ),
-        ),
+        SnackBar(content: Text('"${picked.name}" se guardó en Artefactos')),
       );
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'No se pudo adjuntar el archivo. Inténtalo de nuevo.',
-          ),
+          content: Text('No se pudo adjuntar el archivo. Inténtalo de nuevo.'),
         ),
       );
     } finally {
@@ -317,12 +292,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (text.isEmpty || _isSending) return;
 
     setState(() {
-      _messages.add(
-        ChatMessage(
-          text: text,
-          fromUser: true,
-        ),
-      );
+      _messages.add(ChatMessage(text: text, fromUser: true));
 
       _isSending = true;
       _messageController.clear();
@@ -335,19 +305,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
       if (chatId == null) {
         final createRes = await ApiClient.post('/chats', {
-          'title': text.length > 40
-              ? '${text.substring(0, 40)}...'
-              : text,
+          'title': text.length > 40 ? '${text.substring(0, 40)}...' : text,
           'mode': _modeId,
         });
 
-        final createData =
-            ApiClient.decode(createRes) as Map<String, dynamic>;
+        final createData = ApiClient.decode(createRes) as Map<String, dynamic>;
 
-        chatId = (createData['chat'] as Map<String, dynamic>)['id']
-            as String;
+        chatId = (createData['chat'] as Map<String, dynamic>)['id'] as String;
 
-        setState(() => _activeChatId = chatId);
+        if (mounted) {
+          setState(() => _activeChatId = chatId);
+        }
       }
 
       final response = await ApiClient.post('/ai/chat', {
@@ -359,29 +327,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       final data = ApiClient.decode(response) as Map<String, dynamic>;
       final chatResponse = ChatResponse.fromJson(data);
 
+      if (!mounted) return;
+
       setState(() {
         _messages.add(
-          ChatMessage(
-            text: chatResponse.response,
-            fromUser: false,
-          ),
+          ChatMessage(text: chatResponse.response, fromUser: false),
         );
       });
     } on ApiException catch (e) {
+      if (!mounted) return;
+
       setState(() {
         _messages.add(
-          ChatMessage(
-            text: 'Error: ${e.message}',
-            fromUser: false,
-          ),
+          ChatMessage(text: 'Error: ${e.message}', fromUser: false),
         );
       });
-    } catch (e) {
+    } catch (_) {
+      if (!mounted) return;
+
       setState(() {
         _messages.add(
           const ChatMessage(
-            text:
-                'No se pudo contactar al servidor. Intenta de nuevo.',
+            text: 'No se pudo contactar al servidor. Intenta de nuevo.',
             fromUser: false,
           ),
         );
@@ -414,8 +381,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final email = auth is AuthAuthenticated ? auth.email : '';
 
     final availableModes =
-        ref.watch(aiModesControllerProvider).value ??
-            const <AiModeConfig>[];
+        ref.watch(aiModesControllerProvider).value ?? const <AiModeConfig>[];
 
     ref.listen(aiModesControllerProvider, (previous, next) {
       final list = next.value;
@@ -443,8 +409,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         child: Column(
           children: [
             _TopBar(
-              onMenuTap: () =>
-                  _scaffoldKey.currentState?.openDrawer(),
+              onMenuTap: () => _scaffoldKey.currentState?.openDrawer(),
               onSearchTap: _openSearch,
               onGhostTap: _openGhostChat,
             ),
@@ -461,9 +426,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       itemBuilder: (context, index) {
                         final msg = _messages[index];
 
-                        return _MessageBubble(
-                          message: msg,
-                        );
+                        return _MessageBubble(message: msg);
                       },
                     ),
             ),
@@ -507,32 +470,22 @@ class _TopBar extends ConsumerWidget {
         children: [
           IconButton(
             onPressed: onMenuTap,
-            icon: Icon(
-              Icons.menu,
-              color: palette.textPrimary,
-            ),
+            icon: Icon(Icons.menu, color: palette.textPrimary),
           ),
           Expanded(
             child: GestureDetector(
               onTap: onSearchTap,
               child: Container(
                 height: 44,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14),
+                padding: const EdgeInsets.symmetric(horizontal: 14),
                 decoration: BoxDecoration(
                   color: palette.surface,
                   borderRadius: BorderRadius.circular(22),
-                  border: Border.all(
-                    color: palette.border,
-                  ),
+                  border: Border.all(color: palette.border),
                 ),
                 child: Row(
                   children: [
-                    Icon(
-                      Icons.search,
-                      color: palette.textSecondary,
-                      size: 20,
-                    ),
+                    Icon(Icons.search, color: palette.textSecondary, size: 20),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -579,19 +532,14 @@ class _EmptyState extends ConsumerWidget {
     return Center(
       child: Text(
         context.l10n.whatAreWeWorkingOn,
-        style: TextStyle(
-          color: palette.textSecondary,
-          fontSize: 16,
-        ),
+        style: TextStyle(color: palette.textSecondary, fontSize: 16),
       ),
     );
   }
 }
 
 class _MessageBubble extends ConsumerWidget {
-  const _MessageBubble({
-    required this.message,
-  });
+  const _MessageBubble({required this.message});
 
   final ChatMessage message;
 
@@ -604,31 +552,23 @@ class _MessageBubble extends ConsumerWidget {
         ? palette.accent.withValues(alpha: 0.18)
         : palette.surface;
 
-    final textColor = palette.textPrimary;
-
     return Align(
-      alignment:
-          isUser ? Alignment.centerRight : Alignment.centerLeft,
+      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 6),
-        padding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 12,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         constraints: BoxConstraints(
           maxWidth: MediaQuery.of(context).size.width * 0.78,
         ),
         decoration: BoxDecoration(
           color: bubbleColor,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: palette.border,
-          ),
+          border: Border.all(color: palette.border),
         ),
         child: Text(
           message.text,
           style: TextStyle(
-            color: textColor,
+            color: palette.textPrimary,
             fontSize: 15,
             height: 1.35,
           ),
@@ -671,41 +611,29 @@ class _BottomInputBar extends ConsumerWidget {
       padding: const EdgeInsets.fromLTRB(8, 8, 8, 12),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(
-          horizontal: 8,
-          vertical: 8,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         decoration: BoxDecoration(
           color: palette.surface,
           borderRadius: BorderRadius.circular(28),
-          border: Border.all(
-            color: palette.border,
-          ),
+          border: Border.all(color: palette.border),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
               child: TextField(
                 controller: controller,
                 minLines: 1,
                 maxLines: 5,
                 cursorColor: palette.accent,
-                style: TextStyle(
-                  color: palette.textPrimary,
-                  fontSize: 15,
-                ),
+                style: TextStyle(color: palette.textPrimary, fontSize: 15),
                 decoration: InputDecoration(
                   hintText: context.l10n.askSomething,
-                  hintStyle: TextStyle(
-                    color: palette.textSecondary,
-                  ),
+                  hintStyle: TextStyle(color: palette.textSecondary),
                   border: InputBorder.none,
                   isCollapsed: true,
-                  contentPadding:
-                      const EdgeInsets.symmetric(vertical: 12),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
                 ),
               ),
             ),
@@ -713,8 +641,7 @@ class _BottomInputBar extends ConsumerWidget {
             Row(
               children: [
                 IconButton(
-                  onPressed:
-                      isAttaching ? null : onAttachTap,
+                  onPressed: isAttaching ? null : onAttachTap,
                   icon: isAttaching
                       ? SizedBox(
                           width: 18,
@@ -738,13 +665,11 @@ class _BottomInputBar extends ConsumerWidget {
                       children: availableModes
                           .map(
                             (m) => Padding(
-                              padding:
-                                  const EdgeInsets.only(right: 6),
+                              padding: const EdgeInsets.only(right: 6),
                               child: _ModeChip(
                                 label: m.label,
                                 selected: modeId == m.id,
-                                onTap: () =>
-                                    onModeChange(m.id),
+                                onTap: () => onModeChange(m.id),
                               ),
                             ),
                           )
@@ -758,9 +683,7 @@ class _BottomInputBar extends ConsumerWidget {
                     'assets/images/microphone.png',
                     width: 22,
                     height: 22,
-                    color: isListening
-                        ? palette.accent
-                        : palette.textPrimary,
+                    color: isListening ? palette.accent : palette.textPrimary,
                   ),
                 ),
                 isSending
@@ -768,8 +691,7 @@ class _BottomInputBar extends ConsumerWidget {
                         width: 40,
                         height: 40,
                         child: Padding(
-                          padding:
-                              const EdgeInsets.all(10),
+                          padding: const EdgeInsets.all(10),
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
                             color: palette.textPrimary,
@@ -778,10 +700,7 @@ class _BottomInputBar extends ConsumerWidget {
                       )
                     : IconButton(
                         onPressed: onSend,
-                        icon: Icon(
-                          Icons.send_rounded,
-                          color: palette.accent,
-                        ),
+                        icon: Icon(Icons.send_rounded, color: palette.accent),
                       ),
               ],
             ),
@@ -810,22 +729,15 @@ class _ModeChip extends ConsumerWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 8,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: selected
-              ? palette.surfaceAlt
-              : Colors.transparent,
+          color: selected ? palette.surfaceAlt : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: selected
-                ? palette.textPrimary
-                : palette.textSecondary,
+            color: selected ? palette.textPrimary : palette.textSecondary,
             fontSize: 13,
             fontWeight: FontWeight.w600,
           ),
@@ -836,9 +748,7 @@ class _ModeChip extends ConsumerWidget {
 }
 
 class _CoderPaywallDialog extends StatelessWidget {
-  const _CoderPaywallDialog({
-    required this.onClose,
-  });
+  const _CoderPaywallDialog({required this.onClose});
 
   final VoidCallback onClose;
 
@@ -848,31 +758,19 @@ class _CoderPaywallDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: const Color(0xFF2A2A2A),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          24,
-          20,
-          24,
-          24,
-        ),
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              mainAxisAlignment:
-                  MainAxisAlignment.end,
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 IconButton(
                   onPressed: onClose,
-                  icon: const Icon(
-                    Icons.close,
-                    color: Colors.white,
-                  ),
+                  icon: const Icon(Icons.close, color: Colors.white),
                 ),
               ],
             ),
@@ -899,13 +797,10 @@ class _CoderPaywallDialog extends StatelessWidget {
               decoration: BoxDecoration(
                 color: const Color(0xFF1E1E1E),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: Color(0xFF3A3A3A),
-                ),
+                border: Border.all(color: const Color(0xFF3A3A3A)),
               ),
               child: const Row(
-                mainAxisAlignment:
-                    MainAxisAlignment.spaceBetween,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
                     'Plan Coder',
@@ -933,20 +828,15 @@ class _CoderPaywallDialog extends StatelessWidget {
               child: ElevatedButton(
                 onPressed: _openPaypal,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor:
-                      const Color(0xFF6ED7FF),
+                  backgroundColor: const Color(0xFF6ED7FF),
                   foregroundColor: Colors.black,
                   shape: RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                 ),
                 child: const Text(
                   'Pagar con PayPal',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
                 ),
               ),
             ),
