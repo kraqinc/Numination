@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/api.dart';
 import '../../core/auth_controller.dart';
@@ -16,6 +17,7 @@ class AppDrawer extends ConsumerStatefulWidget {
     super.key,
     required this.email,
     required this.avatarUrl,
+    required this.chatRevision,
     required this.modeId,
     required this.availableModes,
     required this.onSelectMode,
@@ -25,6 +27,7 @@ class AppDrawer extends ConsumerStatefulWidget {
 
   final String email;
   final String? avatarUrl;
+  final int chatRevision;
   final String modeId;
   final List<AiModeConfig> availableModes;
   final ValueChanged<String> onSelectMode;
@@ -38,11 +41,56 @@ class AppDrawer extends ConsumerStatefulWidget {
 class _AppDrawerState extends ConsumerState<AppDrawer> {
   bool _isLoading = true;
   List<ChatSession> _chats = [];
+  String? _resolvedAvatarUrl;
 
   @override
   void initState() {
     super.initState();
+    _resolvedAvatarUrl = widget.avatarUrl;
+    _loadProfile();
     _loadChats();
+  }
+
+  @override
+  void didUpdateWidget(covariant AppDrawer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.chatRevision != widget.chatRevision) {
+      _loadChats();
+    }
+
+    if (oldWidget.avatarUrl != widget.avatarUrl) {
+      _resolvedAvatarUrl = widget.avatarUrl;
+    }
+  }
+
+  Future<void> _loadProfile() async {
+    String? avatarUrl;
+
+    try {
+      final response = await ApiClient.get('/auth/me');
+      final data = ApiClient.decode(response) as Map<String, dynamic>;
+      final user = data['user'];
+
+      if (user is Map) {
+        avatarUrl = user['avatarUrl']?.toString();
+      }
+    } catch (_) {}
+
+    final metadata =
+        Supabase.instance.client.auth.currentUser?.userMetadata ?? {};
+
+    avatarUrl ??=
+        metadata['avatarUrl']?.toString() ??
+        metadata['avatar_url']?.toString();
+
+    avatarUrl ??= widget.avatarUrl;
+
+    if (!mounted) return;
+
+    setState(() {
+      _resolvedAvatarUrl = avatarUrl;
+    });
   }
 
   Future<void> _loadChats() async {
@@ -92,10 +140,10 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                     icon: CircleAvatar(
                       radius: 14,
                       backgroundColor: palette.surfaceAlt,
-                      backgroundImage: widget.avatarUrl != null
-                          ? NetworkImage(widget.avatarUrl!)
+                      backgroundImage: _resolvedAvatarUrl != null
+                          ? NetworkImage(_resolvedAvatarUrl!)
                           : null,
-                      child: widget.avatarUrl == null
+                      child: _resolvedAvatarUrl == null
                           ? Icon(
                               Icons.person,
                               size: 16,

@@ -12,9 +12,11 @@ import '../../core/auth_controller.dart';
 import '../../core/l10n_extensions.dart';
 import '../../core/models.dart';
 import '../../core/theme_controller.dart';
+import '../widgets/ai_response.dart';
 import '../widgets/hamburger.dart';
 import '../widgets/search_chats.dart';
 import 'ghost_chat.dart';
+import 'coder_screen.dart';
 
 class ChatMessage {
   final String text;
@@ -47,6 +49,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   final List<ChatMessage> _messages = [];
 
   AppUser? _profile;
+  int _chatRevision = 0;
 
   @override
   void initState() {
@@ -102,25 +105,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void _toggleMode(String modeId) {
     if (modeId == _modeId) return;
 
-    final config = ref
-        .read(aiModesControllerProvider.notifier)
-        .findById(modeId);
+    if (modeId == 'coder') {
+      if (_scaffoldKey.currentState?.isDrawerOpen == true) {
+        Navigator.of(context).pop();
+      }
 
-    if (config != null && config.requiresPro) {
-      _showCoderPaywall();
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => const CoderScreen(),
+        ),
+      );
+
       return;
     }
 
     setState(() => _modeId = modeId);
-  }
-
-  void _showCoderPaywall() {
-    showDialog<void>(
-      context: context,
-      barrierDismissible: true,
-      builder: (dialogContext) =>
-          _CoderPaywallDialog(onClose: () => Navigator.of(dialogContext).pop()),
-    );
   }
 
   void _startNewChat() {
@@ -314,7 +313,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         chatId = (createData['chat'] as Map<String, dynamic>)['id'] as String;
 
         if (mounted) {
-          setState(() => _activeChatId = chatId);
+          setState(() {
+            _activeChatId = chatId;
+            _chatRevision++;
+          });
         }
       }
 
@@ -399,6 +401,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       drawer: AppDrawer(
         email: email,
         avatarUrl: _profile?.avatarUrl,
+        chatRevision: _chatRevision,
         modeId: _modeId,
         availableModes: availableModes,
         onSelectMode: _toggleMode,
@@ -565,13 +568,8 @@ class _MessageBubble extends ConsumerWidget {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: palette.border),
         ),
-        child: Text(
-          message.text,
-          style: TextStyle(
-            color: palette.textPrimary,
-            fontSize: 15,
-            height: 1.35,
-          ),
+        child: AiResponse(
+          text: message.text,
         ),
       ),
     );
@@ -747,102 +745,3 @@ class _ModeChip extends ConsumerWidget {
   }
 }
 
-class _CoderPaywallDialog extends StatelessWidget {
-  const _CoderPaywallDialog({required this.onClose});
-
-  final VoidCallback onClose;
-
-  Future<void> _openPaypal() async {}
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: const Color(0xFF2A2A2A),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                IconButton(
-                  onPressed: onClose,
-                  icon: const Icon(Icons.close, color: Colors.white),
-                ),
-              ],
-            ),
-            const Text(
-              'Paga para continuar',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              'Coder desbloquea envío de imágenes ilimitado y prioridad en las respuestas.',
-              style: TextStyle(
-                color: Color(0xFF8A8A8A),
-                fontSize: 14,
-                height: 1.4,
-              ),
-            ),
-            const SizedBox(height: 18),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1E1E1E),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFF3A3A3A)),
-              ),
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Plan Coder',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  Text(
-                    '\$75 COP/mes',
-                    style: TextStyle(
-                      color: Color(0xFF6ED7FF),
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: ElevatedButton(
-                onPressed: _openPaypal,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6ED7FF),
-                  foregroundColor: Colors.black,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-                child: const Text(
-                  'Pagar con PayPal',
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}

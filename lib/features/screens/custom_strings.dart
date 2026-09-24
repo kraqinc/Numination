@@ -46,10 +46,20 @@ class _CustomStringsScreenState extends ConsumerState<CustomStringsScreen> {
       final response = await ApiClient.get('/auth/me');
       final data = ApiClient.decode(response) as Map<String, dynamic>;
       final user = AppUser.fromJson(data['user'] as Map<String, dynamic>);
+      final metadata =
+          Supabase.instance.client.auth.currentUser?.userMetadata ?? {};
+
+      final persistedAvatar =
+          user.avatarUrl ??
+          metadata['avatarUrl']?.toString() ??
+          metadata['avatar_url']?.toString();
+
+      if (!mounted) return;
+
       setState(() {
         _nameController.text = user.displayName ?? '';
         _pronounsController.text = user.pronouns ?? '';
-        _avatarUrl = user.avatarUrl;
+        _avatarUrl = persistedAvatar;
         _isLoading = false;
       });
     } catch (e) {
@@ -90,9 +100,36 @@ class _CustomStringsScreenState extends ConsumerState<CustomStringsScreen> {
       final publicUrl = client.storage
           .from('avatars')
           .getPublicUrl(storagePath);
-      final bustedUrl = '$publicUrl?t=${DateTime.now().millisecondsSinceEpoch}';
 
-      await ApiClient.patch('/auth/me', {'avatarUrl': bustedUrl});
+      final bustedUrl =
+          '$publicUrl?t=${DateTime.now().millisecondsSinceEpoch}';
+
+      var persisted = false;
+
+      try {
+        await ApiClient.patch('/auth/me', {
+          'avatarUrl': publicUrl,
+        });
+        persisted = true;
+      } catch (_) {}
+
+      try {
+        await client.auth.updateUser(
+          UserAttributes(
+            data: {
+              'avatarUrl': publicUrl,
+              'avatar_url': publicUrl,
+            },
+          ),
+        );
+        persisted = true;
+      } catch (_) {}
+
+      if (!persisted) {
+        throw Exception('No se pudo guardar la foto');
+      }
+
+      if (!mounted) return;
 
       setState(() {
         _avatarUrl = bustedUrl;
