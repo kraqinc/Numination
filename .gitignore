@@ -62,3 +62,5 @@ keystore/
 
 # Generated localizations
 lib/l10n/gen/
+
+.git
