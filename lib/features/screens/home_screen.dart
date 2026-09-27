@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/ai_modes_controller.dart';
 import '../../core/api.dart';
+import '../../core/update_service.dart';
 import '../../core/auth_controller.dart';
 import '../../core/l10n_extensions.dart';
 import '../../core/models.dart';
@@ -56,6 +57,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     super.initState();
     _initSpeech();
     _loadProfile();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      UpdateService.checkAndInstallIfEnabled();
+    });
   }
 
   Future<void> _initSpeech() async {
@@ -110,11 +115,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         Navigator.of(context).pop();
       }
 
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => const CoderScreen(),
-        ),
-      );
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const CoderScreen()));
 
       return;
     }
@@ -137,7 +140,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     });
 
     try {
-      final response = await ApiClient.get('/chats/${chat.id}/messages');
+      final encodedChatId = Uri.encodeComponent(chat.id);
+      final response = await ApiClient.get('/chats/$encodedChatId/messages');
 
       final data = ApiClient.decode(response) as Map<String, dynamic>;
 
@@ -246,18 +250,40 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       }
 
       final file = File(picked.path!);
+      final sizeBytes = await file.length();
+
+      const maxFileBytes = 20 * 1024 * 1024;
+
+      if (sizeBytes <= 0) {
+        throw Exception('Archivo vacío');
+      }
+
+      if (sizeBytes > maxFileBytes) {
+        throw Exception('Archivo demasiado grande');
+      }
+
+      final originalName = picked.name.trim();
+
+      final safeName = originalName
+          .replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_')
+          .replaceAll(RegExp(r'_+'), '_');
+
+      if (safeName.isEmpty ||
+          safeName == '.' ||
+          safeName == '..' ||
+          safeName.contains('..')) {
+        throw Exception('Nombre de archivo inválido');
+      }
 
       final storagePath =
-          '$userId/${DateTime.now().millisecondsSinceEpoch}_${picked.name}';
+          '$userId/${DateTime.now().microsecondsSinceEpoch}_$safeName';
 
       await client.storage.from('artifacts').upload(storagePath, file);
 
-      final sizeBytes = picked.lengthSync() ?? await picked.length();
-
-      final extension = picked.extension ?? '';
+      final extension = picked.extension?.toLowerCase() ?? '';
 
       await ApiClient.post('/artifacts', {
-        'title': picked.name,
+        'title': safeName,
         'kind': 'file',
         'storagePath': storagePath,
         'mimeType': extension,
@@ -381,7 +407,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final auth = ref.watch(authControllerProvider);
     final palette = ref.watch(appPaletteProvider);
     final email = auth is AuthAuthenticated ? auth.email : '';
-
     final availableModes =
         ref.watch(aiModesControllerProvider).value ?? const <AiModeConfig>[];
 
@@ -568,9 +593,7 @@ class _MessageBubble extends ConsumerWidget {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: palette.border),
         ),
-        child: AiResponse(
-          text: message.text,
-        ),
+        child: AiResponse(text: message.text),
       ),
     );
   }
@@ -744,4 +767,3 @@ class _ModeChip extends ConsumerWidget {
     );
   }
 }
-

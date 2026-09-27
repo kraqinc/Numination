@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/env.dart';
 import 'confirm_mail.dart';
 import 'create_acc.dart';
 
@@ -64,7 +65,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     try {
       await Supabase.instance.client.auth.signInWithOAuth(
         OAuthProvider.google,
-        redirectTo: 'io.numination.app://login-callback',
+        redirectTo: Env.authRedirectUrl,
       );
     } on AuthException catch (e) {
       setState(() => _errorText = e.message);
@@ -83,7 +84,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     try {
       await Supabase.instance.client.auth.signInWithOAuth(
         OAuthProvider.github,
-        redirectTo: 'io.numination.app://login-callback',
+        redirectTo: Env.authRedirectUrl,
       );
     } on AuthException catch (e) {
       setState(() => _errorText = e.message);

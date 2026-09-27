@@ -281,23 +281,29 @@ class ChatSession {
   final String title;
   final String mode;
   final bool isGhost;
+  final String? projectId;
   final String createdAt;
   final String updatedAt;
+
   const ChatSession({
     required this.id,
     required this.title,
     required this.mode,
     required this.isGhost,
+    this.projectId,
     required this.createdAt,
     required this.updatedAt,
   });
+
   factory ChatSession.fromJson(Map<String, dynamic> json) => ChatSession(
     id: '${json['id'] ?? ''}',
     title: '${json['title'] ?? 'Nuevo chat'}',
     mode: '${json['mode'] ?? 'chat'}',
     isGhost: json['isGhost'] == true,
-    createdAt: '${json['createdAt'] ?? ''}',
-    updatedAt: '${json['updatedAt'] ?? ''}',
+    projectId: json['projectId']?.toString() ??
+        json['project_id']?.toString(),
+    createdAt: '${json['createdAt'] ?? json['created_at'] ?? ''}',
+    updatedAt: '${json['updatedAt'] ?? json['updated_at'] ?? ''}',
   );
 }
 

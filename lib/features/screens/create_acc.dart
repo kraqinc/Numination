@@ -43,9 +43,9 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
       setState(() => _errorText = 'Ingresa un correo válido');
       return;
     }
-    if (password.length < 6) {
+    if (password.length < 8) {
       setState(
-        () => _errorText = 'La contraseña debe tener al menos 6 caracteres',
+        () => _errorText = 'La contraseña debe tener al menos 8 caracteres',
       );
       return;
     }

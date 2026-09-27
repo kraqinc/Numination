@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/auth_controller.dart';
 import '../../core/i18n.dart';
 import '../../core/theme_controller.dart';
+import '../../core/update_controller.dart';
 import 'custom_strings.dart';
 import 'memory_screen.dart';
 import 'notification_screen.dart';
@@ -19,6 +20,7 @@ class SettingsScreen extends ConsumerWidget {
     final auth = ref.watch(authControllerProvider);
     final palette = ref.watch(appPaletteProvider);
     final email = auth is AuthAuthenticated ? auth.email : '';
+    final autoUpdatesEnabled = ref.watch(autoUpdateProvider);
 
     return Scaffold(
       backgroundColor: palette.background,
@@ -73,6 +75,24 @@ class SettingsScreen extends ConsumerWidget {
               context,
             ).push(MaterialPageRoute(builder: (_) => const ThemeScreen())),
           ),
+          _SettingsSectionDivider(color: palette.border),
+
+          SwitchListTile(
+            value: autoUpdatesEnabled,
+            onChanged: (value) {
+              ref.read(autoUpdateProvider.notifier).setEnabled(value);
+            },
+            activeThumbColor: palette.accent,
+            title: Text(
+              'Actualizaciones automáticas',
+              style: TextStyle(color: palette.textPrimary, fontSize: 16),
+            ),
+            subtitle: Text(
+              'Detecta y descarga nuevas versiones de Numination automáticamente',
+              style: TextStyle(color: palette.textSecondary, fontSize: 12),
+            ),
+          ),
+
           _SettingsSectionDivider(color: palette.border),
           _SettingsTile(
             icon: Icons.workspace_premium_outlined,

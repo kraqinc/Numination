@@ -42,7 +42,7 @@ class SubscriptionCoderScreen extends ConsumerWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'Plan Coder',
+                        'Coder',
                         style: TextStyle(
                           color: palette.textPrimary,
                           fontSize: 20,
@@ -50,10 +50,10 @@ class SubscriptionCoderScreen extends ConsumerWidget {
                         ),
                       ),
                       Text(
-                        '\$75 COP/mes',
+                        'Gratis por ahora',
                         style: TextStyle(
                           color: palette.accent,
-                          fontSize: 18,
+                          fontSize: 15,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -61,7 +61,7 @@ class SubscriptionCoderScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Acceso ilimitado al modo Coder, prioridad en respuestas y envío de imágenes.',
+                    'El modo Coder está disponible gratis por ahora mientras Numination sigue en desarrollo.',
                     style: TextStyle(
                       color: palette.textSecondary,
                       fontSize: 13,
@@ -76,7 +76,7 @@ class SubscriptionCoderScreen extends ConsumerWidget {
               width: double.infinity,
               height: 52,
               child: ElevatedButton(
-                onPressed: () {},
+                onPressed: null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: palette.accent,
                   foregroundColor: Colors.black,
@@ -85,7 +85,7 @@ class SubscriptionCoderScreen extends ConsumerWidget {
                   ),
                 ),
                 child: const Text(
-                  'Suscribirme',
+                  'Disponible',
                   style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
                 ),
               ),

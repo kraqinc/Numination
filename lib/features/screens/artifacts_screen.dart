@@ -88,7 +88,8 @@ class _ArtifactsScreenState extends ConsumerState<ArtifactsScreen> {
     if (confirmed != true) return;
 
     try {
-      await ApiClient.delete('/artifacts/${artifact.id}');
+      final encodedArtifactId = Uri.encodeComponent(artifact.id);
+      await ApiClient.delete('/artifacts/$encodedArtifactId');
       setState(() => _artifacts.removeWhere((a) => a.id == artifact.id));
     } catch (e) {
       if (!mounted) return;
