@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter/foundation.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -21,6 +23,14 @@ Future<void> main() async {
     url: Env.supabaseUrl,
     publishableKey: Env.supabasePublishableKey,
   );
+
+  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+    await GoogleSignIn.instance.initialize(serverClientId: Env.googleClientId);
+  }
+
+  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+    await GoogleSignIn.instance.initialize(serverClientId: Env.googleClientId);
+  }
 
   runApp(const ProviderScope(child: NuminationApp()));
 }

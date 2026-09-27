@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/env.dart';
@@ -62,17 +64,56 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       _isLoading = true;
       _errorText = null;
     });
+
     try {
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+        final google = GoogleSignIn.instance;
+
+        final googleUser = await google.authenticate();
+        final googleAuth = googleUser.authentication;
+        final idToken = googleAuth.idToken;
+
+        if (idToken == null) {
+          throw const AuthException('Google no devolvió un ID token.');
+        }
+
+        final authorization = await googleUser.authorizationClient
+            .authorizeScopes(const ['email', 'profile']);
+
+        final accessToken = authorization.accessToken;
+
+        await Supabase.instance.client.auth.signInWithIdToken(
+          provider: OAuthProvider.google,
+          idToken: idToken,
+          accessToken: accessToken,
+        );
+
+        return;
+      }
+
       await Supabase.instance.client.auth.signInWithOAuth(
         OAuthProvider.google,
         redirectTo: Env.authRedirectUrl,
       );
     } on AuthException catch (e) {
-      setState(() => _errorText = e.message);
+      if (mounted) {
+        setState(() => _errorText = e.message);
+      }
+    } on GoogleSignInException catch (e) {
+      if (mounted) {
+        setState(
+          () => _errorText =
+              e.description ?? 'No se pudo iniciar sesión con Google',
+        );
+      }
     } catch (e) {
-      setState(() => _errorText = 'No se pudo iniciar sesión con Google');
+      if (mounted) {
+        setState(() => _errorText = 'No se pudo iniciar sesión con Google');
+      }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
