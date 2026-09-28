@@ -42,9 +42,14 @@ jobs:
           APP_VERSION=1.0.0
           ENV
 
-      - run: flutter pub get
-      - run: flutter analyze
-      - run: flutter test
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test
 
   android:
     name: Android APK
@@ -86,19 +91,21 @@ jobs:
         run: |
           set -euo pipefail
 
-          mkdir -p android/keystore
+          KEYSTORE="$GITHUB_WORKSPACE/android/keystore/numination-release.jks"
+
+          mkdir -p "$(dirname "$KEYSTORE")"
 
           printf '%s' "$ANDROID_KEYSTORE_BASE64" \
             | tr -d '\r\n' \
             | base64 --decode \
-            > android/keystore/numination-release.jks
+            > "$KEYSTORE"
 
-          test -s android/keystore/numination-release.jks
-          chmod 600 android/keystore/numination-release.jks
+          test -s "$KEYSTORE"
+          chmod 600 "$KEYSTORE"
 
-          echo "Release keystore restored successfully."
+          echo "Release keystore restored."
 
-      - name: Verify release keystore
+      - name: Verify exact release keystore
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
@@ -106,19 +113,20 @@ jobs:
         run: |
           set -euo pipefail
 
-          KEYSTORE="android/keystore/numination-release.jks"
-          TEMP_KEYSTORE="$RUNNER_TEMP/numination-signing-check.jks"
+          KEYSTORE="$GITHUB_WORKSPACE/android/keystore/numination-release.jks"
           TEMP_P12="$RUNNER_TEMP/numination-key-check.p12"
 
-          rm -f "$TEMP_KEYSTORE"
-          rm -f "$TEMP_P12"
+          echo "Checking keystore:"
+          echo "$KEYSTORE"
 
-          cp "$KEYSTORE" "$TEMP_KEYSTORE"
+          echo "Checking keystore file..."
+          ls -lh "$KEYSTORE"
+          file "$KEYSTORE"
 
           echo "Checking keystore password and alias..."
 
           keytool -list \
-            -keystore "$TEMP_KEYSTORE" \
+            -keystore "$KEYSTORE" \
             -storetype JKS \
             -storepass "$ANDROID_KEYSTORE_PASSWORD" \
             -alias "$ANDROID_KEY_ALIAS" \
@@ -128,8 +136,10 @@ jobs:
 
           echo "Checking private-key password..."
 
+          rm -f "$TEMP_P12"
+
           keytool -importkeystore \
-            -srckeystore "$TEMP_KEYSTORE" \
+            -srckeystore "$KEYSTORE" \
             -srcstoretype JKS \
             -srcstorepass "$ANDROID_KEYSTORE_PASSWORD" \
             -srcalias "$ANDROID_KEY_ALIAS" \
@@ -142,21 +152,29 @@ jobs:
 
           test -s "$TEMP_P12"
 
-          rm -f "$TEMP_KEYSTORE"
           rm -f "$TEMP_P12"
 
           echo "Private-key password: OK"
           echo "Release signing credentials: OK"
 
-      - run: flutter pub get
+      - name: Get dependencies
+        run: flutter pub get
 
       - name: Build release APK
         env:
-          ANDROID_KEYSTORE_PATH: ../keystore/numination-release.jks
+          ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/android/keystore/numination-release.jks
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
+          set -euo pipefail
+
+          echo "Gradle signing keystore:"
+          echo "$ANDROID_KEYSTORE_PATH"
+
+          test -f "$ANDROID_KEYSTORE_PATH"
+          test -s "$ANDROID_KEYSTORE_PATH"
+
           flutter build apk \
             --release \
             --build-name "1.0.${{ github.run_number }}" \
@@ -231,7 +249,8 @@ jobs:
           APP_VERSION=1.0.${{ github.run_number }}
           ENV
 
-      - run: flutter pub get
+      - name: Get dependencies
+        run: flutter pub get
 
       - name: Build iOS
         run: flutter build ios --release --no-codesign
