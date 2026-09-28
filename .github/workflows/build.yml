@@ -1,4 +1,4 @@
-name: Numination Flutter
+name: Numination build
 
 on:
   push:
