@@ -89,10 +89,41 @@ jobs:
           mkdir -p android/keystore
 
           printf '%s' "$ANDROID_KEYSTORE_BASE64" \
+            | tr -d '\r\n' \
             | base64 --decode \
             > android/keystore/numination-release.jks
 
           test -s android/keystore/numination-release.jks
+          chmod 600 android/keystore/numination-release.jks
+
+      - name: Verify release signing credentials
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          TEMP_KEYSTORE="$RUNNER_TEMP/numination-signing-check.jks"
+          rm -f "$TEMP_KEYSTORE"
+
+          keytool -importkeystore \
+            -srckeystore android/keystore/numination-release.jks \
+            -srcstoretype JKS \
+            -srcstorepass "$ANDROID_KEYSTORE_PASSWORD" \
+            -srcalias "$ANDROID_KEY_ALIAS" \
+            -srckeypass "$ANDROID_KEY_PASSWORD" \
+            -destkeystore "$TEMP_KEYSTORE" \
+            -deststoretype JKS \
+            -deststorepass "CI_TEMP_CHECK_PASSWORD" \
+            -destkeypass "CI_TEMP_CHECK_PASSWORD" \
+            -noprompt \
+            >/dev/null 2>&1
+
+          test -s "$TEMP_KEYSTORE"
+          rm -f "$TEMP_KEYSTORE"
+
+          echo "Release signing credentials: OK"
 
       - run: flutter pub get
 
