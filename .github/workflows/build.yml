@@ -87,7 +87,6 @@ jobs:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           set -euo pipefail
 
@@ -114,17 +113,16 @@ jobs:
             -srcstoretype PKCS12 \
             -srcstorepass "$ANDROID_KEYSTORE_PASSWORD" \
             -srcalias "$ANDROID_KEY_ALIAS" \
-            -srckeypass "$ANDROID_KEY_PASSWORD" \
             -destkeystore "$KEYSTORE" \
             -deststoretype JKS \
             -deststorepass "$ANDROID_KEYSTORE_PASSWORD" \
-            -destkeypass "$ANDROID_KEY_PASSWORD" \
+            -destkeypass "$ANDROID_KEYSTORE_PASSWORD" \
             -noprompt
 
           test -s "$KEYSTORE"
           chmod 600 "$KEYSTORE"
 
-          echo "Converted JKS:"
+          echo "Converted keystore:"
           file "$KEYSTORE"
 
           keytool -list \
@@ -134,7 +132,7 @@ jobs:
             -alias "$ANDROID_KEY_ALIAS" \
             >/dev/null
 
-          echo "Release JKS + alias: OK"
+          echo "JKS + alias: OK"
 
           rm -f "$SOURCE_KEYSTORE"
 
@@ -146,7 +144,6 @@ jobs:
           ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/android/keystore/numination-release.jks
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           set -euo pipefail
 

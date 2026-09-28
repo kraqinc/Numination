@@ -6,7 +6,6 @@ plugins {
 val keystorePath = System.getenv("ANDROID_KEYSTORE_PATH")
 val keystorePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
 val keyAliasValue = System.getenv("ANDROID_KEY_ALIAS")
-val keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
 
 android {
     namespace = "com.wren.ide.numination"
@@ -33,7 +32,7 @@ android {
                 storeType = "JKS"
                 storePassword = keystorePassword ?: ""
                 keyAlias = keyAliasValue ?: ""
-                keyPassword = keyPassword ?: ""
+                keyPassword = keystorePassword ?: ""
             }
         }
     }
