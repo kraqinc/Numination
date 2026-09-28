@@ -66,7 +66,6 @@ jobs:
           channel: stable
           cache: true
 
-
       - name: Create CI environment
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -83,28 +82,9 @@ jobs:
           APP_VERSION=1.0.${{ github.run_number }}
           ENV
 
-      - name: Restore release keystore
+      - name: Restore and convert release keystore
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-        run: |
-          set -euo pipefail
-
-          KEYSTORE="$GITHUB_WORKSPACE/android/keystore/numination-release.jks"
-
-          mkdir -p "$(dirname "$KEYSTORE")"
-
-          printf '%s' "$ANDROID_KEYSTORE_BASE64" \
-            | tr -d '\r\n' \
-            | base64 --decode \
-            > "$KEYSTORE"
-
-          test -s "$KEYSTORE"
-          chmod 600 "$KEYSTORE"
-
-          echo "Release keystore restored."
-
-      - name: Verify exact release keystore
-        env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
@@ -112,48 +92,51 @@ jobs:
           set -euo pipefail
 
           KEYSTORE="$GITHUB_WORKSPACE/android/keystore/numination-release.jks"
-          TEMP_P12="$RUNNER_TEMP/numination-key-check.p12"
+          SOURCE_KEYSTORE="$RUNNER_TEMP/numination-source.p12"
 
-          echo "Checking keystore:"
-          echo "$KEYSTORE"
+          mkdir -p "$(dirname "$KEYSTORE")"
 
-          echo "Checking keystore file..."
-          ls -lh "$KEYSTORE"
-          file "$KEYSTORE"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" \
+            | tr -d '\r\n' \
+            | base64 --decode \
+            > "$SOURCE_KEYSTORE"
 
-          echo "Checking keystore password and alias..."
+          test -s "$SOURCE_KEYSTORE"
+          chmod 600 "$SOURCE_KEYSTORE"
 
-          keytool -list \
-            -keystore "$KEYSTORE" \
-            -storetype PKCS12 \
-            -storepass "$ANDROID_KEYSTORE_PASSWORD" \
-            -alias "$ANDROID_KEY_ALIAS" \
-            >/dev/null
+          echo "Source keystore:"
+          file "$SOURCE_KEYSTORE"
 
-          echo "Keystore password + alias: OK"
-
-          echo "Checking private-key password..."
-
-          rm -f "$TEMP_P12"
+          rm -f "$KEYSTORE"
 
           keytool -importkeystore \
-            -srckeystore "$KEYSTORE" \
+            -srckeystore "$SOURCE_KEYSTORE" \
             -srcstoretype PKCS12 \
             -srcstorepass "$ANDROID_KEYSTORE_PASSWORD" \
             -srcalias "$ANDROID_KEY_ALIAS" \
             -srckeypass "$ANDROID_KEY_PASSWORD" \
-            -destkeystore "$TEMP_P12" \
-            -deststoretype PKCS12 \
-            -deststorepass "CI_TEMP_CHECK_PASSWORD" \
-            -destkeypass "CI_TEMP_CHECK_PASSWORD" \
+            -destkeystore "$KEYSTORE" \
+            -deststoretype JKS \
+            -deststorepass "$ANDROID_KEYSTORE_PASSWORD" \
+            -destkeypass "$ANDROID_KEY_PASSWORD" \
             -noprompt
 
-          test -s "$TEMP_P12"
+          test -s "$KEYSTORE"
+          chmod 600 "$KEYSTORE"
 
-          rm -f "$TEMP_P12"
+          echo "Converted JKS:"
+          file "$KEYSTORE"
 
-          echo "Private-key password: OK"
-          echo "Release signing credentials: OK"
+          keytool -list \
+            -keystore "$KEYSTORE" \
+            -storetype JKS \
+            -storepass "$ANDROID_KEYSTORE_PASSWORD" \
+            -alias "$ANDROID_KEY_ALIAS" \
+            >/dev/null
+
+          echo "Release JKS + alias: OK"
+
+          rm -f "$SOURCE_KEYSTORE"
 
       - name: Get dependencies
         run: flutter pub get
