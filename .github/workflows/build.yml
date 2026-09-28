@@ -66,8 +66,6 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Generate Android platform
-        run: flutter create --platforms=android --project-name numination .
 
       - name: Create CI environment
         env:
@@ -127,7 +125,7 @@ jobs:
 
           keytool -list \
             -keystore "$KEYSTORE" \
-            -storetype JKS \
+            -storetype PKCS12 \
             -storepass "$ANDROID_KEYSTORE_PASSWORD" \
             -alias "$ANDROID_KEY_ALIAS" \
             >/dev/null
@@ -140,7 +138,7 @@ jobs:
 
           keytool -importkeystore \
             -srckeystore "$KEYSTORE" \
-            -srcstoretype JKS \
+            -srcstoretype PKCS12 \
             -srcstorepass "$ANDROID_KEYSTORE_PASSWORD" \
             -srcalias "$ANDROID_KEY_ALIAS" \
             -srckeypass "$ANDROID_KEY_PASSWORD" \
