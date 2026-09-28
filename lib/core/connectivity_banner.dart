@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:numination/core/numi_icons.dart';
 
 /// Wraps the app and shows a sliding in-app notification banner whenever
 /// the device loses network connectivity, from any screen. Disappears
@@ -78,7 +79,7 @@ class _ConnectivityBannerState extends State<ConnectivityBanner> {
                       child: Row(
                         children: const [
                           Icon(
-                            Icons.wifi_off_rounded,
+                            NumiIcons.wifi_off_rounded,
                             color: Colors.white,
                             size: 20,
                           ),

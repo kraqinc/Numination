@@ -24,14 +24,10 @@ class AutoUpdateController extends Notifier<bool> {
 
     final prefs = await SharedPreferences.getInstance();
 
-    await prefs.setBool(
-      _autoUpdateKey,
-      enabled,
-    );
+    await prefs.setBool(_autoUpdateKey, enabled);
   }
 }
 
-final autoUpdateProvider =
-    NotifierProvider<AutoUpdateController, bool>(
+final autoUpdateProvider = NotifierProvider<AutoUpdateController, bool>(
   AutoUpdateController.new,
 );

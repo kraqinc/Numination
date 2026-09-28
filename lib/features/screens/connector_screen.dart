@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/l10n_extensions.dart';
 import '../../core/theme_controller.dart';
+import 'package:numination/core/numi_icons.dart';
 
 class ConnectorsScreen extends ConsumerWidget {
   const ConnectorsScreen({super.key});
@@ -37,7 +38,7 @@ class ConnectorsScreen extends ConsumerWidget {
                   border: Border.all(color: palette.border),
                 ),
                 child: Icon(
-                  Icons.power_off_outlined,
+                  NumiIcons.power_off_outlined,
                   color: palette.accent,
                   size: 34,
                 ),

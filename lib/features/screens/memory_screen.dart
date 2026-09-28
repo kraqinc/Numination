@@ -6,6 +6,7 @@ import '../../core/l10n_extensions.dart';
 import '../../core/models.dart';
 import '../../core/theme.dart';
 import '../../core/theme_controller.dart';
+import 'package:numination/core/numi_icons.dart';
 
 class MemoryScreen extends ConsumerStatefulWidget {
   const MemoryScreen({super.key});
@@ -135,7 +136,7 @@ class _MemoryScreenState extends ConsumerState<MemoryScreen> {
       floatingActionButton: FloatingActionButton(
         backgroundColor: palette.accent,
         onPressed: _createMemory,
-        child: const Icon(Icons.add),
+        child: const Icon(NumiIcons.add),
       ),
       body: RefreshIndicator(
         onRefresh: _load,
@@ -165,7 +166,7 @@ class _MemoryScreenState extends ConsumerState<MemoryScreen> {
                           children: [
                             if (memory.pinned) ...[
                               Icon(
-                                Icons.push_pin,
+                                NumiIcons.push_pin,
                                 size: 14,
                                 color: palette.accent,
                               ),
@@ -219,7 +220,11 @@ class _EmptyMemoryState extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.memory_outlined, color: palette.accent, size: 48),
+                  Icon(
+                    NumiIcons.memory_outlined,
+                    color: palette.accent,
+                    size: 48,
+                  ),
                   const SizedBox(height: 16),
                   Text(
                     'Numination todavía no ha guardado memorias sobre ti.',

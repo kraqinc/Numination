@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/i18n.dart';
 import '../../core/theme_controller.dart';
+import 'package:numination/core/numi_icons.dart';
 
 class PrivacyScreen extends ConsumerStatefulWidget {
   const PrivacyScreen({super.key});
@@ -60,7 +61,7 @@ class _PrivacyScreenState extends ConsumerState<PrivacyScreen> {
           ),
           const SizedBox(height: 8),
           ListTile(
-            leading: Icon(Icons.delete_outline, color: Colors.redAccent),
+            leading: Icon(NumiIcons.delete_outline, color: Colors.redAccent),
             title: const Text(
               'Eliminar todos mis chats',
               style: TextStyle(color: Colors.redAccent),

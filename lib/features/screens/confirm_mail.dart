@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'home_screen.dart';
+import 'package:numination/core/numi_icons.dart';
 
 class ConfirmMailScreen extends ConsumerStatefulWidget {
   const ConfirmMailScreen({super.key, required this.email});
@@ -119,8 +120,8 @@ class _ConfirmMailScreenState extends ConsumerState<ConfirmMailScreen> {
                   suffixIcon: IconButton(
                     icon: Icon(
                       _obscurePassword
-                          ? Icons.visibility_outlined
-                          : Icons.visibility_off_outlined,
+                          ? NumiIcons.visibility_outlined
+                          : NumiIcons.visibility_off_outlined,
                       color: Colors.grey,
                     ),
                     onPressed: () {

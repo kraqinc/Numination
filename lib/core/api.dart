@@ -82,30 +82,23 @@ class ApiClient {
 
   // GET puede reintentarse porque es una operación de lectura.
   static Future<http.Response> get(String path) =>
-      _send(
-        () => http.get(_uri(path), headers: _headers),
-        retryable: true,
-      );
+      _send(() => http.get(_uri(path), headers: _headers), retryable: true);
 
   // Las operaciones mutables NO se reintentan automáticamente.
   // Así evitamos duplicar creaciones, cambios, eliminaciones o consumo.
   static Future<http.Response> post(
     String path, [
     Map<String, dynamic>? body,
-  ]) =>
-      _send(
-        () => http.post(
-          _uri(path),
-          headers: _headers,
-          body: jsonEncode(body ?? <String, dynamic>{}),
-        ),
-        retryable: false,
-      );
+  ]) => _send(
+    () => http.post(
+      _uri(path),
+      headers: _headers,
+      body: jsonEncode(body ?? <String, dynamic>{}),
+    ),
+    retryable: false,
+  );
 
-  static Future<http.Response> put(
-    String path, [
-    Map<String, dynamic>? body,
-  ]) =>
+  static Future<http.Response> put(String path, [Map<String, dynamic>? body]) =>
       _send(
         () => http.put(
           _uri(path),
@@ -118,21 +111,17 @@ class ApiClient {
   static Future<http.Response> patch(
     String path, [
     Map<String, dynamic>? body,
-  ]) =>
-      _send(
-        () => http.patch(
-          _uri(path),
-          headers: _headers,
-          body: jsonEncode(body ?? <String, dynamic>{}),
-        ),
-        retryable: false,
-      );
+  ]) => _send(
+    () => http.patch(
+      _uri(path),
+      headers: _headers,
+      body: jsonEncode(body ?? <String, dynamic>{}),
+    ),
+    retryable: false,
+  );
 
   static Future<http.Response> delete(String path) =>
-      _send(
-        () => http.delete(_uri(path), headers: _headers),
-        retryable: false,
-      );
+      _send(() => http.delete(_uri(path), headers: _headers), retryable: false);
 
   static dynamic decode(http.Response response) {
     dynamic data;

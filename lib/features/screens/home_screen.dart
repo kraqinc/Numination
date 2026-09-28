@@ -18,6 +18,7 @@ import '../widgets/hamburger.dart';
 import '../widgets/search_chats.dart';
 import 'ghost_chat.dart';
 import 'coder_screen.dart';
+import 'package:numination/core/numi_icons.dart';
 
 class ChatMessage {
   final String text;
@@ -498,7 +499,7 @@ class _TopBar extends ConsumerWidget {
         children: [
           IconButton(
             onPressed: onMenuTap,
-            icon: Icon(Icons.menu, color: palette.textPrimary),
+            icon: Icon(NumiIcons.menu, color: palette.textPrimary),
           ),
           Expanded(
             child: GestureDetector(
@@ -513,7 +514,11 @@ class _TopBar extends ConsumerWidget {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.search, color: palette.textSecondary, size: 20),
+                    Icon(
+                      NumiIcons.search,
+                      color: palette.textSecondary,
+                      size: 20,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -525,7 +530,7 @@ class _TopBar extends ConsumerWidget {
                       ),
                     ),
                     Icon(
-                      Icons.grid_view_rounded,
+                      NumiIcons.grid_view_rounded,
                       color: palette.textSecondary,
                       size: 20,
                     ),
@@ -721,7 +726,10 @@ class _BottomInputBar extends ConsumerWidget {
                       )
                     : IconButton(
                         onPressed: onSend,
-                        icon: Icon(Icons.send_rounded, color: palette.accent),
+                        icon: Icon(
+                          NumiIcons.send_rounded,
+                          color: palette.accent,
+                        ),
                       ),
               ],
             ),

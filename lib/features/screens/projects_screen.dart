@@ -7,6 +7,7 @@ import '../../core/i18n.dart';
 import '../../core/models.dart';
 import '../../core/theme.dart';
 import '../../core/theme_controller.dart';
+import 'package:numination/core/numi_icons.dart';
 
 class ProjectsScreen extends ConsumerStatefulWidget {
   const ProjectsScreen({super.key});
@@ -44,25 +45,16 @@ class _ProjectsScreenState extends ConsumerState<ProjectsScreen> {
 
       final projectsData =
           ApiClient.decode(responses[0]) as Map<String, dynamic>;
-      final chatsData =
-          ApiClient.decode(responses[1]) as Map<String, dynamic>;
+      final chatsData = ApiClient.decode(responses[1]) as Map<String, dynamic>;
 
       final projects = (projectsData['projects'] as List? ?? [])
           .whereType<Map>()
-          .map(
-            (e) => Project.fromJson(
-              Map<String, dynamic>.from(e),
-            ),
-          )
+          .map((e) => Project.fromJson(Map<String, dynamic>.from(e)))
           .toList();
 
       final chats = (chatsData['chats'] as List? ?? [])
           .whereType<Map>()
-          .map(
-            (e) => ChatSession.fromJson(
-              Map<String, dynamic>.from(e),
-            ),
-          )
+          .map((e) => ChatSession.fromJson(Map<String, dynamic>.from(e)))
           .where((chat) => !chat.isGhost)
           .toList();
 
@@ -137,9 +129,7 @@ class _ProjectsScreenState extends ConsumerState<ProjectsScreen> {
     if (name == null || name.isEmpty) return;
 
     try {
-      await ApiClient.post('/projects', {
-        'name': name,
-      });
+      await ApiClient.post('/projects', {'name': name});
 
       await _load();
     } on ApiException catch (e) {
@@ -152,9 +142,7 @@ class _ProjectsScreenState extends ConsumerState<ProjectsScreen> {
   }
 
   List<ChatSession> _chatsForProject(Project project) {
-    return _chats
-        .where((chat) => chat.projectId == project.id)
-        .toList();
+    return _chats.where((chat) => chat.projectId == project.id).toList();
   }
 
   void _toggleProject(String projectId) {
@@ -179,18 +167,13 @@ class _ProjectsScreenState extends ConsumerState<ProjectsScreen> {
         iconTheme: IconThemeData(color: palette.textPrimary),
         title: Text(
           AppLocale.t('projects'),
-          style: TextStyle(
-            color: palette.textPrimary,
-          ),
+          style: TextStyle(color: palette.textPrimary),
         ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _createProject,
         backgroundColor: palette.accent,
-        child: const Icon(
-          Icons.add,
-          color: Colors.black,
-        ),
+        child: const Icon(NumiIcons.add, color: Colors.black),
       ),
       body: RefreshIndicator(
         onRefresh: _load,
@@ -198,9 +181,7 @@ class _ProjectsScreenState extends ConsumerState<ProjectsScreen> {
             ? ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 children: [
-                  SizedBox(
-                    height: MediaQuery.sizeOf(context).height * 0.35,
-                  ),
+                  SizedBox(height: MediaQuery.sizeOf(context).height * 0.35),
                   Center(
                     child: CircularProgressIndicator(
                       color: palette.textPrimary,
@@ -209,44 +190,32 @@ class _ProjectsScreenState extends ConsumerState<ProjectsScreen> {
                 ],
               )
             : _projects.isEmpty
-                ? ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    children: [
-                      SizedBox(
-                        height: MediaQuery.sizeOf(context).height * 0.28,
-                      ),
-                      _EmptyProjectsState(
-                        errorText: _errorText,
-                        palette: palette,
-                      ),
-                    ],
-                  )
-                : ListView.separated(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(
-                      16,
-                      12,
-                      16,
-                      90,
-                    ),
-                    itemCount: _projects.length,
-                    separatorBuilder: (_, _) =>
-                        const SizedBox(height: 10),
-                    itemBuilder: (context, index) {
-                      final project = _projects[index];
-                      final expanded =
-                          _expandedProjects.contains(project.id);
-                      final chats = _chatsForProject(project);
+            ? ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: [
+                  SizedBox(height: MediaQuery.sizeOf(context).height * 0.28),
+                  _EmptyProjectsState(errorText: _errorText, palette: palette),
+                ],
+              )
+            : ListView.separated(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
+                itemCount: _projects.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 10),
+                itemBuilder: (context, index) {
+                  final project = _projects[index];
+                  final expanded = _expandedProjects.contains(project.id);
+                  final chats = _chatsForProject(project);
 
-                      return _ProjectCard(
-                        project: project,
-                        chats: chats,
-                        expanded: expanded,
-                        palette: palette,
-                        onToggle: () => _toggleProject(project.id),
-                      );
-                    },
-                  ),
+                  return _ProjectCard(
+                    project: project,
+                    chats: chats,
+                    expanded: expanded,
+                    palette: palette,
+                    onToggle: () => _toggleProject(project.id),
+                  );
+                },
+              ),
       ),
     );
   }
@@ -296,8 +265,8 @@ class _ProjectCard extends StatelessWidget {
                     children: [
                       MorphingIcon.icons(
                         icons: const [
-                          Icons.folder_outlined,
-                          Icons.folder_open_outlined,
+                          NumiIcons.folder_outlined,
+                          NumiIcons.folder_open_outlined,
                         ],
                         initialState: expanded ? 1 : 0,
                         size: 25,
@@ -306,8 +275,7 @@ class _ProjectCard extends StatelessWidget {
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
-                          crossAxisAlignment:
-                              CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               project.name,
@@ -345,8 +313,8 @@ class _ProjectCard extends StatelessWidget {
                       const SizedBox(width: 8),
                       MorphingIcon.icons(
                         icons: const [
-                          Icons.keyboard_arrow_down_rounded,
-                          Icons.keyboard_arrow_up_rounded,
+                          NumiIcons.keyboard_arrow_down_rounded,
+                          NumiIcons.keyboard_arrow_up_rounded,
                         ],
                         initialState: expanded ? 1 : 0,
                         size: 25,
@@ -358,10 +326,7 @@ class _ProjectCard extends StatelessWidget {
               ),
               AnimatedCrossFade(
                 firstChild: const SizedBox.shrink(),
-                secondChild: _ProjectChats(
-                  chats: chats,
-                  palette: palette,
-                ),
+                secondChild: _ProjectChats(chats: chats, palette: palette),
                 crossFadeState: expanded
                     ? CrossFadeState.showSecond
                     : CrossFadeState.showFirst,
@@ -377,10 +342,7 @@ class _ProjectCard extends StatelessWidget {
 }
 
 class _ProjectChats extends StatelessWidget {
-  const _ProjectChats({
-    required this.chats,
-    required this.palette,
-  });
+  const _ProjectChats({required this.chats, required this.palette});
 
   final List<ChatSession> chats;
   final AppPalette palette;
@@ -389,12 +351,7 @@ class _ProjectChats extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(
-        16,
-        0,
-        16,
-        14,
-      ),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
       child: chats.isEmpty
           ? Container(
               margin: const EdgeInsets.only(top: 2),
@@ -406,7 +363,7 @@ class _ProjectChats extends StatelessWidget {
               child: Row(
                 children: [
                   Icon(
-                    Icons.chat_bubble_outline_rounded,
+                    NumiIcons.chat_bubble_outline_rounded,
                     color: palette.textSecondary,
                     size: 18,
                   ),
@@ -425,16 +382,10 @@ class _ProjectChats extends StatelessWidget {
             )
           : Column(
               children: [
-                Divider(
-                  color: palette.border,
-                  height: 1,
-                ),
+                Divider(color: palette.border, height: 1),
                 const SizedBox(height: 6),
                 ...chats.map(
-                  (chat) => _ProjectChatTile(
-                    chat: chat,
-                    palette: palette,
-                  ),
+                  (chat) => _ProjectChatTile(chat: chat, palette: palette),
                 ),
               ],
             ),
@@ -443,10 +394,7 @@ class _ProjectChats extends StatelessWidget {
 }
 
 class _ProjectChatTile extends StatelessWidget {
-  const _ProjectChatTile({
-    required this.chat,
-    required this.palette,
-  });
+  const _ProjectChatTile({required this.chat, required this.palette});
 
   final ChatSession chat;
   final AppPalette palette;
@@ -467,16 +415,13 @@ class _ProjectChatTile extends StatelessWidget {
             // el mismo flujo del Home/Drawer.
           },
           child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 8,
-              vertical: 11,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 11),
             child: Row(
               children: [
                 Icon(
                   isCoder
-                      ? Icons.code_rounded
-                      : Icons.chat_bubble_outline_rounded,
+                      ? NumiIcons.code_rounded
+                      : NumiIcons.chat_bubble_outline_rounded,
                   color: palette.accent,
                   size: 19,
                 ),
@@ -494,7 +439,7 @@ class _ProjectChatTile extends StatelessWidget {
                   ),
                 ),
                 Icon(
-                  Icons.chevron_right_rounded,
+                  NumiIcons.chevron_right_rounded,
                   color: palette.textSecondary,
                   size: 19,
                 ),
@@ -508,10 +453,7 @@ class _ProjectChatTile extends StatelessWidget {
 }
 
 class _EmptyProjectsState extends StatelessWidget {
-  const _EmptyProjectsState({
-    this.errorText,
-    required this.palette,
-  });
+  const _EmptyProjectsState({this.errorText, required this.palette});
 
   final String? errorText;
   final AppPalette palette;
@@ -530,12 +472,10 @@ class _EmptyProjectsState extends StatelessWidget {
               decoration: BoxDecoration(
                 color: palette.surface,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: palette.border,
-                ),
+                border: Border.all(color: palette.border),
               ),
               child: Icon(
-                Icons.folder_copy_outlined,
+                NumiIcons.folder_copy_outlined,
                 color: palette.accent,
                 size: 36,
               ),
@@ -553,20 +493,14 @@ class _EmptyProjectsState extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               AppLocale.t('no_projects_subtitle'),
-              style: TextStyle(
-                color: palette.textSecondary,
-                fontSize: 14,
-              ),
+              style: TextStyle(color: palette.textSecondary, fontSize: 14),
               textAlign: TextAlign.center,
             ),
             if (errorText != null) ...[
               const SizedBox(height: 16),
               Text(
                 errorText!,
-                style: const TextStyle(
-                  color: Colors.redAccent,
-                  fontSize: 13,
-                ),
+                style: const TextStyle(color: Colors.redAccent, fontSize: 13),
                 textAlign: TextAlign.center,
               ),
             ],

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/i18n.dart';
 import '../../core/theme.dart';
 import '../../core/theme_controller.dart';
+import 'package:numination/core/numi_icons.dart';
 
 class ThemeScreen extends ConsumerWidget {
   const ThemeScreen({super.key});
@@ -78,7 +79,7 @@ class ThemeScreen extends ConsumerWidget {
                       ),
                     ),
                     if (isSelected)
-                      Icon(Icons.check_circle, color: palette.accent),
+                      Icon(NumiIcons.check_circle, color: palette.accent),
                   ],
                 ),
               ),

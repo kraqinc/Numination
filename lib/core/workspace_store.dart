@@ -69,9 +69,7 @@ class WorkspaceStore {
 
     final finalName = safe.isEmpty ? 'project' : safe;
 
-    final dir = Directory(
-      '${base.path}/NuminationProjects/$finalName',
-    );
+    final dir = Directory('${base.path}/NuminationProjects/$finalName');
 
     await dir.create(recursive: true);
 
@@ -114,10 +112,9 @@ class WorkspaceStore {
 
     final targetAbsolute = target.absolute.path;
 
-    final allowedPrefix =
-        rootAbsolute.endsWith(Platform.pathSeparator)
-            ? rootAbsolute
-            : '$rootAbsolute${Platform.pathSeparator}';
+    final allowedPrefix = rootAbsolute.endsWith(Platform.pathSeparator)
+        ? rootAbsolute
+        : '$rootAbsolute${Platform.pathSeparator}';
 
     if (!targetAbsolute.startsWith(allowedPrefix)) {
       throw const FormatException('Ruta de archivo fuera del proyecto');

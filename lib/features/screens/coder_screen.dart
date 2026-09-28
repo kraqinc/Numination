@@ -5,6 +5,7 @@ import '../../core/api.dart';
 import '../../core/i18n.dart';
 import '../../core/theme_controller.dart';
 import 'projects_screen.dart';
+import 'package:numination/core/numi_icons.dart';
 
 class CoderScreen extends ConsumerStatefulWidget {
   const CoderScreen({super.key});
@@ -35,16 +36,12 @@ class _CoderScreenState extends ConsumerState<CoderScreen> {
     });
 
     try {
-      await ApiClient.post('/projects', {
-        'name': name,
-      });
+      await ApiClient.post('/projects', {'name': name});
 
       if (!mounted) return;
 
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => const ProjectsScreen(),
-        ),
+        MaterialPageRoute(builder: (_) => const ProjectsScreen()),
       );
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -72,9 +69,7 @@ class _CoderScreenState extends ConsumerState<CoderScreen> {
       appBar: AppBar(
         backgroundColor: palette.background,
         elevation: 0,
-        iconTheme: IconThemeData(
-          color: palette.textPrimary,
-        ),
+        iconTheme: IconThemeData(color: palette.textPrimary),
         title: Text(
           'Coder',
           style: TextStyle(
@@ -92,9 +87,7 @@ class _CoderScreenState extends ConsumerState<CoderScreen> {
               decoration: BoxDecoration(
                 color: palette.surface,
                 borderRadius: BorderRadius.circular(24),
-                border: Border.all(
-                  color: palette.border,
-                ),
+                border: Border.all(color: palette.border),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -107,7 +100,7 @@ class _CoderScreenState extends ConsumerState<CoderScreen> {
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Icon(
-                      Icons.code_rounded,
+                      NumiIcons.code_rounded,
                       color: palette.accent,
                       size: 28,
                     ),
@@ -146,18 +139,14 @@ class _CoderScreenState extends ConsumerState<CoderScreen> {
                     textInputAction: TextInputAction.done,
                     onSubmitted: (_) => _createProject(),
                     cursorColor: palette.accent,
-                    style: TextStyle(
-                      color: palette.textPrimary,
-                    ),
+                    style: TextStyle(color: palette.textPrimary),
                     decoration: InputDecoration(
                       hintText: 'Ej. Numination App',
-                      hintStyle: TextStyle(
-                        color: palette.textSecondary,
-                      ),
+                      hintStyle: TextStyle(color: palette.textSecondary),
                       filled: true,
                       fillColor: palette.surfaceAlt,
                       prefixIcon: Icon(
-                        Icons.folder_copy_outlined,
+                        NumiIcons.folder_copy_outlined,
                         color: palette.textSecondary,
                       ),
                       border: OutlineInputBorder(
@@ -185,8 +174,9 @@ class _CoderScreenState extends ConsumerState<CoderScreen> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: palette.accent,
                         foregroundColor: Colors.black,
-                        disabledBackgroundColor:
-                            palette.accent.withValues(alpha: 0.45),
+                        disabledBackgroundColor: palette.accent.withValues(
+                          alpha: 0.45,
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
                         ),
@@ -218,18 +208,12 @@ class _CoderScreenState extends ConsumerState<CoderScreen> {
               decoration: BoxDecoration(
                 color: palette.surfaceAlt,
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(
-                  color: palette.border,
-                ),
+                border: Border.all(color: palette.border),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    Icons.auto_awesome,
-                    color: palette.accent,
-                    size: 20,
-                  ),
+                  Icon(NumiIcons.auto_awesome, color: palette.accent, size: 20),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(

@@ -11,6 +11,7 @@ import 'notification_screen.dart';
 import 'privacy_screen.dart';
 import 'subscription_coder_screen.dart';
 import 'theme_screen.dart';
+import 'package:numination/core/numi_icons.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -37,7 +38,7 @@ class SettingsScreen extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(vertical: 12),
         children: [
           _SettingsTile(
-            icon: Icons.person_outline,
+            icon: NumiIcons.person_outline,
             label: AppLocale.t('profile'),
             subtitle: email,
             onTap: () => Navigator.of(context).push(
@@ -46,7 +47,7 @@ class SettingsScreen extends ConsumerWidget {
           ),
           _SettingsSectionDivider(color: palette.border),
           _SettingsTile(
-            icon: Icons.memory_outlined,
+            icon: NumiIcons.memory_outlined,
             label: AppLocale.t('memory'),
             subtitle: 'Lo que Numination recuerda de tus chats',
             onTap: () => Navigator.of(
@@ -54,14 +55,14 @@ class SettingsScreen extends ConsumerWidget {
             ).push(MaterialPageRoute(builder: (_) => const MemoryScreen())),
           ),
           _SettingsTile(
-            icon: Icons.notifications_outlined,
+            icon: NumiIcons.notifications_outlined,
             label: AppLocale.t('notifications'),
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const NotificationScreen()),
             ),
           ),
           _SettingsTile(
-            icon: Icons.privacy_tip_outlined,
+            icon: NumiIcons.privacy_tip_outlined,
             label: AppLocale.t('privacy'),
             onTap: () => Navigator.of(
               context,
@@ -69,7 +70,7 @@ class SettingsScreen extends ConsumerWidget {
           ),
           _SettingsSectionDivider(color: palette.border),
           _SettingsTile(
-            icon: Icons.palette_outlined,
+            icon: NumiIcons.palette_outlined,
             label: AppLocale.t('change_theme'),
             onTap: () => Navigator.of(
               context,
@@ -95,7 +96,7 @@ class SettingsScreen extends ConsumerWidget {
 
           _SettingsSectionDivider(color: palette.border),
           _SettingsTile(
-            icon: Icons.workspace_premium_outlined,
+            icon: NumiIcons.workspace_premium_outlined,
             label: AppLocale.t('coder_subscription'),
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(
@@ -105,7 +106,7 @@ class SettingsScreen extends ConsumerWidget {
           ),
           _SettingsSectionDivider(color: palette.border),
           _SettingsTile(
-            icon: Icons.logout,
+            icon: NumiIcons.logout,
             label: AppLocale.t('log_out'),
             iconColor: Colors.redAccent,
             labelColor: Colors.redAccent,
@@ -167,7 +168,7 @@ class _SettingsTile extends ConsumerWidget {
               style: TextStyle(color: palette.textSecondary, fontSize: 13),
             )
           : null,
-      trailing: Icon(Icons.chevron_right, color: palette.textSecondary),
+      trailing: Icon(NumiIcons.chevron_right, color: palette.textSecondary),
       onTap: onTap,
     );
   }

@@ -9,6 +9,7 @@ import '../../core/l10n_extensions.dart';
 import '../../core/models.dart';
 import '../../core/theme.dart';
 import '../../core/theme_controller.dart';
+import 'package:numination/core/numi_icons.dart';
 
 class ArtifactsScreen extends ConsumerStatefulWidget {
   const ArtifactsScreen({super.key});
@@ -165,7 +166,7 @@ class _ArtifactsScreenState extends ConsumerState<ArtifactsScreen> {
                   ),
                   IconButton(
                     icon: Icon(
-                      Icons.copy,
+                      NumiIcons.copy,
                       color: palette.textSecondary,
                       size: 20,
                     ),
@@ -180,7 +181,7 @@ class _ArtifactsScreenState extends ConsumerState<ArtifactsScreen> {
                   ),
                   IconButton(
                     icon: Icon(
-                      Icons.close,
+                      NumiIcons.close,
                       color: palette.textSecondary,
                       size: 20,
                     ),
@@ -262,8 +263,8 @@ class _ArtifactsScreenState extends ConsumerState<ArtifactsScreen> {
                             ),
                             child: Icon(
                               artifact.isFile
-                                  ? Icons.attach_file_rounded
-                                  : Icons.code_rounded,
+                                  ? NumiIcons.attach_file_rounded
+                                  : NumiIcons.code_rounded,
                               color: palette.accent,
                               size: 20,
                             ),
@@ -300,7 +301,7 @@ class _ArtifactsScreenState extends ConsumerState<ArtifactsScreen> {
                           ),
                           IconButton(
                             icon: Icon(
-                              Icons.delete_outline,
+                              NumiIcons.delete_outline,
                               color: palette.textSecondary,
                               size: 20,
                             ),
@@ -344,7 +345,7 @@ class _EmptyArtifactsState extends StatelessWidget {
                       border: Border.all(color: palette.border),
                     ),
                     child: Icon(
-                      Icons.code_rounded,
+                      NumiIcons.code_rounded,
                       color: palette.accent,
                       size: 36,
                     ),

@@ -5,6 +5,7 @@ import '../../core/api.dart';
 import '../../core/i18n.dart';
 import '../../core/theme.dart';
 import '../../core/theme_controller.dart';
+import 'package:numination/core/numi_icons.dart';
 
 class UploadedFile {
   final String id;
@@ -35,11 +36,11 @@ class UploadedFile {
 
   IconData get icon {
     final mime = mimeType ?? '';
-    if (mime.startsWith('image/')) return Icons.image_outlined;
-    if (mime.startsWith('video/')) return Icons.videocam_outlined;
-    if (mime.contains('pdf')) return Icons.picture_as_pdf_outlined;
-    if (mime.startsWith('audio/')) return Icons.audiotrack_outlined;
-    return Icons.insert_drive_file_outlined;
+    if (mime.startsWith('image/')) return NumiIcons.image_outlined;
+    if (mime.startsWith('video/')) return NumiIcons.videocam_outlined;
+    if (mime.contains('pdf')) return NumiIcons.picture_as_pdf_outlined;
+    if (mime.startsWith('audio/')) return NumiIcons.audiotrack_outlined;
+    return NumiIcons.insert_drive_file_outlined;
   }
 
   String get sizeLabel {
@@ -182,7 +183,7 @@ class _EmptyFilesState extends StatelessWidget {
                 border: Border.all(color: palette.border),
               ),
               child: Icon(
-                Icons.folder_open_outlined,
+                NumiIcons.folder_open_outlined,
                 color: palette.accent,
                 size: 32,
               ),

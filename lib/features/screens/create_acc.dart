@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:numination/core/numi_icons.dart';
 
 class CreateAccountScreen extends ConsumerStatefulWidget {
   const CreateAccountScreen({super.key});
@@ -91,7 +92,7 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
                   padding: EdgeInsets.zero,
                   alignment: Alignment.centerLeft,
                   onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.arrow_back, color: Colors.black),
+                  icon: const Icon(NumiIcons.arrow_back, color: Colors.black),
                 ),
                 const SizedBox(height: 12),
                 const Text(
@@ -120,8 +121,8 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
                     suffixIcon: IconButton(
                       icon: Icon(
                         _obscurePassword
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
+                            ? NumiIcons.visibility_outlined
+                            : NumiIcons.visibility_off_outlined,
                         color: Colors.grey,
                       ),
                       onPressed: () {
@@ -140,8 +141,8 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
                     suffixIcon: IconButton(
                       icon: Icon(
                         _obscureConfirm
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
+                            ? NumiIcons.visibility_outlined
+                            : NumiIcons.visibility_off_outlined,
                         color: Colors.grey,
                       ),
                       onPressed: () {

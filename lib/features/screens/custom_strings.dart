@@ -10,6 +10,7 @@ import '../../core/auth_controller.dart';
 import '../../core/i18n.dart';
 import '../../core/models.dart';
 import '../../core/theme_controller.dart';
+import 'package:numination/core/numi_icons.dart';
 
 class CustomStringsScreen extends ConsumerStatefulWidget {
   const CustomStringsScreen({super.key});
@@ -101,25 +102,19 @@ class _CustomStringsScreenState extends ConsumerState<CustomStringsScreen> {
           .from('avatars')
           .getPublicUrl(storagePath);
 
-      final bustedUrl =
-          '$publicUrl?t=${DateTime.now().millisecondsSinceEpoch}';
+      final bustedUrl = '$publicUrl?t=${DateTime.now().millisecondsSinceEpoch}';
 
       var persisted = false;
 
       try {
-        await ApiClient.patch('/auth/me', {
-          'avatarUrl': publicUrl,
-        });
+        await ApiClient.patch('/auth/me', {'avatarUrl': publicUrl});
         persisted = true;
       } catch (_) {}
 
       try {
         await client.auth.updateUser(
           UserAttributes(
-            data: {
-              'avatarUrl': publicUrl,
-              'avatar_url': publicUrl,
-            },
+            data: {'avatarUrl': publicUrl, 'avatar_url': publicUrl},
           ),
         );
         persisted = true;
@@ -205,7 +200,7 @@ class _CustomStringsScreenState extends ConsumerState<CustomStringsScreen> {
                                 )
                               : (_avatarUrl == null
                                     ? Icon(
-                                        Icons.person,
+                                        NumiIcons.person,
                                         color: palette.textSecondary,
                                         size: 44,
                                       )
@@ -218,7 +213,7 @@ class _CustomStringsScreenState extends ConsumerState<CustomStringsScreen> {
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(
-                            Icons.camera_alt,
+                            NumiIcons.camera_alt,
                             size: 16,
                             color: Colors.black,
                           ),

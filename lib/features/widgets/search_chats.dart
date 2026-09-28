@@ -5,6 +5,7 @@ import '../../core/api.dart';
 import '../../core/i18n.dart';
 import '../../core/models.dart';
 import '../../core/theme_controller.dart';
+import 'package:numination/core/numi_icons.dart';
 
 Future<ChatSession?> showSearchChats(BuildContext context) {
   return showModalBottomSheet<ChatSession>(
@@ -107,7 +108,10 @@ class _SearchChatsSheetState extends ConsumerState<SearchChatsSheet> {
                 decoration: InputDecoration(
                   hintText: AppLocale.t('search_hint'),
                   hintStyle: TextStyle(color: palette.textSecondary),
-                  prefixIcon: Icon(Icons.search, color: palette.textSecondary),
+                  prefixIcon: Icon(
+                    NumiIcons.search,
+                    color: palette.textSecondary,
+                  ),
                   filled: true,
                   fillColor: palette.surfaceAlt,
                   border: OutlineInputBorder(
@@ -148,8 +152,8 @@ class _SearchChatsSheetState extends ConsumerState<SearchChatsSheet> {
                         return ListTile(
                           leading: Icon(
                             chat.mode == 'coder'
-                                ? Icons.code_rounded
-                                : Icons.chat_bubble_outline,
+                                ? NumiIcons.code_rounded
+                                : NumiIcons.chat_bubble_outline,
                             color: palette.accent,
                           ),
                           title: Text(

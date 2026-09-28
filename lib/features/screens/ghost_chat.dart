@@ -5,6 +5,7 @@ import '../../core/api.dart';
 import '../../core/i18n.dart';
 import '../../core/models.dart';
 import '../../core/theme_controller.dart';
+import 'package:numination/core/numi_icons.dart';
 
 class GhostChatScreen extends ConsumerStatefulWidget {
   const GhostChatScreen({super.key});
@@ -96,7 +97,7 @@ class _GhostChatScreenState extends ConsumerState<GhostChatScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              Icons.visibility_off_outlined,
+              NumiIcons.visibility_off_outlined,
               color: palette.textPrimary,
               size: 18,
             ),
@@ -122,7 +123,7 @@ class _GhostChatScreenState extends ConsumerState<GhostChatScreen> {
               child: Row(
                 children: [
                   Icon(
-                    Icons.info_outline,
+                    NumiIcons.info_outline,
                     color: palette.textSecondary,
                     size: 16,
                   ),
@@ -243,7 +244,7 @@ class _GhostChatScreenState extends ConsumerState<GhostChatScreen> {
                         : IconButton(
                             onPressed: _sendMessage,
                             icon: Icon(
-                              Icons.send_rounded,
+                              NumiIcons.send_rounded,
                               color: palette.accent,
                             ),
                           ),

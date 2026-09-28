@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:numination/core/numi_icons.dart';
 
 class AppUser {
   final String id;
@@ -128,15 +129,15 @@ class AiModeConfig {
   /// Íconos conocidos por nombre. Si el backend manda un iconName que no
   /// está en este mapa (porque agregaste un modo nuevo y no actualizaste
   /// la app), cae de vuelta a un ícono genérico en vez de romper.
-  IconData get icon => _iconByName[iconName] ?? Icons.auto_awesome;
+  IconData get icon => _iconByName[iconName] ?? NumiIcons.auto_awesome;
 
   static const Map<String, IconData> _iconByName = {
-    'chat_bubble_outline': Icons.chat_bubble_outline,
-    'code': Icons.code_rounded,
-    'search': Icons.search_rounded,
-    'bug_report': Icons.bug_report_outlined,
-    'auto_awesome': Icons.auto_awesome,
-    'lightbulb': Icons.lightbulb_outline,
+    'chat_bubble_outline': NumiIcons.chat_bubble_outline,
+    'code': NumiIcons.code_rounded,
+    'search': NumiIcons.search_rounded,
+    'bug_report': NumiIcons.bug_report_outlined,
+    'auto_awesome': NumiIcons.auto_awesome,
+    'lightbulb': NumiIcons.lightbulb_outline,
   };
 }
 
@@ -300,8 +301,7 @@ class ChatSession {
     title: '${json['title'] ?? 'Nuevo chat'}',
     mode: '${json['mode'] ?? 'chat'}',
     isGhost: json['isGhost'] == true,
-    projectId: json['projectId']?.toString() ??
-        json['project_id']?.toString(),
+    projectId: json['projectId']?.toString() ?? json['project_id']?.toString(),
     createdAt: '${json['createdAt'] ?? json['created_at'] ?? ''}',
     updatedAt: '${json['updatedAt'] ?? json['updated_at'] ?? ''}',
   );

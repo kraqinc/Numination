@@ -76,20 +76,15 @@ class UpdateService {
           await _channel.invokeMethod<bool>('canInstallPackages') ?? false;
 
       if (!canInstall) {
-        await _channel.invokeMethod(
-          'openUnknownSourcesSettings',
-        );
+        await _channel.invokeMethod('openUnknownSourcesSettings');
         return;
       }
 
       final apk = await _downloadAndVerify(update);
 
-      await _channel.invokeMethod(
-        'installApk',
-        <String, dynamic>{
-          'path': apk.path,
-        },
-      );
+      await _channel.invokeMethod('installApk', <String, dynamic>{
+        'path': apk.path,
+      });
     } catch (_) {
       // Una actualización fallida no debe bloquear la aplicación.
     }
@@ -146,8 +141,7 @@ class UpdateService {
       return null;
     }
 
-    final downloadUrl =
-        apkAsset['browser_download_url']?.toString() ?? '';
+    final downloadUrl = apkAsset['browser_download_url']?.toString() ?? '';
 
     final digest = apkAsset['digest']?.toString() ?? '';
 
@@ -159,9 +153,7 @@ class UpdateService {
       return null;
     }
 
-    final version = tag.startsWith('v')
-        ? tag.substring(1)
-        : tag;
+    final version = tag.startsWith('v') ? tag.substring(1) : tag;
 
     return AppUpdateInfo(
       version: version,
@@ -171,10 +163,7 @@ class UpdateService {
     );
   }
 
-  static bool _isNewerVersion(
-    String remote,
-    String local,
-  ) {
+  static bool _isNewerVersion(String remote, String local) {
     final a = _parseVersion(remote);
     final b = _parseVersion(local);
 
@@ -187,9 +176,7 @@ class UpdateService {
   }
 
   static List<int> _parseVersion(String version) {
-    final match = RegExp(
-      r'(\d+)\.(\d+)\.(\d+)',
-    ).firstMatch(version);
+    final match = RegExp(r'(\d+)\.(\d+)\.(\d+)').firstMatch(version);
 
     if (match == null) {
       return const [0, 0, 0];
@@ -202,16 +189,11 @@ class UpdateService {
     ];
   }
 
-  static Future<File> _downloadAndVerify(
-    AppUpdateInfo update,
-  ) async {
+  static Future<File> _downloadAndVerify(AppUpdateInfo update) async {
     final client = http.Client();
 
     try {
-      final request = http.Request(
-        'GET',
-        Uri.parse(update.downloadUrl),
-      );
+      final request = http.Request('GET', Uri.parse(update.downloadUrl));
 
       final response = await client
           .send(request)
@@ -223,9 +205,7 @@ class UpdateService {
 
       final tempDir = await getTemporaryDirectory();
 
-      final apk = File(
-        '${tempDir.path}/Numination-release.apk',
-      );
+      final apk = File('${tempDir.path}/Numination-release.apk');
 
       if (await apk.exists()) {
         await apk.delete();
@@ -234,8 +214,7 @@ class UpdateService {
       final output = apk.openWrite();
 
       final digestSink = AccumulatorSink<Digest>();
-      final hashInput =
-          sha256.startChunkedConversion(digestSink);
+      final hashInput = sha256.startChunkedConversion(digestSink);
 
       var totalBytes = 0;
 
@@ -258,8 +237,7 @@ class UpdateService {
         await output.close();
       }
 
-      final actualDigest =
-          digestSink.events.single.toString().toLowerCase();
+      final actualDigest = digestSink.events.single.toString().toLowerCase();
 
       if (actualDigest != update.sha256) {
         await apk.delete();

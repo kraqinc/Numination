@@ -11,6 +11,7 @@ import '../screens/artifacts_screen.dart';
 import '../screens/connectors_screen.dart';
 import '../screens/projects_screen.dart';
 import '../screens/settings_screen.dart';
+import 'package:numination/core/numi_icons.dart';
 
 class AppDrawer extends ConsumerStatefulWidget {
   const AppDrawer({
@@ -81,8 +82,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
         Supabase.instance.client.auth.currentUser?.userMetadata ?? {};
 
     avatarUrl ??=
-        metadata['avatarUrl']?.toString() ??
-        metadata['avatar_url']?.toString();
+        metadata['avatarUrl']?.toString() ?? metadata['avatar_url']?.toString();
 
     avatarUrl ??= widget.avatarUrl;
 
@@ -145,7 +145,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                           : null,
                       child: _resolvedAvatarUrl == null
                           ? Icon(
-                              Icons.person,
+                              NumiIcons.person,
                               size: 16,
                               color: palette.textSecondary,
                             )
@@ -168,13 +168,13 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                     onPressed: () async {
                       await ref.read(authControllerProvider.notifier).signOut();
                     },
-                    icon: Icon(Icons.logout, color: palette.textPrimary),
+                    icon: Icon(NumiIcons.logout, color: palette.textPrimary),
                   ),
                 ],
               ),
               const SizedBox(height: 24),
               _DrawerItem(
-                icon: Icons.folder_copy_outlined,
+                icon: NumiIcons.folder_copy_outlined,
                 label: context.l10n.projects,
                 color: palette.textPrimary,
                 onTap: () {
@@ -186,7 +186,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
               ),
               const SizedBox(height: 18),
               _DrawerItem(
-                icon: Icons.description_outlined,
+                icon: NumiIcons.description_outlined,
                 label: context.l10n.artifacts,
                 color: palette.textPrimary,
                 onTap: () {
@@ -198,7 +198,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
               ),
               const SizedBox(height: 18),
               _DrawerItem(
-                icon: Icons.power_off_outlined,
+                icon: NumiIcons.power_off_outlined,
                 label: context.l10n.connectors,
                 color: palette.textPrimary,
                 onTap: () {
@@ -251,8 +251,8 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                             contentPadding: EdgeInsets.zero,
                             leading: Icon(
                               chat.mode == 'coder'
-                                  ? Icons.code_rounded
-                                  : Icons.chat_bubble_outline,
+                                  ? NumiIcons.code_rounded
+                                  : NumiIcons.chat_bubble_outline,
                               color: palette.accent,
                               size: 20,
                             ),
@@ -280,7 +280,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                     widget.onNewChat();
                   },
                   backgroundColor: palette.accent,
-                  child: const Icon(Icons.add, color: Colors.black),
+                  child: const Icon(NumiIcons.add, color: Colors.black),
                 ),
               ),
             ],
@@ -370,7 +370,7 @@ class ModePillDropdown extends ConsumerWidget {
             ),
             const SizedBox(width: 6),
             Icon(
-              Icons.keyboard_arrow_down,
+              NumiIcons.keyboard_arrow_down,
               color: palette.textPrimary,
               size: 18,
             ),

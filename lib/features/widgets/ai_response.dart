@@ -5,12 +5,10 @@ import 'package:flutter_math_fork/flutter_math.dart';
 
 import '../../core/theme.dart';
 import '../../core/theme_controller.dart';
+import 'package:numination/core/numi_icons.dart';
 
 class AiResponse extends ConsumerWidget {
-  const AiResponse({
-    super.key,
-    required this.text,
-  });
+  const AiResponse({super.key, required this.text});
 
   final String text;
 
@@ -28,20 +26,14 @@ class AiResponse extends ConsumerWidget {
             palette: palette,
             onCopy: (code) => _copyCode(context, code),
           ),
-          if (i != parts.length - 1)
-            const SizedBox(height: 8),
+          if (i != parts.length - 1) const SizedBox(height: 8),
         ],
       ],
     );
   }
 
-  Future<void> _copyCode(
-    BuildContext context,
-    String code,
-  ) async {
-    await Clipboard.setData(
-      ClipboardData(text: code),
-    );
+  Future<void> _copyCode(BuildContext context, String code) async {
+    await Clipboard.setData(ClipboardData(text: code));
 
     if (!context.mounted) return;
 
@@ -56,19 +48,13 @@ class AiResponse extends ConsumerWidget {
   List<_ResponsePart> _parseResponse(String source) {
     final result = <_ResponsePart>[];
 
-    final codeRegex = RegExp(
-      r'```([^\n`]*)\n?([\s\S]*?)```',
-      multiLine: true,
-    );
+    final codeRegex = RegExp(r'```([^\n`]*)\n?([\s\S]*?)```', multiLine: true);
 
     var cursor = 0;
 
     for (final match in codeRegex.allMatches(source)) {
       if (match.start > cursor) {
-        _parseText(
-          source.substring(cursor, match.start),
-          result,
-        );
+        _parseText(source.substring(cursor, match.start), result);
       }
 
       final language = match.group(1)?.trim();
@@ -77,9 +63,7 @@ class AiResponse extends ConsumerWidget {
       result.add(
         _ResponsePart.code(
           code.trimRight(),
-          language == null || language.isEmpty
-              ? 'code'
-              : language,
+          language == null || language.isEmpty ? 'code' : language,
         ),
       );
 
@@ -87,10 +71,7 @@ class AiResponse extends ConsumerWidget {
     }
 
     if (cursor < source.length) {
-      _parseText(
-        source.substring(cursor),
-        result,
-      );
+      _parseText(source.substring(cursor), result);
     }
 
     if (result.isEmpty && source.trim().isNotEmpty) {
@@ -100,10 +81,7 @@ class AiResponse extends ConsumerWidget {
     return result;
   }
 
-  void _parseText(
-    String source,
-    List<_ResponsePart> result,
-  ) {
+  void _parseText(String source, List<_ResponsePart> result) {
     final normalized = source.replaceAll('\r\n', '\n');
     final lines = normalized.split('\n');
 
@@ -115,9 +93,7 @@ class AiResponse extends ConsumerWidget {
       final text = buffer.join('\n');
 
       if (text.trim().isNotEmpty) {
-        result.add(
-          _ResponsePart.text(text),
-        );
+        result.add(_ResponsePart.text(text));
       }
 
       buffer.clear();
@@ -129,11 +105,7 @@ class AiResponse extends ConsumerWidget {
       if (_isMathBlock(line)) {
         flushText();
 
-        result.add(
-          _ResponsePart.math(
-            _normalizeMath(line),
-          ),
-        );
+        result.add(_ResponsePart.math(_normalizeMath(line)));
       } else {
         buffer.add(rawLine);
       }
@@ -145,18 +117,15 @@ class AiResponse extends ConsumerWidget {
   bool _isMathBlock(String line) {
     if (line.isEmpty) return false;
 
-    if (line.startsWith(r'$$') &&
-        line.endsWith(r'$$')) {
+    if (line.startsWith(r'$$') && line.endsWith(r'$$')) {
       return true;
     }
 
-    if (line.startsWith(r'\[') &&
-        line.endsWith(r'\]')) {
+    if (line.startsWith(r'\[') && line.endsWith(r'\]')) {
       return true;
     }
 
-    if (line.startsWith(r'\(') &&
-        line.endsWith(r'\)')) {
+    if (line.startsWith(r'\(') && line.endsWith(r'\)')) {
       return true;
     }
 
@@ -174,53 +143,35 @@ class AiResponse extends ConsumerWidget {
   String _normalizeMath(String value) {
     var result = value.trim();
 
-    if (result.startsWith(r'$$') &&
-        result.endsWith(r'$$')) {
-      result = result.substring(
-        2,
-        result.length - 2,
-      ).trim();
+    if (result.startsWith(r'$$') && result.endsWith(r'$$')) {
+      result = result.substring(2, result.length - 2).trim();
     }
 
-    if (result.startsWith(r'\[') &&
-        result.endsWith(r'\]')) {
-      result = result.substring(
-        2,
-        result.length - 2,
-      ).trim();
+    if (result.startsWith(r'\[') && result.endsWith(r'\]')) {
+      result = result.substring(2, result.length - 2).trim();
     }
 
-    if (result.startsWith(r'\(') &&
-        result.endsWith(r'\)')) {
-      result = result.substring(
-        2,
-        result.length - 2,
-      ).trim();
+    if (result.startsWith(r'\(') && result.endsWith(r'\)')) {
+      result = result.substring(2, result.length - 2).trim();
     }
 
     return result;
   }
 }
 
-enum _ResponsePartType {
-  text,
-  math,
-  code,
-}
+enum _ResponsePartType { text, math, code }
 
 class _ResponsePart {
   const _ResponsePart.text(this.content)
-      : type = _ResponsePartType.text,
-        language = null;
+    : type = _ResponsePartType.text,
+      language = null;
 
   const _ResponsePart.math(this.content)
-      : type = _ResponsePartType.math,
-        language = null;
+    : type = _ResponsePartType.math,
+      language = null;
 
-  const _ResponsePart.code(
-    this.content,
-    this.language,
-  ) : type = _ResponsePartType.code;
+  const _ResponsePart.code(this.content, this.language)
+    : type = _ResponsePartType.code;
 
   final _ResponsePartType type;
   final String content;
@@ -242,16 +193,10 @@ class _ResponsePartView extends StatelessWidget {
   Widget build(BuildContext context) {
     switch (part.type) {
       case _ResponsePartType.text:
-        return _TextResponse(
-          text: part.content,
-          palette: palette,
-        );
+        return _TextResponse(text: part.content, palette: palette);
 
       case _ResponsePartType.math:
-        return _MathResponse(
-          expression: part.content,
-          palette: palette,
-        );
+        return _MathResponse(expression: part.content, palette: palette);
 
       case _ResponsePartType.code:
         return _CodeResponse(
@@ -265,10 +210,7 @@ class _ResponsePartView extends StatelessWidget {
 }
 
 class _TextResponse extends StatelessWidget {
-  const _TextResponse({
-    required this.text,
-    required this.palette,
-  });
+  const _TextResponse({required this.text, required this.palette});
 
   final String text;
   final AppPalette palette;
@@ -283,13 +225,8 @@ class _TextResponse extends StatelessWidget {
         for (final line in lines)
           if (line.trim().isNotEmpty)
             Padding(
-              padding: const EdgeInsets.symmetric(
-                vertical: 2,
-              ),
-              child: _FormattedLine(
-                line: line,
-                palette: palette,
-              ),
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: _FormattedLine(line: line, palette: palette),
             ),
       ],
     );
@@ -297,10 +234,7 @@ class _TextResponse extends StatelessWidget {
 }
 
 class _FormattedLine extends StatelessWidget {
-  const _FormattedLine({
-    required this.line,
-    required this.palette,
-  });
+  const _FormattedLine({required this.line, required this.palette});
 
   final String line;
   final AppPalette palette;
@@ -343,36 +277,21 @@ class _FormattedLine extends StatelessWidget {
     }
 
     return Text.rich(
-      TextSpan(
-        children: _spans(line),
-      ),
-      style: TextStyle(
-        color: palette.textPrimary,
-        fontSize: 15,
-        height: 1.45,
-      ),
+      TextSpan(children: _spans(line)),
+      style: TextStyle(color: palette.textPrimary, fontSize: 15, height: 1.45),
     );
   }
 
   List<InlineSpan> _spans(String value) {
     final result = <InlineSpan>[];
 
-    final regex = RegExp(
-      r'(\*\*[^*]+\*\*|`[^`]+`)',
-    );
+    final regex = RegExp(r'(\*\*[^*]+\*\*|`[^`]+`)');
 
     var cursor = 0;
 
     for (final match in regex.allMatches(value)) {
       if (match.start > cursor) {
-        result.add(
-          TextSpan(
-            text: value.substring(
-              cursor,
-              match.start,
-            ),
-          ),
-        );
+        result.add(TextSpan(text: value.substring(cursor, match.start)));
       }
 
       final token = match.group(0)!;
@@ -380,13 +299,8 @@ class _FormattedLine extends StatelessWidget {
       if (token.startsWith('**')) {
         result.add(
           TextSpan(
-            text: token.substring(
-              2,
-              token.length - 2,
-            ),
-            style: const TextStyle(
-              fontWeight: FontWeight.w700,
-            ),
+            text: token.substring(2, token.length - 2),
+            style: const TextStyle(fontWeight: FontWeight.w700),
           ),
         );
       } else {
@@ -394,22 +308,14 @@ class _FormattedLine extends StatelessWidget {
           WidgetSpan(
             alignment: PlaceholderAlignment.middle,
             child: Container(
-              margin: const EdgeInsets.symmetric(
-                horizontal: 2,
-              ),
-              padding: const EdgeInsets.symmetric(
-                horizontal: 5,
-                vertical: 2,
-              ),
+              margin: const EdgeInsets.symmetric(horizontal: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
               decoration: BoxDecoration(
                 color: palette.surfaceAlt,
                 borderRadius: BorderRadius.circular(5),
               ),
               child: Text(
-                token.substring(
-                  1,
-                  token.length - 1,
-                ),
+                token.substring(1, token.length - 1),
                 style: TextStyle(
                   color: palette.textPrimary,
                   fontFamily: 'monospace',
@@ -425,11 +331,7 @@ class _FormattedLine extends StatelessWidget {
     }
 
     if (cursor < value.length) {
-      result.add(
-        TextSpan(
-          text: value.substring(cursor),
-        ),
-      );
+      result.add(TextSpan(text: value.substring(cursor)));
     }
 
     return result;
@@ -437,10 +339,7 @@ class _FormattedLine extends StatelessWidget {
 }
 
 class _MathResponse extends StatelessWidget {
-  const _MathResponse({
-    required this.expression,
-    required this.palette,
-  });
+  const _MathResponse({required this.expression, required this.palette});
 
   final String expression;
   final AppPalette palette;
@@ -449,26 +348,18 @@ class _MathResponse extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(
-        horizontal: 14,
-        vertical: 16,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
       decoration: BoxDecoration(
         color: palette.surfaceAlt,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: palette.border,
-        ),
+        border: Border.all(color: palette.border),
       ),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Math.tex(
           expression,
           mathStyle: MathStyle.display,
-          textStyle: TextStyle(
-            color: palette.textPrimary,
-            fontSize: 18,
-          ),
+          textStyle: TextStyle(color: palette.textPrimary, fontSize: 18),
           onErrorFallback: (error) {
             return Text(
               expression,
@@ -502,60 +393,56 @@ class _CodeResponse extends StatelessWidget {
     final value = language.toLowerCase();
 
     if (value.contains('dart')) {
-      return Icons.code;
+      return NumiIcons.code;
     }
 
-    if (value.contains('python') ||
-        value == 'py') {
-      return Icons.memory_outlined;
+    if (value.contains('python') || value == 'py') {
+      return NumiIcons.memory_outlined;
     }
 
     if (value.contains('javascript') ||
         value == 'js' ||
         value.contains('typescript') ||
         value == 'ts') {
-      return Icons.javascript;
+      return NumiIcons.javascript;
     }
 
     if (value.contains('json')) {
-      return Icons.data_object;
+      return NumiIcons.data_object;
     }
 
-    if (value.contains('html') ||
-        value.contains('css')) {
-      return Icons.web;
+    if (value.contains('html') || value.contains('css')) {
+      return NumiIcons.web;
     }
 
     if (value.contains('sql')) {
-      return Icons.storage_outlined;
+      return NumiIcons.storage_outlined;
     }
 
     if (value.contains('bash') ||
         value.contains('shell') ||
         value == 'sh' ||
         value == 'zsh') {
-      return Icons.terminal;
+      return NumiIcons.terminal;
     }
 
-    if (value.contains('yaml') ||
-        value.contains('yml')) {
-      return Icons.settings_outlined;
+    if (value.contains('yaml') || value.contains('yml')) {
+      return NumiIcons.settings_outlined;
     }
 
     if (value.contains('java')) {
-      return Icons.coffee;
+      return NumiIcons.coffee;
     }
 
     if (value.contains('kotlin')) {
-      return Icons.android;
+      return NumiIcons.android;
     }
 
-    if (value.contains('cpp') ||
-        value.contains('c++')) {
-      return Icons.memory;
+    if (value.contains('cpp') || value.contains('c++')) {
+      return NumiIcons.memory;
     }
 
-    return Icons.code_rounded;
+    return NumiIcons.code_rounded;
   }
 
   @override
@@ -565,20 +452,13 @@ class _CodeResponse extends StatelessWidget {
       decoration: BoxDecoration(
         color: palette.surfaceAlt,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: palette.border,
-        ),
+        border: Border.all(color: palette.border),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(
-              12,
-              9,
-              8,
-              9,
-            ),
+            padding: const EdgeInsets.fromLTRB(12, 9, 8, 9),
             child: Row(
               children: [
                 Icon(
@@ -612,10 +492,7 @@ class _CodeResponse extends StatelessWidget {
               ],
             ),
           ),
-          Divider(
-            height: 1,
-            color: palette.border,
-          ),
+          Divider(height: 1, color: palette.border),
           Align(
             alignment: Alignment.centerLeft,
             child: SingleChildScrollView(
