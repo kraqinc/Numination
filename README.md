@@ -1,7 +1,7 @@
 # Numination
 
 <p align="center">
-  <strong>AI · Workspace · Shell</strong>
+  <strong>AI · Workspace </strong>
 </p>
 
 <p align="center">
