@@ -18,7 +18,6 @@ import '../widgets/hamburger.dart';
 import '../widgets/search_chats.dart';
 import 'ghost_chat.dart';
 import 'coder_screen.dart';
-import 'package:numination/core/numi_icons.dart';
 
 class ChatMessage {
   final String text;
@@ -494,59 +493,77 @@ class _TopBar extends ConsumerWidget {
     final palette = ref.watch(appPaletteProvider);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       child: Row(
         children: [
-          IconButton(
-            onPressed: onMenuTap,
-            icon: Icon(NumiIcons.menu, color: palette.textPrimary),
+          GestureDetector(
+            onTap: onMenuTap,
+            behavior: HitTestBehavior.opaque,
+            child: Padding(
+              padding: const EdgeInsets.all(8),
+              child: Icon(
+                Icons.menu_rounded,
+                color: palette.textPrimary.withValues(alpha: 0.85),
+                size: 26,
+              ),
+            ),
           ),
+          const SizedBox(width: 4),
           Expanded(
             child: GestureDetector(
               onTap: onSearchTap,
               child: Container(
-                height: 44,
+                height: 42,
                 padding: const EdgeInsets.symmetric(horizontal: 14),
                 decoration: BoxDecoration(
                   color: palette.surface,
-                  borderRadius: BorderRadius.circular(22),
-                  border: Border.all(color: palette.border),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: palette.border.withValues(alpha: 0.7),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
                 child: Row(
                   children: [
                     Icon(
-                      NumiIcons.search,
+                      Icons.search_rounded,
                       color: palette.textSecondary,
                       size: 20,
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         context.l10n.searchChats,
                         style: TextStyle(
                           color: palette.textSecondary,
                           fontSize: 15,
+                          fontWeight: FontWeight.w400,
                         ),
                       ),
-                    ),
-                    Icon(
-                      NumiIcons.grid_view_rounded,
-                      color: palette.textSecondary,
-                      size: 20,
                     ),
                   ],
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 8),
-          IconButton(
-            onPressed: onGhostTap,
-            icon: Image.asset(
-              'assets/images/ghost.png',
-              width: 22,
-              height: 22,
-              color: palette.textPrimary,
+          const SizedBox(width: 4),
+          GestureDetector(
+            onTap: onGhostTap,
+            behavior: HitTestBehavior.opaque,
+            child: Padding(
+              padding: const EdgeInsets.all(8),
+              child: Image.asset(
+                'assets/images/ghost.png',
+                width: 24,
+                height: 24,
+                color: palette.textPrimary.withValues(alpha: 0.8),
+              ),
             ),
           ),
         ],
@@ -560,14 +577,7 @@ class _EmptyState extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final palette = ref.watch(appPaletteProvider);
-
-    return Center(
-      child: Text(
-        context.l10n.whatAreWeWorkingOn,
-        style: TextStyle(color: palette.textSecondary, fontSize: 16),
-      ),
-    );
+    return const SizedBox.expand();
   }
 }
 
@@ -582,21 +592,32 @@ class _MessageBubble extends ConsumerWidget {
     final isUser = message.fromUser;
 
     final bubbleColor = isUser
-        ? palette.accent.withValues(alpha: 0.18)
+        ? palette.accent.withValues(alpha: 0.14)
         : palette.surface;
 
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 6),
+        margin: const EdgeInsets.symmetric(vertical: 5),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         constraints: BoxConstraints(
           maxWidth: MediaQuery.of(context).size.width * 0.78,
         ),
         decoration: BoxDecoration(
           color: bubbleColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: palette.border),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: isUser
+                ? palette.accent.withValues(alpha: 0.25)
+                : palette.border.withValues(alpha: 0.6),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 6,
+              offset: const Offset(0, 1),
+            ),
+          ],
         ),
         child: AiResponse(text: message.text),
       ),
@@ -634,107 +655,144 @@ class _BottomInputBar extends ConsumerWidget {
     final palette = ref.watch(appPaletteProvider);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 8, 8, 12),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        decoration: BoxDecoration(
-          color: palette.surface,
-          borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: palette.border),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      padding: const EdgeInsets.fromLTRB(12, 6, 12, 14),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (availableModes.length > 1)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: TextField(
-                controller: controller,
-                minLines: 1,
-                maxLines: 5,
-                cursorColor: palette.accent,
-                style: TextStyle(color: palette.textPrimary, fontSize: 15),
-                decoration: InputDecoration(
-                  hintText: context.l10n.askSomething,
-                  hintStyle: TextStyle(color: palette.textSecondary),
-                  border: InputBorder.none,
-                  isCollapsed: true,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-              ),
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                IconButton(
-                  onPressed: isAttaching ? null : onAttachTap,
-                  icon: isAttaching
-                      ? SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: palette.textSecondary,
-                          ),
-                        )
-                      : Image.asset(
-                          'assets/images/add_files.png',
-                          width: 22,
-                          height: 22,
-                          color: palette.textPrimary,
-                        ),
-                ),
-                Expanded(
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: availableModes
-                          .map(
-                            (m) => Padding(
-                              padding: const EdgeInsets.only(right: 6),
-                              child: _ModeChip(
-                                label: m.label,
-                                selected: modeId == m.id,
-                                onTap: () => onModeChange(m.id),
-                              ),
-                            ),
-                          )
-                          .toList(),
-                    ),
-                  ),
-                ),
-                IconButton(
-                  onPressed: onMicTap,
-                  icon: Image.asset(
-                    'assets/images/microphone.png',
-                    width: 22,
-                    height: 22,
-                    color: isListening ? palette.accent : palette.textPrimary,
-                  ),
-                ),
-                isSending
-                    ? SizedBox(
-                        width: 40,
-                        height: 40,
-                        child: Padding(
-                          padding: const EdgeInsets.all(10),
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: palette.textPrimary,
+              padding: const EdgeInsets.only(bottom: 8),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: availableModes
+                      .map(
+                        (m) => Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: _ModeChip(
+                            label: m.label,
+                            selected: modeId == m.id,
+                            onTap: () => onModeChange(m.id),
                           ),
                         ),
                       )
-                    : IconButton(
-                        onPressed: onSend,
-                        icon: Icon(
-                          NumiIcons.send_rounded,
-                          color: palette.accent,
-                        ),
-                      ),
+                      .toList(),
+                ),
+              ),
+            ),
+          Container(
+            height: 52,
+            decoration: BoxDecoration(
+              color: palette.surface,
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(
+                color: palette.border.withValues(alpha: 0.65),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 12,
+                  offset: const Offset(0, 3),
+                ),
               ],
             ),
-          ],
-        ),
+            child: Row(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(left: 6),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: isAttaching ? null : onAttachTap,
+                      onLongPress: onMicTap,
+                      borderRadius: BorderRadius.circular(22),
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: palette.textPrimary.withValues(alpha: 0.08),
+                          shape: BoxShape.circle,
+                        ),
+                        child: isAttaching
+                            ? Padding(
+                                padding: const EdgeInsets.all(10),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: palette.textSecondary,
+                                ),
+                              )
+                            : Icon(
+                                isListening
+                                    ? Icons.mic_rounded
+                                    : Icons.add_rounded,
+                                color: isListening
+                                    ? palette.accent
+                                    : palette.textPrimary.withValues(alpha: 0.85),
+                                size: 22,
+                              ),
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: TextField(
+                    controller: controller,
+                    minLines: 1,
+                    maxLines: 1,
+                    textInputAction: TextInputAction.send,
+                    onSubmitted: (_) => onSend(),
+                    cursorColor: palette.accent,
+                    style: TextStyle(
+                      color: palette.textPrimary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w400,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: context.l10n.askSomething,
+                      hintStyle: TextStyle(
+                        color: palette.textSecondary.withValues(alpha: 0.85),
+                        fontSize: 15,
+                      ),
+                      border: InputBorder.none,
+                      isCollapsed: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 14,
+                      ),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: isSending ? null : onSend,
+                      borderRadius: BorderRadius.circular(22),
+                      child: SizedBox(
+                        width: 40,
+                        height: 40,
+                        child: isSending
+                            ? Padding(
+                                padding: const EdgeInsets.all(10),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: palette.textPrimary,
+                                ),
+                              )
+                            : Icon(
+                                Icons.send_rounded,
+                                color: palette.textPrimary.withValues(alpha: 0.75),
+                                size: 22,
+                              ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -758,10 +816,17 @@ class _ModeChip extends ConsumerWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
         decoration: BoxDecoration(
-          color: selected ? palette.surfaceAlt : Colors.transparent,
+          color: selected
+              ? palette.surfaceAlt
+              : palette.surface.withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: selected
+                ? palette.border
+                : palette.border.withValues(alpha: 0.4),
+          ),
         ),
         child: Text(
           label,

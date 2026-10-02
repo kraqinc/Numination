@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'home_screen.dart';
-import 'package:numination/core/numi_icons.dart';
+import 'confirm_age_screen.dart';
 
 class ConfirmMailScreen extends ConsumerStatefulWidget {
   const ConfirmMailScreen({super.key, required this.email});
@@ -16,12 +15,16 @@ class ConfirmMailScreen extends ConsumerStatefulWidget {
 
 class _ConfirmMailScreenState extends ConsumerState<ConfirmMailScreen> {
   final _passwordController = TextEditingController();
+
   bool _obscurePassword = true;
   bool _isLoading = false;
   String? _errorText;
 
-  static const _bgGray = Color(0xFFECECEC);
-  static const _blue = Color(0xFF7CCBF2);
+  static const _bg = Color(0xFFF7F9F8);
+  static const _navy = Color(0xFF16325C);
+  static const _ink = Color(0xFF111111);
+  static const _muted = Color(0xFF8A8A8A);
+  static const _line = Color(0xFFD4D4D4);
 
   @override
   void dispose() {
@@ -49,153 +52,177 @@ class _ConfirmMailScreenState extends ConsumerState<ConfirmMailScreen> {
         email: widget.email,
         password: password,
       );
-      // Forzamos la navegación explícita hacia HomeScreen y limpiamos todo
-      // el stack (AuthScreen + esta pantalla). No confiamos en que cambiar
-      // `home:` en app.dart reemplace automáticamente el Navigator interno,
-      // porque en la práctica el stack puede sobrevivir esa reconstrucción
-      // y dejar esta pantalla tapando HomeScreen.
+
       if (!mounted) return;
+
+      final user = client.auth.currentUser;
+
       Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute<void>(builder: (_) => nextScreenAfterAuth(user)),
         (route) => false,
       );
     } on AuthException catch (e) {
       final msg = e.message.toLowerCase();
+
       final isWrongPassword =
           msg.contains('invalid login credentials') ||
           msg.contains('invalid_credentials') ||
           msg.contains('invalid email or password');
+
+      if (!mounted) return;
+
       setState(() {
         _errorText = isWrongPassword
             ? '¡Ups! La contraseña no es correcta'
             : e.message;
       });
-    } catch (e) {
-      setState(() => _errorText = 'Ocurrió un error inesperado');
+    } catch (_) {
+      if (!mounted) return;
+
+      setState(() {
+        _errorText = 'Ocurrió un error inesperado';
+      });
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _bgGray,
+      backgroundColor: _bg,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 32),
-              const Text(
-                'Confirm the\npassword',
-                style: TextStyle(
-                  fontSize: 34,
-                  fontWeight: FontWeight.w700,
-                  height: 1.15,
-                  color: Colors.black,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                widget.email,
-                style: const TextStyle(fontSize: 18, color: Colors.grey),
-              ),
-              const Spacer(),
-              TextField(
-                controller: _passwordController,
-                obscureText: _obscurePassword,
-                textInputAction: TextInputAction.done,
-                onSubmitted: (_) => _onLogin(),
-                decoration: InputDecoration(
-                  hintText: 'Enter password',
-                  hintStyle: const TextStyle(color: Colors.grey),
-                  filled: true,
-                  fillColor: Colors.white,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 18,
-                  ),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscurePassword
-                          ? NumiIcons.visibility_outlined
-                          : NumiIcons.visibility_off_outlined,
-                      color: Colors.grey,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      'Enter your password\nto continue',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                        height: 1.15,
+                        letterSpacing: -0.5,
+                        color: _ink,
+                      ),
                     ),
-                    onPressed: () {
-                      setState(() => _obscurePassword = !_obscurePassword);
-                    },
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(color: Colors.grey.shade400),
-                  ),
-                ),
-              ),
-              if (_errorText != null) ...[
-                const SizedBox(height: 8),
-                Text(
-                  _errorText!,
-                  style: const TextStyle(color: Colors.red, fontSize: 13),
-                ),
-              ],
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                height: 58,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _onLogin,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _blue,
-                    foregroundColor: Colors.black,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.4,
-                            color: Colors.black,
-                          ),
-                        )
-                      : const Text(
-                          'Log in',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
+                    const SizedBox(height: 28),
+                    TextField(
+                      controller: _passwordController,
+                      obscureText: _obscurePassword,
+                      enabled: !_isLoading,
+                      textInputAction: TextInputAction.done,
+                      onSubmitted: (_) => _onLogin(),
+                      style: const TextStyle(fontSize: 15, color: _ink),
+                      decoration: InputDecoration(
+                        prefixIcon: GestureDetector(
+                          onTap: _isLoading
+                              ? null
+                              : () {
+                                  setState(() {
+                                    _obscurePassword = !_obscurePassword;
+                                  });
+                                },
+                          child: const Padding(
+                            padding: EdgeInsets.only(left: 16, right: 8),
+                            child: Icon(
+                              Icons.lock_outline_rounded,
+                              size: 20,
+                              color: _muted,
+                            ),
                           ),
                         ),
+                        prefixIconConstraints: const BoxConstraints(
+                          minWidth: 44,
+                          minHeight: 20,
+                        ),
+                        filled: true,
+                        fillColor: Colors.white,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 18,
+                          vertical: 16,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(28),
+                          borderSide: const BorderSide(color: _line),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(28),
+                          borderSide: const BorderSide(color: _line),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(28),
+                          borderSide: const BorderSide(
+                            color: Color(0xFF9AA7BC),
+                          ),
+                        ),
+                        disabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(28),
+                          borderSide: const BorderSide(color: _line),
+                        ),
+                      ),
+                    ),
+                    if (_errorText != null) ...[
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          _errorText!,
+                          style: const TextStyle(
+                            color: Color(0xFFC23B3B),
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : _onLogin,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _navy,
+                          foregroundColor: Colors.white,
+                          disabledBackgroundColor: _navy.withValues(alpha: 0.7),
+                          disabledForegroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(28),
+                          ),
+                        ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.4,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text(
+                                'Verify  →',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.1,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 16),
-              GestureDetector(
-                onTap: _isLoading ? null : () => Navigator.of(context).pop(),
-                child: const Text(
-                  'Wrong email?',
-                  style: TextStyle(
-                    color: Colors.grey,
-                    decoration: TextDecoration.underline,
-                    fontSize: 15,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );

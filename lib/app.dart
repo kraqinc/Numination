@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/auth_controller.dart';
 import 'core/connectivity_banner.dart';
+import 'features/screens/confirm_age_screen.dart';
 import 'core/i18n.dart';
 import 'core/theme.dart';
 import 'features/screens/auth_screen.dart';
@@ -44,7 +45,10 @@ class NuminationApp extends ConsumerWidget {
         return ConnectivityBanner(child: child ?? const SizedBox.shrink());
       },
       home: switch (auth) {
-        AuthAuthenticated() => const HomeScreen(),
+        AuthAuthenticated(:final bannedUnderage, :final ageConfirmed) =>
+          bannedUnderage || !ageConfirmed
+              ? const ConfirmAgeScreen()
+              : const HomeScreen(),
         AuthUnauthenticated() => const AuthScreen(),
         AuthInitial() => const _SplashScreen(),
       },

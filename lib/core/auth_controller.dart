@@ -5,12 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'api.dart';
 
-/// Auth state mirrored from Supabase's own session. The email/password
-/// wizard (auth_screen.dart -> confirm_mail.dart) talks to Supabase
-/// directly via signInWithPassword/signUp; this controller only listens
-/// for the resulting session so the rest of the app (app.dart,
-/// home_screen.dart) knows whether to show the wizard or the
-/// authenticated shell.
+/// Auth state mirrored from Supabase's own session.
 sealed class AuthState {
   const AuthState();
 }
@@ -26,7 +21,26 @@ class AuthUnauthenticated extends AuthState {
 class AuthAuthenticated extends AuthState {
   final String userId;
   final String email;
-  const AuthAuthenticated({required this.userId, required this.email});
+  final bool ageConfirmed;
+  final bool bannedUnderage;
+
+  const AuthAuthenticated({
+    required this.userId,
+    required this.email,
+    this.ageConfirmed = false,
+    this.bannedUnderage = false,
+  });
+
+  factory AuthAuthenticated.fromUser(User user) {
+    final meta = user.userMetadata ?? const <String, dynamic>{};
+
+    return AuthAuthenticated(
+      userId: user.id,
+      email: user.email ?? '',
+      ageConfirmed: meta['age_14_plus'] == true,
+      bannedUnderage: meta['banned_underage'] == true,
+    );
+  }
 }
 
 class AuthController extends Notifier<AuthState> {
@@ -43,26 +57,25 @@ class AuthController extends Notifier<AuthState> {
     _sub = client.auth.onAuthStateChange
         .map((event) {
           final session = event.session;
+
           if (session == null) {
             ApiClient.setToken(null);
             return const AuthUnauthenticated();
           }
+
           ApiClient.setToken(session.accessToken);
-          return AuthAuthenticated(
-            userId: session.user.id,
-            email: session.user.email ?? '',
-          );
+
+          return AuthAuthenticated.fromUser(session.user);
         })
         .listen((next) => state = next);
 
     final currentSession = client.auth.currentSession;
+
     if (currentSession != null) {
       ApiClient.setToken(currentSession.accessToken);
-      return AuthAuthenticated(
-        userId: currentSession.user.id,
-        email: currentSession.user.email ?? '',
-      );
+      return AuthAuthenticated.fromUser(currentSession.user);
     }
+
     return const AuthUnauthenticated();
   }
 
