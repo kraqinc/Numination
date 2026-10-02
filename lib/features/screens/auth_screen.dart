@@ -20,8 +20,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   bool _isLoading = false;
   String? _errorText;
 
-  static const _bgGray = Color(0xFFECECEC);
-  static const _blue = Color(0xFF7CCBF2);
+  static const _bg = Color(0xFFF7F9F8);
+  static const _navy = Color(0xFF16325C);
+  static const _ink = Color(0xFF111111);
+  static const _muted = Color(0xFF8A8A8A);
+  static const _line = Color(0xFFD4D4D4);
 
   @override
   void dispose() {
@@ -139,212 +142,229 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _bgGray,
+      backgroundColor: _bg,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 32),
-              const Text(
-                'Welcome back to\nNumination',
-                style: TextStyle(
-                  fontSize: 34,
-                  fontWeight: FontWeight.w700,
-                  height: 1.15,
-                  color: Colors.black,
-                ),
-              ),
-              const SizedBox(height: 48),
-              TextField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                autocorrect: false,
-                textInputAction: TextInputAction.next,
-                onSubmitted: (_) => _onContinue(),
-                decoration: InputDecoration(
-                  hintText: 'example@hey.com',
-                  hintStyle: const TextStyle(color: Colors.grey),
-                  filled: true,
-                  fillColor: Colors.white,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 18,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(color: Colors.grey.shade400),
-                  ),
-                ),
-              ),
-              if (_errorText != null) ...[
-                const SizedBox(height: 8),
-                Text(
-                  _errorText!,
-                  style: const TextStyle(color: Colors.red, fontSize: 13),
-                ),
-              ],
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                height: 58,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _onContinue,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _blue,
-                    foregroundColor: Colors.black,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      'Welcome to\nNumination.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.w800,
+                        height: 1.12,
+                        letterSpacing: -0.6,
+                        color: _ink,
+                      ),
                     ),
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.4,
-                            color: Colors.black,
-                          ),
-                        )
-                      : const Text(
-                          'Continue →',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
+                    const SizedBox(height: 44),
+                    TextField(
+                      controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      autocorrect: false,
+                      enabled: !_isLoading,
+                      textInputAction: TextInputAction.next,
+                      onSubmitted: (_) => _onContinue(),
+                      style: const TextStyle(fontSize: 15, color: _ink),
+                      decoration: InputDecoration(
+                        hintText: 'Correo electrónico',
+                        hintStyle: const TextStyle(
+                          color: _muted,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w400,
+                        ),
+                        prefixIcon: const Padding(
+                          padding: EdgeInsets.only(left: 16, right: 8),
+                          child: Icon(
+                            Icons.mail_outline_rounded,
+                            size: 20,
+                            color: _muted,
                           ),
                         ),
-                ),
-              ),
-              const SizedBox(height: 40),
-              Row(
-                children: [
-                  Expanded(child: Divider(color: Colors.grey.shade400)),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12),
-                    child: Text('Or', style: TextStyle(color: Colors.grey)),
-                  ),
-                  Expanded(child: Divider(color: Colors.grey.shade400)),
-                ],
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: _OAuthButton(
-                      label: 'Google',
-                      isLoading: _isLoading,
-                      onTap: _onGoogleSignIn,
-                      icon: Image.asset(
-                        'assets/images/google.png',
-                        width: 20,
-                        height: 20,
+                        prefixIconConstraints: const BoxConstraints(
+                          minWidth: 44,
+                          minHeight: 20,
+                        ),
+                        filled: true,
+                        fillColor: Colors.white,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 18,
+                          vertical: 16,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(28),
+                          borderSide: const BorderSide(color: _line),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(28),
+                          borderSide: const BorderSide(color: _line),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(28),
+                          borderSide: const BorderSide(
+                            color: Color(0xFF9AA7BC),
+                          ),
+                        ),
+                        disabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(28),
+                          borderSide: const BorderSide(color: _line),
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _OAuthButton(
-                      label: 'Github',
-                      isLoading: _isLoading,
-                      onTap: _onGithubSignIn,
-                      icon: Image.asset(
-                        'assets/images/github.png',
-                        width: 20,
-                        height: 20,
+                    if (_errorText != null) ...[
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          _errorText!,
+                          style: const TextStyle(
+                            color: Color(0xFFC23B3B),
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : _onContinue,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _navy,
+                          foregroundColor: Colors.white,
+                          disabledBackgroundColor: _navy.withValues(alpha: 0.7),
+                          disabledForegroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(28),
+                          ),
+                        ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.4,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text(
+                                'Continuar  →',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.1,
+                                ),
+                              ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              Center(
-                child: GestureDetector(
-                  onTap: _isLoading
-                      ? null
-                      : () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const CreateAccountScreen(),
-                            ),
-                          );
-                        },
-                  child: RichText(
-                    text: const TextSpan(
-                      style: TextStyle(fontSize: 14, color: Colors.grey),
+                    const SizedBox(height: 40),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        TextSpan(text: "Don't have an account? "),
-                        TextSpan(
-                          text: 'Sign up',
-                          style: TextStyle(
-                            color: Colors.black,
-                            fontWeight: FontWeight.w700,
-                            decoration: TextDecoration.underline,
+                        _OAuthIconButton(
+                          tooltip: 'Google',
+                          isLoading: _isLoading,
+                          onTap: _onGoogleSignIn,
+                          icon: Image.asset(
+                            'assets/images/google.png',
+                            width: 22,
+                            height: 22,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        _OAuthIconButton(
+                          tooltip: 'GitHub',
+                          isLoading: _isLoading,
+                          onTap: _onGithubSignIn,
+                          icon: Image.asset(
+                            'assets/images/github.png',
+                            width: 22,
+                            height: 22,
                           ),
                         ),
                       ],
                     ),
-                  ),
+                    const SizedBox(height: 28),
+                    GestureDetector(
+                      onTap: _isLoading
+                          ? null
+                          : () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const CreateAccountScreen(),
+                                ),
+                              );
+                            },
+                      child: const Text.rich(
+                        TextSpan(
+                          style: TextStyle(fontSize: 14, color: _muted),
+                          children: [
+                            TextSpan(text: "Don't have an account? "),
+                            TextSpan(
+                              text: 'Sign up',
+                              style: TextStyle(
+                                color: _ink,
+                                fontWeight: FontWeight.w700,
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                 ),
               ),
-              const SizedBox(height: 24),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
   }
 }
 
-class _OAuthButton extends StatelessWidget {
-  const _OAuthButton({
-    required this.label,
+class _OAuthIconButton extends StatelessWidget {
+  const _OAuthIconButton({
     required this.icon,
     required this.onTap,
     required this.isLoading,
+    required this.tooltip,
   });
 
-  final String label;
   final Widget icon;
   final VoidCallback onTap;
   final bool isLoading;
+  final String tooltip;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 56,
-      child: OutlinedButton(
-        onPressed: isLoading ? null : onTap,
-        style: OutlinedButton.styleFrom(
-          backgroundColor: Colors.white,
-          side: BorderSide(color: Colors.grey.shade300),
+    return Tooltip(
+      message: tooltip,
+      child: SizedBox(
+        width: 52,
+        height: 52,
+        child: Material(
+          color: Colors.white,
+          elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(14),
+            side: const BorderSide(color: Color(0xFFE2E2E2)),
           ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            icon,
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.black,
-                fontWeight: FontWeight.w600,
-                fontSize: 16,
-              ),
-            ),
-          ],
+          child: InkWell(
+            onTap: isLoading ? null : onTap,
+            borderRadius: BorderRadius.circular(14),
+            child: Center(child: icon),
+          ),
         ),
       ),
     );
