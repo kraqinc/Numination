@@ -129,42 +129,76 @@ class AppPalette {
   }
 }
 
-ThemeData buildTheme() {
-  final base = ThemeData.dark(useMaterial3: true);
+ThemeData buildTheme(AppPalette palette) {
+  final base = palette.isDark
+      ? ThemeData.dark(useMaterial3: true)
+      : ThemeData.light(useMaterial3: true);
+
+  final textPrimary = palette.textPrimary;
+  final textSecondary = palette.textSecondary;
+
   return base.copyWith(
-    scaffoldBackgroundColor: AppColors.obsidian,
+    scaffoldBackgroundColor: palette.background,
+
     colorScheme: base.colorScheme.copyWith(
-      primary: AppColors.cyan,
-      secondary: AppColors.purple,
-      surface: AppColors.card,
+      primary: palette.accent,
+      secondary: palette.accent,
+      surface: palette.surface,
+      onSurface: textPrimary,
       error: AppColors.red,
     ),
+
     textTheme: base.textTheme.apply(
-      bodyColor: AppColors.text,
-      displayColor: AppColors.text,
+      bodyColor: textPrimary,
+      displayColor: textPrimary,
     ),
-    appBarTheme: const AppBarTheme(
-      backgroundColor: Colors.transparent,
+
+    appBarTheme: AppBarTheme(
+      backgroundColor: palette.background,
       elevation: 0,
-      foregroundColor: AppColors.text,
+      foregroundColor: textPrimary,
+      iconTheme: IconThemeData(color: textPrimary),
     ),
+
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: AppColors.panel,
-      hintStyle: const TextStyle(color: AppColors.muted),
+      fillColor: palette.surfaceAlt,
+
+      hintStyle: TextStyle(color: textSecondary),
+
+      labelStyle: TextStyle(color: textSecondary),
+
+      floatingLabelStyle: TextStyle(color: palette.accent),
+
+      prefixIconColor: textSecondary,
+      suffixIconColor: textSecondary,
+
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.all(Radius.circular(14)),
-        borderSide: BorderSide(color: AppColors.border),
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: palette.border),
       ),
+
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.all(Radius.circular(14)),
-        borderSide: BorderSide(color: AppColors.border),
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: palette.border),
       ),
+
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.all(Radius.circular(14)),
-        borderSide: BorderSide(color: AppColors.purpleSoft),
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: palette.accent, width: 1.4),
+      ),
+
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: AppColors.red),
+      ),
+
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: AppColors.red, width: 1.4),
       ),
     ),
+
     snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),
   );
 }

@@ -58,6 +58,19 @@ class _MemoryScreenState extends ConsumerState<MemoryScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'TITULO',
+                style: TextStyle(
+                  color: palette.textSecondary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.8,
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
             TextField(
               controller: titleController,
               autofocus: true,
@@ -67,7 +80,20 @@ class _MemoryScreenState extends ConsumerState<MemoryScreen> {
                 hintStyle: TextStyle(color: palette.textSecondary),
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'CONTENIDO',
+                style: TextStyle(
+                  color: palette.textSecondary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.8,
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
             TextField(
               controller: contentController,
               maxLines: 4,
@@ -162,6 +188,16 @@ class _MemoryScreenState extends ConsumerState<MemoryScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        Text(
+                          'TITULO',
+                          style: TextStyle(
+                            color: palette.textSecondary,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                        const SizedBox(height: 5),
                         Row(
                           children: [
                             if (memory.pinned) ...[

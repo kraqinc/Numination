@@ -200,6 +200,7 @@ class ChatResponse {
   final String response;
   final List<ChatAction> actions;
   final int remainingCredits;
+  final String? chatTitle;
   final String timestamp;
   const ChatResponse({
     required this.success,
@@ -207,6 +208,7 @@ class ChatResponse {
     required this.response,
     required this.actions,
     required this.remainingCredits,
+    this.chatTitle,
     required this.timestamp,
   });
   factory ChatResponse.fromJson(Map<String, dynamic> json) => ChatResponse(
@@ -217,6 +219,7 @@ class ChatResponse {
         .map((e) => ChatAction.fromJson(Map<String, dynamic>.from(e as Map)))
         .toList(),
     remainingCredits: (json['remainingCredits'] as num?)?.toInt() ?? 0,
+    chatTitle: json['chatTitle']?.toString(),
     timestamp: '${json['timestamp'] ?? ''}',
   );
 }

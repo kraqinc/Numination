@@ -1,25 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../../core/env.dart';
+import '../../core/numi_icons.dart';
 import 'confirm_mail.dart';
 import 'create_acc.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key});
+
   @override
   ConsumerState<AuthScreen> createState() => _AuthScreenState();
 }
 
 class _AuthScreenState extends ConsumerState<AuthScreen> {
   final _emailController = TextEditingController();
+
   bool _isLoading = false;
   String? _errorText;
+
   static const _bg = Color(0xFFF7F9F8);
   static const _navy = Color(0xFF16325C);
   static const _ink = Color(0xFF111111);
   static const _muted = Color(0xFF8A8A8A);
   static const _line = Color(0xFFD4D4D4);
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -32,46 +39,90 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
   Future<void> _onContinue() async {
     final email = _emailController.text.trim();
+
     if (!_isValidEmail(email)) {
       setState(() => _errorText = 'Ingresa un correo válido');
       return;
     }
+
     setState(() {
       _isLoading = true;
       _errorText = null;
     });
+
     try {
-      // No hay endpoint nativo de Supabase para "existe este email" sin
-      // exponer info sensible. Pasamos el email a la siguiente pantalla,
-      // que decide entre signInWithPassword o signUp según la respuesta.
       if (!mounted) return;
+
       await Navigator.of(context).push(
         MaterialPageRoute(builder: (_) => ConfirmMailScreen(email: email)),
       );
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
   Future<void> _onGoogleSignIn() async {
     if (_isLoading) return;
+
     setState(() {
       _isLoading = true;
       _errorText = null;
     });
+
     try {
-      await Supabase.instance.client.auth.signInWithOAuth(
-        OAuthProvider.google,
-        redirectTo: Env.authRedirectUrl,
-        authScreenLaunchMode: LaunchMode.externalApplication,
+      final googleSignIn = GoogleSignIn.instance;
+
+      await googleSignIn.signOut();
+
+      final googleUser = await googleSignIn.authenticate();
+
+      final googleAuth = googleUser.authentication;
+      final idToken = googleAuth.idToken;
+
+      if (idToken == null || idToken.isEmpty) {
+        throw StateError('Google no devolvió un ID token.');
+      }
+
+      const scopes = <String>['email', 'profile'];
+
+      final authorization = await googleUser.authorizationClient
+          .authorizeScopes(scopes);
+
+      final accessToken = authorization.accessToken;
+
+      if (accessToken.isEmpty) {
+        throw StateError('Google no devolvió un access token.');
+      }
+
+      await Supabase.instance.client.auth.signInWithIdToken(
+        provider: OAuthProvider.google,
+        idToken: idToken,
+        accessToken: accessToken,
       );
+    } on GoogleSignInException catch (e) {
+      if (!mounted) return;
+
+      if (e.code == GoogleSignInExceptionCode.canceled) {
+        setState(() {
+          _errorText = null;
+        });
+        return;
+      }
+
+      setState(() {
+        _errorText = e.description ?? 'No se pudo iniciar sesión con Google';
+      });
     } on AuthException catch (e) {
       if (!mounted) return;
+
       setState(() {
         _errorText = e.message;
       });
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
+
       setState(() {
         _errorText = 'No se pudo iniciar sesión con Google';
       });
@@ -83,21 +134,34 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   }
 
   Future<void> _onGithubSignIn() async {
+    if (_isLoading) return;
+
     setState(() {
       _isLoading = true;
       _errorText = null;
     });
+
     try {
       await Supabase.instance.client.auth.signInWithOAuth(
         OAuthProvider.github,
         redirectTo: Env.authRedirectUrl,
       );
     } on AuthException catch (e) {
-      setState(() => _errorText = e.message);
-    } catch (e) {
-      setState(() => _errorText = 'No se pudo iniciar sesión con GitHub');
+      if (!mounted) return;
+
+      setState(() {
+        _errorText = e.message;
+      });
+    } catch (_) {
+      if (!mounted) return;
+
+      setState(() {
+        _errorText = 'No se pudo iniciar sesión con GitHub';
+      });
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -218,13 +282,20 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                                   color: Colors.white,
                                 ),
                               )
-                            : const Text(
-                                'Continuar  →',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 0.1,
-                                ),
+                            : const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    'Continuar',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: 0.1,
+                                    ),
+                                  ),
+                                  SizedBox(width: 8),
+                                  Icon(NumiIcons.arrow_right, size: 18),
+                                ],
                               ),
                       ),
                     ),
@@ -302,10 +373,12 @@ class _OAuthIconButton extends StatelessWidget {
     required this.isLoading,
     required this.tooltip,
   });
+
   final Widget icon;
   final VoidCallback onTap;
   final bool isLoading;
   final String tooltip;
+
   @override
   Widget build(BuildContext context) {
     return Tooltip(

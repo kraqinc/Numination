@@ -21,11 +21,12 @@ class NumiIcons {
   static const IconData power_off_outlined = LucideIcons.powerOff;
   static const IconData add = LucideIcons.plus;
   static const IconData keyboard_arrow_down = LucideIcons.chevronDown;
-
   static const IconData keyboard_arrow_down_rounded = LucideIcons.chevronDown;
   static const IconData keyboard_arrow_up_rounded = LucideIcons.chevronUp;
 
   static const IconData arrow_back = LucideIcons.arrowLeft;
+  static const IconData arrow_right = LucideIcons.arrowRight;
+
   static const IconData visibility_outlined = LucideIcons.eye;
   static const IconData visibility_off_outlined = LucideIcons.eyeOff;
 
@@ -59,11 +60,18 @@ class NumiIcons {
 
   static const IconData copy = LucideIcons.copy;
   static const IconData close = LucideIcons.x;
+  static const IconData pencil = LucideIcons.pencil;
+  static const IconData folder = LucideIcons.folder;
   static const IconData attach_file_rounded = LucideIcons.paperclip;
 
   static const IconData push_pin = LucideIcons.pin;
   static const IconData info_outline = LucideIcons.info;
+
   static const IconData send_rounded = LucideIcons.send;
+  static const IconData send_horizontal = LucideIcons.sendHorizontal;
+
+  static const IconData message_circle_dashed = LucideIcons.messageCircleDashed;
+
   static const IconData wifi_off_rounded = LucideIcons.wifiOff;
   static const IconData check_circle = LucideIcons.checkCircle;
 

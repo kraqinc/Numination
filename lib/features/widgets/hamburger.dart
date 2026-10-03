@@ -5,7 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/api.dart';
 import '../../core/auth_controller.dart';
 import '../../core/l10n_extensions.dart';
-import '../../core/models.dart' show AiModeConfig, ChatSession;
+import '../../core/models.dart' show AiModeConfig, ChatSession, Project;
 import '../../core/theme_controller.dart';
 import '../screens/artifacts_screen.dart';
 import '../screens/connectors_screen.dart';
@@ -24,6 +24,7 @@ class AppDrawer extends ConsumerStatefulWidget {
     required this.onSelectMode,
     required this.onSelectChat,
     required this.onNewChat,
+    required this.onChatDeleted,
   });
 
   final String email;
@@ -34,6 +35,7 @@ class AppDrawer extends ConsumerStatefulWidget {
   final ValueChanged<String> onSelectMode;
   final ValueChanged<ChatSession> onSelectChat;
   final VoidCallback onNewChat;
+  final ValueChanged<ChatSession> onChatDeleted;
 
   @override
   ConsumerState<AppDrawer> createState() => _AppDrawerState();
@@ -108,6 +110,332 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
       }
     } catch (e) {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _showChatActions(ChatSession chat) async {
+    final palette = ref.read(appPaletteProvider);
+
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: palette.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(24),
+        ),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(8, 12, 8, 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: palette.border,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                ListTile(
+                  leading: Icon(
+                    NumiIcons.pencil,
+                    color: palette.textPrimary,
+                  ),
+                  title: Text(
+                    'Cambiar nombre',
+                    style: TextStyle(color: palette.textPrimary),
+                  ),
+                  onTap: () => Navigator.of(sheetContext).pop('rename'),
+                ),
+                ListTile(
+                  leading: Icon(
+                    NumiIcons.folder,
+                    color: palette.textPrimary,
+                  ),
+                  title: Text(
+                    'Mover a proyecto',
+                    style: TextStyle(color: palette.textPrimary),
+                  ),
+                  onTap: () => Navigator.of(sheetContext).pop('move'),
+                ),
+                ListTile(
+                  leading: Icon(
+                    NumiIcons.delete_outline,
+                    color: Colors.redAccent,
+                  ),
+                  title: const Text(
+                    'Eliminar',
+                    style: TextStyle(color: Colors.redAccent),
+                  ),
+                  onTap: () => Navigator.of(sheetContext).pop('delete'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (!mounted || action == null) return;
+
+    switch (action) {
+      case 'rename':
+        await _renameChat(chat);
+        break;
+      case 'move':
+        await _moveChat(chat);
+        break;
+      case 'delete':
+        await _deleteChat(chat);
+        break;
+    }
+  }
+
+  Future<void> _renameChat(ChatSession chat) async {
+    final palette = ref.read(appPaletteProvider);
+    final controller = TextEditingController(text: chat.title);
+
+    final title = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: palette.surface,
+          title: Text(
+            'Cambiar nombre',
+            style: TextStyle(color: palette.textPrimary),
+          ),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            maxLength: 100,
+            style: TextStyle(color: palette.textPrimary),
+            decoration: InputDecoration(
+              hintText: 'Nombre del chat',
+              hintStyle: TextStyle(color: palette.textSecondary),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(
+                'Cancelar',
+                style: TextStyle(color: palette.textSecondary),
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(
+                controller.text.trim(),
+              ),
+              child: Text(
+                'Guardar',
+                style: TextStyle(color: palette.accent),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    controller.dispose();
+
+    if (!mounted || title == null || title.isEmpty) return;
+
+    try {
+      final encodedId = Uri.encodeComponent(chat.id);
+
+      await ApiClient.patch(
+        '/chats/$encodedId',
+        {'title': title},
+      );
+
+      await _loadChats();
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            e is ApiException
+                ? e.message
+                : 'No se pudo cambiar el nombre del chat',
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _moveChat(ChatSession chat) async {
+    final palette = ref.read(appPaletteProvider);
+
+    try {
+      final response = await ApiClient.get('/projects');
+      final data = ApiClient.decode(response) as Map<String, dynamic>;
+
+      final projects = (data['projects'] as List? ?? [])
+          .map(
+            (e) => Project.fromJson(
+              Map<String, dynamic>.from(e as Map),
+            ),
+          )
+          .toList();
+
+      if (!mounted) return;
+
+      final selected = await showModalBottomSheet<String?>(
+        context: context,
+        backgroundColor: palette.surface,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(24),
+          ),
+        ),
+        builder: (sheetContext) {
+          return SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Mover a proyecto',
+                      style: TextStyle(
+                        color: palette.textPrimary,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+                ListTile(
+                  leading: Icon(
+                    NumiIcons.close,
+                    color: palette.textSecondary,
+                  ),
+                  title: Text(
+                    'Sin proyecto',
+                    style: TextStyle(color: palette.textPrimary),
+                  ),
+                  onTap: () => Navigator.of(sheetContext).pop(''),
+                ),
+                ...projects.map(
+                  (project) => ListTile(
+                    leading: Icon(
+                      NumiIcons.folder,
+                      color: palette.accent,
+                    ),
+                    title: Text(
+                      project.name,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: palette.textPrimary),
+                    ),
+                    onTap: () =>
+                        Navigator.of(sheetContext).pop(project.id),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          );
+        },
+      );
+
+      if (!mounted || selected == null) return;
+
+      final encodedId = Uri.encodeComponent(chat.id);
+
+      await ApiClient.patch(
+        '/chats/$encodedId',
+        {
+          'projectId': selected.isEmpty ? null : selected,
+        },
+      );
+
+      await _loadChats();
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            e is ApiException
+                ? e.message
+                : 'No se pudo mover el chat',
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _deleteChat(ChatSession chat) async {
+    final palette = ref.read(appPaletteProvider);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: palette.surface,
+          title: Text(
+            'Eliminar chat',
+            style: TextStyle(color: palette.textPrimary),
+          ),
+          content: Text(
+            'Esta conversación y sus mensajes se eliminarán permanentemente.',
+            style: TextStyle(
+              color: palette.textSecondary,
+              height: 1.4,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(
+                'Cancelar',
+                style: TextStyle(color: palette.textSecondary),
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text(
+                'Eliminar',
+                style: TextStyle(
+                  color: Colors.redAccent,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    try {
+      final encodedId = Uri.encodeComponent(chat.id);
+
+      await ApiClient.delete('/chats/$encodedId');
+
+      widget.onChatDeleted(chat);
+
+      await _loadChats();
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            e is ApiException
+                ? e.message
+                : 'No se pudo eliminar el chat',
+          ),
+        ),
+      );
     }
   }
 
@@ -268,6 +596,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                               Navigator.of(context).pop();
                               widget.onSelectChat(chat);
                             },
+                            onLongPress: () => _showChatActions(chat),
                           );
                         },
                       ),

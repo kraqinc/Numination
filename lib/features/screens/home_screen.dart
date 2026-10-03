@@ -132,6 +132,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     });
   }
 
+  void _onChatDeleted(ChatSession chat) {
+    if (_activeChatId != chat.id) return;
+
+    setState(() {
+      _activeChatId = null;
+      _messages.clear();
+    });
+  }
+
   Future<void> _openChat(ChatSession chat) async {
     setState(() {
       _activeChatId = chat.id;
@@ -361,6 +370,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         _messages.add(
           ChatMessage(text: chatResponse.response, fromUser: false),
         );
+
+        if (chatResponse.chatTitle != null &&
+            chatResponse.chatTitle!.trim().isNotEmpty) {
+          _chatRevision++;
+        }
       });
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -432,6 +446,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         onSelectMode: _toggleMode,
         onSelectChat: _openChat,
         onNewChat: _startNewChat,
+        onChatDeleted: _onChatDeleted,
       ),
       body: SafeArea(
         child: Column(
@@ -681,13 +696,11 @@ class _BottomInputBar extends ConsumerWidget {
               ),
             ),
           Container(
-            height: 52,
+            constraints: const BoxConstraints(minHeight: 52, maxHeight: 180),
             decoration: BoxDecoration(
               color: palette.surface,
               borderRadius: BorderRadius.circular(28),
-              border: Border.all(
-                color: palette.border.withValues(alpha: 0.65),
-              ),
+              border: Border.all(color: palette.border.withValues(alpha: 0.65)),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.05),
@@ -727,7 +740,9 @@ class _BottomInputBar extends ConsumerWidget {
                                     : Icons.add_rounded,
                                 color: isListening
                                     ? palette.accent
-                                    : palette.textPrimary.withValues(alpha: 0.85),
+                                    : palette.textPrimary.withValues(
+                                        alpha: 0.85,
+                                      ),
                                 size: 22,
                               ),
                       ),
@@ -738,26 +753,39 @@ class _BottomInputBar extends ConsumerWidget {
                   child: TextField(
                     controller: controller,
                     minLines: 1,
-                    maxLines: 1,
-                    textInputAction: TextInputAction.send,
-                    onSubmitted: (_) => onSend(),
+                    maxLines: 6,
+                    keyboardType: TextInputType.multiline,
+                    textInputAction: TextInputAction.newline,
                     cursorColor: palette.accent,
+                    cursorWidth: 2,
+                    cursorRadius: const Radius.circular(2),
                     style: TextStyle(
                       color: palette.textPrimary,
                       fontSize: 15,
+                      height: 1.45,
                       fontWeight: FontWeight.w400,
                     ),
                     decoration: InputDecoration(
                       hintText: context.l10n.askSomething,
                       hintStyle: TextStyle(
-                        color: palette.textSecondary.withValues(alpha: 0.85),
+                        color: palette.textSecondary.withValues(alpha: 0.72),
                         fontSize: 15,
+                        height: 1.45,
                       ),
+                      filled: false,
+                      fillColor: Colors.transparent,
+                      hoverColor: Colors.transparent,
+                      focusColor: Colors.transparent,
                       border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      disabledBorder: InputBorder.none,
+                      errorBorder: InputBorder.none,
+                      focusedErrorBorder: InputBorder.none,
                       isCollapsed: true,
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 12,
-                        vertical: 14,
+                        vertical: 10,
                       ),
                     ),
                   ),
@@ -782,7 +810,9 @@ class _BottomInputBar extends ConsumerWidget {
                               )
                             : Icon(
                                 Icons.send_rounded,
-                                color: palette.textPrimary.withValues(alpha: 0.75),
+                                color: palette.textPrimary.withValues(
+                                  alpha: 0.75,
+                                ),
                                 size: 22,
                               ),
                       ),

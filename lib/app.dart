@@ -6,6 +6,7 @@ import 'core/auth_controller.dart';
 import 'core/connectivity_banner.dart';
 import 'features/screens/confirm_age_screen.dart';
 import 'core/i18n.dart';
+import 'core/theme_controller.dart';
 import 'core/theme.dart';
 import 'features/screens/auth_screen.dart';
 import 'features/screens/home_screen.dart';
@@ -17,11 +18,12 @@ class NuminationApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final AuthState auth = ref.watch(authControllerProvider);
+    final palette = ref.watch(appPaletteProvider);
 
     return MaterialApp(
       title: 'Numination',
       debugShowCheckedModeBanner: false,
-      theme: buildTheme(),
+      theme: buildTheme(palette),
       localizationsDelegates: const [
         AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,

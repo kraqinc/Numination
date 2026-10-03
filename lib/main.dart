@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -22,6 +23,10 @@ Future<void> main() async {
     publishableKey: Env.supabasePublishableKey,
   );
 
+  await GoogleSignIn.instance.initialize(serverClientId: Env.googleClientId);
+
+  runApp(const ProviderScope(child: NuminationApp()));
+
   runApp(const ProviderScope(child: NuminationApp()));
 }
 
@@ -31,7 +36,7 @@ class _MissingEnvApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      theme: buildTheme(),
+      theme: buildTheme(AppPalette.of(AppThemeMode.gray)),
       home: const Scaffold(
         body: Center(
           child: Padding(
