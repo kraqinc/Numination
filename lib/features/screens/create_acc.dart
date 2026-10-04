@@ -15,13 +15,19 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
+
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
   bool _isLoading = false;
   String? _errorText;
 
-  static const _bgGray = Color(0xFFECECEC);
-  static const _blue = Color(0xFF7CCBF2);
+  // Same palette as auth_screen
+  static const _bg = Color(0xFFF7F9F8);
+  static const _navy = Color(0xFF16325C);
+  static const _ink = Color(0xFF111111);
+  static const _muted = Color(0xFF8A8A8A);
+  static const _line = Color(0xFFD4D4D4);
+  static const _error = Color(0xFFC23B3B);
 
   @override
   void dispose() {
@@ -69,7 +75,7 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
       Navigator.of(context).popUntil((route) => route.isFirst);
     } on AuthException catch (e) {
       setState(() => _errorText = e.message);
-    } catch (e) {
+    } catch (_) {
       setState(() => _errorText = 'Ocurrió un error inesperado');
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -79,174 +85,264 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _bgGray,
+      backgroundColor: _bg,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 32),
-                IconButton(
-                  padding: EdgeInsets.zero,
-                  alignment: Alignment.centerLeft,
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(NumiIcons.arrow_back, color: Colors.black),
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Create your\naccount',
-                  style: TextStyle(
-                    fontSize: 34,
-                    fontWeight: FontWeight.w700,
-                    height: 1.15,
-                    color: Colors.black,
-                  ),
-                ),
-                const SizedBox(height: 32),
-                TextField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  autocorrect: false,
-                  textInputAction: TextInputAction.next,
-                  style: const TextStyle(color: Colors.black, fontSize: 15),
-                  cursorColor: _blue,
-                  decoration: _fieldDecoration('example@hey.com'),
-                ),
-                const SizedBox(height: 14),
-                TextField(
-                  controller: _passwordController,
-                  obscureText: _obscurePassword,
-                  textInputAction: TextInputAction.next,
-                  style: const TextStyle(color: Colors.black, fontSize: 15),
-                  cursorColor: _blue,
-                  decoration: _fieldDecoration('Enter a password').copyWith(
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword
-                            ? NumiIcons.visibility_outlined
-                            : NumiIcons.visibility_off_outlined,
-                        color: Colors.grey,
-                      ),
-                      onPressed: () {
-                        setState(() => _obscurePassword = !_obscurePassword);
-                      },
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                TextField(
-                  controller: _confirmController,
-                  obscureText: _obscureConfirm,
-                  textInputAction: TextInputAction.done,
-                  onSubmitted: (_) => _onCreateAccount(),
-                  style: const TextStyle(color: Colors.black, fontSize: 15),
-                  cursorColor: _blue,
-                  decoration: _fieldDecoration('Confirm password').copyWith(
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscureConfirm
-                            ? NumiIcons.visibility_outlined
-                            : NumiIcons.visibility_off_outlined,
-                        color: Colors.grey,
-                      ),
-                      onPressed: () {
-                        setState(() => _obscureConfirm = !_obscureConfirm);
-                      },
-                    ),
-                  ),
-                ),
-                if (_errorText != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    _errorText!,
-                    style: const TextStyle(color: Colors.red, fontSize: 13),
-                  ),
-                ],
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  height: 58,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _onCreateAccount,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _blue,
-                      foregroundColor: Colors.black,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 28),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 12),
+
+                    // Back button
+                    IconButton(
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      onPressed: _isLoading
+                          ? null
+                          : () => Navigator.of(context).pop(),
+                      icon: const Icon(
+                        NumiIcons.arrow_back,
+                        color: _ink,
+                        size: 24,
                       ),
                     ),
-                    child: _isLoading
-                        ? const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.4,
-                              color: Colors.black,
-                            ),
-                          )
-                        : const Text(
-                            'Create account',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                            ),
+
+                    const SizedBox(height: 28),
+
+                    // Title
+                    const Text(
+                      'Create your\naccount',
+                      style: TextStyle(
+                        fontSize: 34,
+                        fontWeight: FontWeight.w800,
+                        height: 1.12,
+                        letterSpacing: -0.6,
+                        color: _ink,
+                      ),
+                    ),
+
+                    const SizedBox(height: 8),
+
+                    const Text(
+                      'Join Numination in a few seconds',
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: _muted,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+
+                    const SizedBox(height: 36),
+
+                    // Email
+                    _buildField(
+                      controller: _emailController,
+                      hint: 'Correo electrónico',
+                      keyboardType: TextInputType.emailAddress,
+                      textInputAction: TextInputAction.next,
+                      prefixIcon: Icons.mail_outline_rounded,
+                    ),
+
+                    const SizedBox(height: 14),
+
+                    // Password
+                    _buildField(
+                      controller: _passwordController,
+                      hint: 'Contraseña',
+                      obscureText: _obscurePassword,
+                      textInputAction: TextInputAction.next,
+                      prefixIcon: Icons.lock_outline_rounded,
+                      suffix: IconButton(
+                        icon: Icon(
+                          _obscurePassword
+                              ? NumiIcons.visibility_outlined
+                              : NumiIcons.visibility_off_outlined,
+                          color: _muted,
+                          size: 22,
+                        ),
+                        onPressed: () {
+                          setState(() => _obscurePassword = !_obscurePassword);
+                        },
+                      ),
+                    ),
+
+                    const SizedBox(height: 14),
+
+                    // Confirm password
+                    _buildField(
+                      controller: _confirmController,
+                      hint: 'Confirmar contraseña',
+                      obscureText: _obscureConfirm,
+                      textInputAction: TextInputAction.done,
+                      prefixIcon: Icons.lock_outline_rounded,
+                      onSubmitted: (_) => _onCreateAccount(),
+                      suffix: IconButton(
+                        icon: Icon(
+                          _obscureConfirm
+                              ? NumiIcons.visibility_outlined
+                              : NumiIcons.visibility_off_outlined,
+                          color: _muted,
+                          size: 22,
+                        ),
+                        onPressed: () {
+                          setState(() => _obscureConfirm = !_obscureConfirm);
+                        },
+                      ),
+                    ),
+
+                    // Error
+                    if (_errorText != null) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        _errorText!,
+                        style: const TextStyle(
+                          color: _error,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+
+                    const SizedBox(height: 28),
+
+                    // Create account button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : _onCreateAccount,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _navy,
+                          foregroundColor: Colors.white,
+                          disabledBackgroundColor:
+                              _navy.withValues(alpha: 0.7),
+                          disabledForegroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(28),
                           ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Center(
-                  child: GestureDetector(
-                    onTap: _isLoading
-                        ? null
-                        : () => Navigator.of(context).pop(),
-                    child: RichText(
-                      text: const TextSpan(
-                        style: TextStyle(fontSize: 14, color: Colors.grey),
-                        children: [
-                          TextSpan(text: 'Already have an account? '),
+                        ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.4,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text(
+                                'Create account',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.1,
+                                ),
+                              ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 28),
+
+                    // Already have account
+                    Center(
+                      child: GestureDetector(
+                        onTap: _isLoading
+                            ? null
+                            : () => Navigator.of(context).pop(),
+                        child: const Text.rich(
                           TextSpan(
-                            text: 'Log in',
-                            style: TextStyle(
-                              color: Colors.black,
-                              fontWeight: FontWeight.w700,
-                              decoration: TextDecoration.underline,
-                            ),
+                            style: TextStyle(fontSize: 14, color: _muted),
+                            children: [
+                              TextSpan(text: 'Already have an account? '),
+                              TextSpan(
+                                text: 'Log in',
+                                style: TextStyle(
+                                  color: _ink,
+                                  fontWeight: FontWeight.w700,
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
                     ),
-                  ),
+
+                    const SizedBox(height: 32),
+                  ],
                 ),
-                const SizedBox(height: 24),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         ),
       ),
     );
   }
 
-  InputDecoration _fieldDecoration(String hint) {
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: const TextStyle(color: Colors.grey),
-      filled: true,
-      fillColor: Colors.white,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(color: Colors.grey.shade300),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(color: Colors.grey.shade300),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(color: Colors.grey.shade400),
+  Widget _buildField({
+    required TextEditingController controller,
+    required String hint,
+    required IconData prefixIcon,
+    bool obscureText = false,
+    TextInputType? keyboardType,
+    TextInputAction? textInputAction,
+    Widget? suffix,
+    ValueChanged<String>? onSubmitted,
+  }) {
+    return TextField(
+      controller: controller,
+      obscureText: obscureText,
+      keyboardType: keyboardType,
+      textInputAction: textInputAction,
+      onSubmitted: onSubmitted,
+      enabled: !_isLoading,
+      autocorrect: false,
+      style: const TextStyle(fontSize: 15, color: _ink),
+      cursorColor: _navy,
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: const TextStyle(
+          color: _muted,
+          fontSize: 15,
+          fontWeight: FontWeight.w400,
+        ),
+        prefixIcon: Padding(
+          padding: const EdgeInsets.only(left: 16, right: 10),
+          child: Icon(prefixIcon, size: 20, color: _muted),
+        ),
+        prefixIconConstraints: const BoxConstraints(
+          minWidth: 46,
+          minHeight: 20,
+        ),
+        suffixIcon: suffix,
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 18,
+          vertical: 16,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(28),
+          borderSide: const BorderSide(color: _line),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(28),
+          borderSide: const BorderSide(color: _line),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(28),
+          borderSide: const BorderSide(color: Color(0xFF9AA7BC)),
+        ),
+        disabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(28),
+          borderSide: const BorderSide(color: _line),
+        ),
       ),
     );
   }
