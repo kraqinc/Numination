@@ -26,8 +26,6 @@ Future<void> main() async {
   await GoogleSignIn.instance.initialize(serverClientId: Env.googleClientId);
 
   runApp(const ProviderScope(child: NuminationApp()));
-
-  runApp(const ProviderScope(child: NuminationApp()));
 }
 
 class _MissingEnvApp extends StatelessWidget {

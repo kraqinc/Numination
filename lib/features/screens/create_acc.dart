@@ -110,6 +110,8 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
                   keyboardType: TextInputType.emailAddress,
                   autocorrect: false,
                   textInputAction: TextInputAction.next,
+                  style: const TextStyle(color: Colors.black, fontSize: 15),
+                  cursorColor: _blue,
                   decoration: _fieldDecoration('example@hey.com'),
                 ),
                 const SizedBox(height: 14),
@@ -117,6 +119,8 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
                   controller: _passwordController,
                   obscureText: _obscurePassword,
                   textInputAction: TextInputAction.next,
+                  style: const TextStyle(color: Colors.black, fontSize: 15),
+                  cursorColor: _blue,
                   decoration: _fieldDecoration('Enter a password').copyWith(
                     suffixIcon: IconButton(
                       icon: Icon(
@@ -137,6 +141,8 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
                   obscureText: _obscureConfirm,
                   textInputAction: TextInputAction.done,
                   onSubmitted: (_) => _onCreateAccount(),
+                  style: const TextStyle(color: Colors.black, fontSize: 15),
+                  cursorColor: _blue,
                   decoration: _fieldDecoration('Confirm password').copyWith(
                     suffixIcon: IconButton(
                       icon: Icon(

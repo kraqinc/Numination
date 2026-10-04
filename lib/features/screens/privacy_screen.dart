@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/api.dart';
 import '../../core/i18n.dart';
 import '../../core/theme_controller.dart';
 import 'package:numination/core/numi_icons.dart';
@@ -15,6 +16,71 @@ class PrivacyScreen extends ConsumerStatefulWidget {
 class _PrivacyScreenState extends ConsumerState<PrivacyScreen> {
   bool _shareUsageData = false;
   bool _saveHistory = true;
+  bool _isDeleting = false;
+
+  Future<void> _deleteAllChats() async {
+    if (_isDeleting) return;
+
+    final palette = ref.read(appPaletteProvider);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: palette.surface,
+        title: Text(
+          'Eliminar todos mis chats',
+          style: TextStyle(color: palette.textPrimary),
+        ),
+        content: Text(
+          'Se eliminarán permanentemente tus chats normales y sus mensajes. Esta acción no se puede deshacer.',
+          style: TextStyle(color: palette.textSecondary, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(
+              'Cancelar',
+              style: TextStyle(color: palette.textSecondary),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text(
+              'Eliminar todos',
+              style: TextStyle(
+                color: Colors.redAccent,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isDeleting = true);
+    try {
+      final response = await ApiClient.delete('/chats');
+      ApiClient.decode(response);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Se eliminaron todos tus chats.')),
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudieron eliminar los chats.')),
+      );
+    } finally {
+      if (mounted) setState(() => _isDeleting = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -66,7 +132,14 @@ class _PrivacyScreenState extends ConsumerState<PrivacyScreen> {
               'Eliminar todos mis chats',
               style: TextStyle(color: Colors.redAccent),
             ),
-            onTap: () {},
+            onTap: _isDeleting ? null : _deleteAllChats,
+            trailing: _isDeleting
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : null,
           ),
         ],
       ),

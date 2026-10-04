@@ -10,7 +10,9 @@ import '../../core/theme_controller.dart';
 import 'package:numination/core/numi_icons.dart';
 
 class ProjectsScreen extends ConsumerStatefulWidget {
-  const ProjectsScreen({super.key});
+  const ProjectsScreen({super.key, this.onOpenChat});
+
+  final ValueChanged<ChatSession>? onOpenChat;
 
   @override
   ConsumerState<ProjectsScreen> createState() => _ProjectsScreenState();
@@ -213,6 +215,7 @@ class _ProjectsScreenState extends ConsumerState<ProjectsScreen> {
                     expanded: expanded,
                     palette: palette,
                     onToggle: () => _toggleProject(project.id),
+                    onOpenChat: widget.onOpenChat,
                   );
                 },
               ),
@@ -228,6 +231,7 @@ class _ProjectCard extends StatelessWidget {
     required this.expanded,
     required this.palette,
     required this.onToggle,
+    this.onOpenChat,
   });
 
   final Project project;
@@ -235,6 +239,7 @@ class _ProjectCard extends StatelessWidget {
   final bool expanded;
   final AppPalette palette;
   final VoidCallback onToggle;
+  final ValueChanged<ChatSession>? onOpenChat;
 
   @override
   Widget build(BuildContext context) {
@@ -326,7 +331,11 @@ class _ProjectCard extends StatelessWidget {
               ),
               AnimatedCrossFade(
                 firstChild: const SizedBox.shrink(),
-                secondChild: _ProjectChats(chats: chats, palette: palette),
+                secondChild: _ProjectChats(
+                  chats: chats,
+                  palette: palette,
+                  onOpenChat: onOpenChat,
+                ),
                 crossFadeState: expanded
                     ? CrossFadeState.showSecond
                     : CrossFadeState.showFirst,
@@ -342,10 +351,15 @@ class _ProjectCard extends StatelessWidget {
 }
 
 class _ProjectChats extends StatelessWidget {
-  const _ProjectChats({required this.chats, required this.palette});
+  const _ProjectChats({
+    required this.chats,
+    required this.palette,
+    this.onOpenChat,
+  });
 
   final List<ChatSession> chats;
   final AppPalette palette;
+  final ValueChanged<ChatSession>? onOpenChat;
 
   @override
   Widget build(BuildContext context) {
@@ -385,7 +399,11 @@ class _ProjectChats extends StatelessWidget {
                 Divider(color: palette.border, height: 1),
                 const SizedBox(height: 6),
                 ...chats.map(
-                  (chat) => _ProjectChatTile(chat: chat, palette: palette),
+                  (chat) => _ProjectChatTile(
+                    chat: chat,
+                    palette: palette,
+                    onOpenChat: onOpenChat,
+                  ),
                 ),
               ],
             ),
@@ -394,10 +412,15 @@ class _ProjectChats extends StatelessWidget {
 }
 
 class _ProjectChatTile extends StatelessWidget {
-  const _ProjectChatTile({required this.chat, required this.palette});
+  const _ProjectChatTile({
+    required this.chat,
+    required this.palette,
+    this.onOpenChat,
+  });
 
   final ChatSession chat;
   final AppPalette palette;
+  final ValueChanged<ChatSession>? onOpenChat;
 
   @override
   Widget build(BuildContext context) {
@@ -410,10 +433,12 @@ class _ProjectChatTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
-          onTap: () {
-            // El chat ya se visualiza aquí. La apertura seguirá usando
-            // el mismo flujo del Home/Drawer.
-          },
+          onTap: onOpenChat == null
+              ? null
+              : () {
+                  Navigator.of(context).pop();
+                  onOpenChat!(chat);
+                },
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 11),
             child: Row(

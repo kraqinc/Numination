@@ -120,9 +120,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
       context: context,
       backgroundColor: palette.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(24),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (sheetContext) {
         return SafeArea(
@@ -141,10 +139,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                 ),
                 const SizedBox(height: 10),
                 ListTile(
-                  leading: Icon(
-                    NumiIcons.pencil,
-                    color: palette.textPrimary,
-                  ),
+                  leading: Icon(NumiIcons.pencil, color: palette.textPrimary),
                   title: Text(
                     'Cambiar nombre',
                     style: TextStyle(color: palette.textPrimary),
@@ -152,10 +147,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                   onTap: () => Navigator.of(sheetContext).pop('rename'),
                 ),
                 ListTile(
-                  leading: Icon(
-                    NumiIcons.folder,
-                    color: palette.textPrimary,
-                  ),
+                  leading: Icon(NumiIcons.folder, color: palette.textPrimary),
                   title: Text(
                     'Mover a proyecto',
                     style: TextStyle(color: palette.textPrimary),
@@ -227,13 +219,9 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
               ),
             ),
             TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(
-                controller.text.trim(),
-              ),
-              child: Text(
-                'Guardar',
-                style: TextStyle(color: palette.accent),
-              ),
+              onPressed: () =>
+                  Navigator.of(dialogContext).pop(controller.text.trim()),
+              child: Text('Guardar', style: TextStyle(color: palette.accent)),
             ),
           ],
         );
@@ -247,10 +235,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
     try {
       final encodedId = Uri.encodeComponent(chat.id);
 
-      await ApiClient.patch(
-        '/chats/$encodedId',
-        {'title': title},
-      );
+      await ApiClient.patch('/chats/$encodedId', {'title': title});
 
       await _loadChats();
     } catch (e) {
@@ -276,11 +261,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
       final data = ApiClient.decode(response) as Map<String, dynamic>;
 
       final projects = (data['projects'] as List? ?? [])
-          .map(
-            (e) => Project.fromJson(
-              Map<String, dynamic>.from(e as Map),
-            ),
-          )
+          .map((e) => Project.fromJson(Map<String, dynamic>.from(e as Map)))
           .toList();
 
       if (!mounted) return;
@@ -289,9 +270,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
         context: context,
         backgroundColor: palette.surface,
         shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            top: Radius.circular(24),
-          ),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         builder: (sheetContext) {
           return SafeArea(
@@ -313,10 +292,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                   ),
                 ),
                 ListTile(
-                  leading: Icon(
-                    NumiIcons.close,
-                    color: palette.textSecondary,
-                  ),
+                  leading: Icon(NumiIcons.close, color: palette.textSecondary),
                   title: Text(
                     'Sin proyecto',
                     style: TextStyle(color: palette.textPrimary),
@@ -325,17 +301,13 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                 ),
                 ...projects.map(
                   (project) => ListTile(
-                    leading: Icon(
-                      NumiIcons.folder,
-                      color: palette.accent,
-                    ),
+                    leading: Icon(NumiIcons.folder, color: palette.accent),
                     title: Text(
                       project.name,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(color: palette.textPrimary),
                     ),
-                    onTap: () =>
-                        Navigator.of(sheetContext).pop(project.id),
+                    onTap: () => Navigator.of(sheetContext).pop(project.id),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -349,12 +321,9 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
 
       final encodedId = Uri.encodeComponent(chat.id);
 
-      await ApiClient.patch(
-        '/chats/$encodedId',
-        {
-          'projectId': selected.isEmpty ? null : selected,
-        },
-      );
+      await ApiClient.patch('/chats/$encodedId', {
+        'projectId': selected.isEmpty ? null : selected,
+      });
 
       await _loadChats();
     } catch (e) {
@@ -363,9 +332,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            e is ApiException
-                ? e.message
-                : 'No se pudo mover el chat',
+            e is ApiException ? e.message : 'No se pudo mover el chat',
           ),
         ),
       );
@@ -386,10 +353,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
           ),
           content: Text(
             'Esta conversación y sus mensajes se eliminarán permanentemente.',
-            style: TextStyle(
-              color: palette.textSecondary,
-              height: 1.4,
-            ),
+            style: TextStyle(color: palette.textSecondary, height: 1.4),
           ),
           actions: [
             TextButton(
@@ -430,9 +394,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            e is ApiException
-                ? e.message
-                : 'No se pudo eliminar el chat',
+            e is ApiException ? e.message : 'No se pudo eliminar el chat',
           ),
         ),
       );
@@ -508,7 +470,10 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                 onTap: () {
                   Navigator.of(context).pop();
                   Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const ProjectsScreen()),
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          ProjectsScreen(onOpenChat: widget.onSelectChat),
+                    ),
                   );
                 },
               ),
