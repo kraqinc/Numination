@@ -158,17 +158,46 @@ jobs:
             --build-name "1.0.${{ github.run_number }}" \
             --build-number "${{ github.run_number }}"
 
-      - name: Rename APK
+      - name: Prepare APK
         run: |
-          cp \
-            build/app/outputs/flutter-apk/app-release.apk \
-            build/app/outputs/flutter-apk/Numination-release.apk
+          set -euo pipefail
+
+          APK_SOURCE="build/app/outputs/flutter-apk/app-release.apk"
+          APK="build/app/outputs/flutter-apk/Numination.apk"
+
+          test -s "$APK_SOURCE"
+
+          cp "$APK_SOURCE" "$APK"
+
+          APKSIGNER="${ANDROID_HOME}/build-tools/$(ls "${ANDROID_HOME}/build-tools" | sort -V | tail -n 1)/apksigner"
+
+          "$APKSIGNER" verify --verbose "$APK"
+
+          SHA256="$(sha256sum "$APK" | awk '{print $1}')"
+          SIZE="$(stat -c '%s' "$APK")"
+
+          printf '%s  %s\n' \
+            "$SHA256" \
+            "Numination.apk" \
+            > build/app/outputs/flutter-apk/SHA256SUMS.txt
+
+          echo "APK_SIZE=$SIZE" >> "$GITHUB_ENV"
+          echo "APK_SHA256=$SHA256" >> "$GITHUB_ENV"
+
+          echo "========================================"
+          echo "Numination.apk"
+          echo "Size: $SIZE bytes"
+          echo "SHA-256: $SHA256"
+          echo "Signature: VERIFIED"
+          echo "========================================"
 
       - name: Upload release artifact
         uses: actions/upload-artifact@v4
         with:
           name: Numination-release-apk
-          path: build/app/outputs/flutter-apk/Numination-release.apk
+          path: |
+            build/app/outputs/flutter-apk/Numination.apk
+            build/app/outputs/flutter-apk/SHA256SUMS.txt
 
       - name: Publish GitHub Release
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -178,20 +207,84 @@ jobs:
           set -euo pipefail
 
           TAG="v1.0.${{ github.run_number }}"
-          APK="build/app/outputs/flutter-apk/Numination-release.apk"
+          APK="build/app/outputs/flutter-apk/Numination.apk"
+          CHECKSUM="build/app/outputs/flutter-apk/SHA256SUMS.txt"
+
+          # Make sure an existing tag points to this exact commit.
+          TAG_SHA="$(gh api \
+            "repos/${{ github.repository }}/git/ref/tags/$TAG" \
+            --jq '.object.sha' 2>/dev/null || true)"
+
+          if [ -n "$TAG_SHA" ] && [ "$TAG_SHA" != "${{ github.sha }}" ]; then
+            echo "ERROR: Release tag $TAG points to:"
+            echo "$TAG_SHA"
+            echo ""
+            echo "But this APK was built from:"
+            echo "${{ github.sha }}"
+            echo ""
+            echo "Refusing to publish a mismatched release."
+            exit 1
+          fi
+
+          DESCRIPTION="$(cat <<EOF
+          ## Numination $TAG
+
+          **Numination AI — AI Workspace & Shell**
+
+          La IA para quienes resuelven problemas.
+
+          ### Android
+
+          - **APK:** \`Numination.apk\`
+          - **Tamaño:** ${APK_SIZE} bytes
+          - **SHA-256:** \`${APK_SHA256}\`
+          - **Firma:** verificada
+          - **Build:** ${{ github.run_number }}
+          - **Commit:** \`${{ github.sha }}\`
+
+          ### Integridad del APK
+
+          Este es exactamente el mismo APK generado y validado por GitHub Actions en esta ejecución.
+
+          El archivo publicado en Releases no se recompila ni se genera nuevamente.
+          Se publica directamente el APK producido por el job de Android.
+
+          SHA-256 oficial:
+
+          \`${APK_SHA256}\`
+
+          ### Build information
+
+          - Flutter: 3.47.0
+          - Version: 1.0.${{ github.run_number }}
+          - Commit: \`${{ github.sha }}\`
+          - APK signature verification: passed
+          EOF
+          )"
 
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload \
               "$TAG" \
               "$APK" \
+              "$CHECKSUM" \
               --clobber
+
+            gh release edit "$TAG" \
+              --title "Numination $TAG" \
+              --notes "$DESCRIPTION"
           else
             gh release create \
               "$TAG" \
               "$APK" \
+              "$CHECKSUM" \
               --title "Numination $TAG" \
-              --generate-notes
+              --notes "$DESCRIPTION"
           fi
+
+          echo "Release published successfully:"
+          echo "$TAG"
+          echo "APK: Numination.apk"
+          echo "SHA-256: $APK_SHA256"
 
   ios:
     name: iOS build (unsigned)
