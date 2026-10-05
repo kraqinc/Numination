@@ -1,69 +1,162 @@
-name: Build Android
+name: Numination build
 
 on:
   push:
     branches:
       - main
-    tags:
-      - "v*"
-  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
 
 jobs:
-  build-android:
+  flutter:
+    name: Flutter analyze & test
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - uses: actions/checkout@v4
 
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-
-      - name: Set up Flutter
+      - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.47.0"
+          flutter-version: '3.47.0'
           channel: stable
           cache: true
 
-      - name: Flutter doctor
-        run: flutter doctor -v
+      - name: Create CI environment
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_AUTH_GOOGLE_CLIENT_ID: ${{ secrets.SUPABASE_AUTH_GOOGLE_CLIENT_ID }}
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+        run: |
+          cat > .env <<ENV
+          SUPABASE_URL=$SUPABASE_URL
+          SUPABASE_PUBLISHABLE_KEY=$SUPABASE_PUBLISHABLE_KEY
+          SUPABASE_AUTH_GOOGLE_CLIENT_ID=$SUPABASE_AUTH_GOOGLE_CLIENT_ID
+          API_BASE_URL=$API_BASE_URL
+          SUPABASE_AUTH_REDIRECT_URL=numination://auth
+          APP_VERSION=1.0.0
+          ENV
 
-      - name: Install dependencies
+      - name: Get dependencies
         run: flutter pub get
 
-      - name: Decode release keystore
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test
+
+  android:
+    name: Android APK
+    needs: flutter
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.0'
+          channel: stable
+          cache: true
+
+      - name: Create CI environment
         env:
-          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_AUTH_GOOGLE_CLIENT_ID: ${{ secrets.SUPABASE_AUTH_GOOGLE_CLIENT_ID }}
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+        run: |
+          cat > .env <<ENV
+          SUPABASE_URL=$SUPABASE_URL
+          SUPABASE_PUBLISHABLE_KEY=$SUPABASE_PUBLISHABLE_KEY
+          SUPABASE_AUTH_GOOGLE_CLIENT_ID=$SUPABASE_AUTH_GOOGLE_CLIENT_ID
+          API_BASE_URL=$API_BASE_URL
+          SUPABASE_AUTH_REDIRECT_URL=numination://auth
+          APP_VERSION=1.0.${{ github.run_number }}
+          ENV
+
+      - name: Restore and convert release keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: |
           set -euo pipefail
 
-          mkdir -p android/keystore
+          KEYSTORE="$GITHUB_WORKSPACE/android/keystore/numination-release.jks"
+          SOURCE_KEYSTORE="$RUNNER_TEMP/numination-source.p12"
 
-          echo "$KEYSTORE_BASE64" | base64 --decode \
-            > android/keystore/numination-release.jks
+          mkdir -p "$(dirname "$KEYSTORE")"
 
-          test -s android/keystore/numination-release.jks
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" \
+            | tr -d '\r\n' \
+            | base64 --decode \
+            > "$SOURCE_KEYSTORE"
+
+          test -s "$SOURCE_KEYSTORE"
+          chmod 600 "$SOURCE_KEYSTORE"
+
+          echo "Source keystore:"
+          file "$SOURCE_KEYSTORE"
+
+          rm -f "$KEYSTORE"
+
+          keytool -importkeystore \
+            -srckeystore "$SOURCE_KEYSTORE" \
+            -srcstoretype PKCS12 \
+            -srcstorepass "$ANDROID_KEYSTORE_PASSWORD" \
+            -srcalias "$ANDROID_KEY_ALIAS" \
+            -destkeystore "$KEYSTORE" \
+            -deststoretype JKS \
+            -deststorepass "$ANDROID_KEYSTORE_PASSWORD" \
+            -destkeypass "$ANDROID_KEYSTORE_PASSWORD" \
+            -noprompt
+
+          test -s "$KEYSTORE"
+          chmod 600 "$KEYSTORE"
+
+          echo "Converted keystore:"
+          file "$KEYSTORE"
+
+          keytool -list \
+            -keystore "$KEYSTORE" \
+            -storetype JKS \
+            -storepass "$ANDROID_KEYSTORE_PASSWORD" \
+            -alias "$ANDROID_KEY_ALIAS" \
+            >/dev/null
+
+          echo "JKS + alias: OK"
+
+          rm -f "$SOURCE_KEYSTORE"
+
+      - name: Get dependencies
+        run: flutter pub get
 
       - name: Build release APK
         env:
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-          KEY_ALIAS: numination
+          ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/android/keystore/numination-release.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: |
           set -euo pipefail
 
+          echo "Gradle signing keystore:"
+          echo "$ANDROID_KEYSTORE_PATH"
+
+          test -f "$ANDROID_KEYSTORE_PATH"
+          test -s "$ANDROID_KEYSTORE_PATH"
+
           flutter build apk \
             --release \
-            --build-number="${GITHUB_RUN_NUMBER}"
+            --build-name "1.0.${{ github.run_number }}" \
+            --build-number "${{ github.run_number }}"
 
       - name: Prepare APK
         run: |
@@ -71,71 +164,60 @@ jobs:
 
           APK_SOURCE="build/app/outputs/flutter-apk/app-release.apk"
           APK="build/app/outputs/flutter-apk/Numination.apk"
-          CHECKSUM="build/app/outputs/flutter-apk/SHA256SUMS.txt"
 
-          test -f "$APK_SOURCE"
+          test -s "$APK_SOURCE"
 
           cp "$APK_SOURCE" "$APK"
 
-          APK_SIZE="$(stat -c%s "$APK")"
-          APK_SHA256="$(sha256sum "$APK" | awk '{print $1}')"
+          APKSIGNER="${ANDROID_HOME}/build-tools/$(ls "${ANDROID_HOME}/build-tools" | sort -V | tail -n 1)/apksigner"
 
-          echo "APK_SIZE=$APK_SIZE" >> "$GITHUB_ENV"
-          echo "APK_SHA256=$APK_SHA256" >> "$GITHUB_ENV"
+          "$APKSIGNER" verify --verbose "$APK"
 
-          sha256sum "$APK" > "$CHECKSUM"
+          SHA256="$(sha256sum "$APK" | awk '{print $1}')"
+          SIZE="$(stat -c '%s' "$APK")"
 
-          echo "APK prepared:"
-          ls -lh "$APK"
-          echo "SHA-256:"
-          cat "$CHECKSUM"
+          printf '%s  %s\n' \
+            "$SHA256" \
+            "Numination.apk" \
+            > build/app/outputs/flutter-apk/SHA256SUMS.txt
 
-      - name: Verify APK signature
-        run: |
-          set -euo pipefail
+          echo "APK_SIZE=$SIZE" >> "$GITHUB_ENV"
+          echo "APK_SHA256=$SHA256" >> "$GITHUB_ENV"
 
-          APK="build/app/outputs/flutter-apk/Numination.apk"
+          echo "========================================"
+          echo "Numination.apk"
+          echo "Size: $SIZE bytes"
+          echo "SHA-256: $SHA256"
+          echo "Signature: VERIFIED"
+          echo "========================================"
 
-          $ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -n1)/apksigner verify \
-            --verbose \
-            "$APK"
-
-          echo "APK signature verification passed."
-
-      - name: Determine release tag
-        id: release
-        run: |
-          set -euo pipefail
-
-          TAG="v1.0.165"
-
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Numination-release-apk
+          path: |
+            build/app/outputs/flutter-apk/Numination.apk
+            build/app/outputs/flutter-apk/SHA256SUMS.txt
 
       - name: Publish GitHub Release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
 
-          TAG="${{ steps.release.outputs.tag }}"
+          TAG="v1.0.${{ github.run_number }}"
           APK="build/app/outputs/flutter-apk/Numination.apk"
           CHECKSUM="build/app/outputs/flutter-apk/SHA256SUMS.txt"
-          EXPECTED_SHA="c59dd93b86e32cfeb9eace9e716e7e9408b41dc1"
+          EXPECTED_SHA="${{ github.sha }}"
 
-          test -f "$APK"
-          test -f "$CHECKSUM"
+          if TAG_RESPONSE="$(gh api \
+            "repos/${{ github.repository }}/git/ref/tags/$TAG" \
+            --silent 2>/dev/null)"; then
 
-          echo "Checking whether tag $TAG already exists..."
+            TAG_SHA="$(printf '%s' "$TAG_RESPONSE" | jq -r '.object.sha')"
 
-          if gh api \
-            "repos/kraqinc/Numination/git/ref/tags/$TAG" \
-            >/dev/null 2>&1; then
-
-            TAG_SHA="$(gh api \
-              "repos/kraqinc/Numination/git/ref/tags/$TAG" \
-              --jq '.object.sha')"
-
-            echo "Existing tag SHA:"
+            echo "Existing tag $TAG points to:"
             echo "$TAG_SHA"
 
             if [ "$TAG_SHA" != "$EXPECTED_SHA" ]; then
@@ -154,7 +236,7 @@ jobs:
 
           else
             echo "Tag $TAG does not exist yet."
-            echo "The release creation step will create it."
+            echo "GitHub Release creation will create the tag."
           fi
 
           DESCRIPTION="$(cat <<EOF
@@ -170,8 +252,8 @@ jobs:
           - **Tamaño:** ${APK_SIZE} bytes
           - **SHA-256:** \`${APK_SHA256}\`
           - **Firma:** verificada
-          - **Build:** 165
-          - **Commit:** \`${EXPECTED_SHA}\`
+          - **Build:** ${{ github.run_number }}
+          - **Commit:** \`${{ github.sha }}\`
 
           ### Integridad del APK
 
@@ -187,16 +269,14 @@ jobs:
           ### Build information
 
           - Flutter: 3.47.0
-          - Version: 1.0.165
-          - Commit: \`${EXPECTED_SHA}\`
+          - Version: 1.0.${{ github.run_number }}
+          - Commit: \`${{ github.sha }}\`
           - APK signature verification: passed
           EOF
           )"
 
           if gh release view "$TAG" >/dev/null 2>&1; then
-
             echo "Release $TAG already exists."
-            echo "Uploading APK and checksum..."
 
             gh release upload \
               "$TAG" \
@@ -209,7 +289,6 @@ jobs:
               --notes "$DESCRIPTION"
 
           else
-
             echo "Creating release $TAG..."
 
             gh release create \
@@ -218,15 +297,55 @@ jobs:
               "$CHECKSUM" \
               --title "Numination $TAG" \
               --notes "$DESCRIPTION"
-
           fi
 
-          echo ""
-          echo "========================================"
-          echo "Release published successfully"
-          echo "========================================"
-          echo "Tag: $TAG"
+          echo "Release published successfully:"
+          echo "$TAG"
           echo "APK: Numination.apk"
-          echo "Size: ${APK_SIZE} bytes"
-          echo "SHA-256: ${APK_SHA256}"
-          echo "Commit: ${EXPECTED_SHA}"
+          echo "SHA-256: $APK_SHA256"
+
+  ios:
+    name: iOS build (unsigned)
+    needs: flutter
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.0'
+          channel: stable
+          cache: true
+
+      - name: Generate iOS platform
+        run: flutter create --platforms=ios --project-name numination .
+
+      - name: Create CI environment
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_AUTH_GOOGLE_CLIENT_ID: ${{ secrets.SUPABASE_AUTH_GOOGLE_CLIENT_ID }}
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+        run: |
+          cat > .env <<ENV
+          SUPABASE_URL=$SUPABASE_URL
+          SUPABASE_PUBLISHABLE_KEY=$SUPABASE_PUBLISHABLE_KEY
+          SUPABASE_AUTH_GOOGLE_CLIENT_ID=$SUPABASE_AUTH_GOOGLE_CLIENT_ID
+          API_BASE_URL=$API_BASE_URL
+          SUPABASE_AUTH_REDIRECT_URL=numination://auth
+          APP_VERSION=1.0.${{ github.run_number }}
+          ENV
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Build iOS
+        run: flutter build ios --release --no-codesign
+
+      - name: Upload unsigned build
+        uses: actions/upload-artifact@v4
+        with:
+          name: Numination-ios-unsigned-build
+          path: build/ios/iphoneos/Runner.app
