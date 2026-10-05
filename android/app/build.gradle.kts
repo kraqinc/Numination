@@ -1,15 +1,23 @@
 plugins {
     id("com.android.application")
+    id("org.jetbrains.kotlin.android")
     id("dev.flutter.flutter-gradle-plugin")
 }
 
-val keystorePath = System.getenv("ANDROID_KEYSTORE_PATH")
-val keystorePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
-val keyAliasValue = System.getenv("ANDROID_KEY_ALIAS")
+val keystorePath =
+    System.getenv("ANDROID_KEYSTORE_PATH")
+
+val keystorePassword =
+    System.getenv("ANDROID_KEYSTORE_PASSWORD")
+
+val keyAliasValue =
+    System.getenv("ANDROID_KEY_ALIAS")
 
 android {
     namespace = "com.wren.ide.numination"
+
     compileSdk = 36
+
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -19,9 +27,13 @@ android {
 
     defaultConfig {
         applicationId = "com.wren.ide.numination"
+
         minSdk = flutter.minSdkVersion
+
         targetSdk = flutter.targetSdkVersion
+
         versionCode = flutter.versionCode
+
         versionName = flutter.versionName
     }
 
@@ -29,10 +41,17 @@ android {
         if (!keystorePath.isNullOrBlank()) {
             create("release") {
                 storeFile = file(keystorePath)
-                storeType = "JKS"
-                storePassword = keystorePassword ?: ""
-                keyAlias = keyAliasValue ?: ""
-                keyPassword = keystorePassword ?: ""
+
+                storeType = "PKCS12"
+
+                storePassword =
+                    keystorePassword ?: ""
+
+                keyAlias =
+                    keyAliasValue ?: ""
+
+                keyPassword =
+                    keystorePassword ?: ""
             }
         }
     }
@@ -47,6 +66,7 @@ android {
                 }
 
             isMinifyEnabled = true
+
             isShrinkResources = true
         }
     }

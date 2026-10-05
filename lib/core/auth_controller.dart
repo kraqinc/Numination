@@ -1,11 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 
 import 'api.dart';
 
-/// Auth state mirrored from Supabase's own session.
 sealed class AuthState {
   const AuthState();
 }
@@ -23,67 +22,87 @@ class AuthAuthenticated extends AuthState {
   final String email;
   final bool ageConfirmed;
   final bool bannedUnderage;
+  final bool needsPasswordAfterEmailConfirmation;
 
   const AuthAuthenticated({
     required this.userId,
     required this.email,
     this.ageConfirmed = false,
     this.bannedUnderage = false,
+    this.needsPasswordAfterEmailConfirmation = false,
   });
 
-  factory AuthAuthenticated.fromUser(User user) {
-    final meta = user.userMetadata ?? const <String, dynamic>{};
+  factory AuthAuthenticated.fromUser(supabase.User user) {
+    final meta =
+        user.userMetadata ?? const <String, dynamic>{};
 
     return AuthAuthenticated(
       userId: user.id,
       email: user.email ?? '',
       ageConfirmed: meta['age_14_plus'] == true,
       bannedUnderage: meta['banned_underage'] == true,
+      needsPasswordAfterEmailConfirmation:
+          meta['numination_email_pending'] == true &&
+          user.emailConfirmedAt != null,
     );
   }
 }
 
 class AuthController extends Notifier<AuthState> {
-  StreamSubscription<AuthState>? _sub;
+  StreamSubscription<supabase.AuthState>? _sub;
 
   @override
   AuthState build() {
-    final client = Supabase.instance.client;
+    final client = supabase.Supabase.instance.client;
 
     ref.onDispose(() {
       _sub?.cancel();
     });
 
-    _sub = client.auth.onAuthStateChange
-        .map((event) {
-          final session = event.session;
+    _sub = client.auth.onAuthStateChange.listen(
+      (authState) {
+        final session = authState.session;
 
-          if (session == null) {
-            ApiClient.setToken(null);
-            return const AuthUnauthenticated();
-          }
+        if (session == null) {
+          ApiClient.setToken(null);
+          state = const AuthUnauthenticated();
+          return;
+        }
 
-          ApiClient.setToken(session.accessToken);
+        ApiClient.setToken(session.accessToken);
 
-          return AuthAuthenticated.fromUser(session.user);
-        })
-        .listen((next) => state = next);
+        state = AuthAuthenticated.fromUser(
+          session.user,
+        );
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        // Los errores del stream no deben tumbar la aplicación.
+      },
+    );
 
     final currentSession = client.auth.currentSession;
 
     if (currentSession != null) {
-      ApiClient.setToken(currentSession.accessToken);
-      return AuthAuthenticated.fromUser(currentSession.user);
+      ApiClient.setToken(
+        currentSession.accessToken,
+      );
+
+      return AuthAuthenticated.fromUser(
+        currentSession.user,
+      );
     }
 
     return const AuthUnauthenticated();
   }
 
   Future<void> signOut() async {
-    await Supabase.instance.client.auth.signOut();
+    ApiClient.setToken(null);
+
+    await supabase.Supabase.instance.client.auth.signOut();
   }
 }
 
-final authControllerProvider = NotifierProvider<AuthController, AuthState>(
+final authControllerProvider =
+    NotifierProvider<AuthController, AuthState>(
   AuthController.new,
 );

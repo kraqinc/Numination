@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:numination/core/env.dart';
 import 'package:numination/core/numi_icons.dart';
+
+import 'open_mail_screen.dart';
 
 class CreateAccountScreen extends ConsumerStatefulWidget {
   const CreateAccountScreen({super.key});
@@ -21,7 +24,6 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
   bool _isLoading = false;
   String? _errorText;
 
-  // Same palette as auth_screen
   static const _bg = Color(0xFFF7F9F8);
   static const _navy = Color(0xFF16325C);
   static const _ink = Color(0xFF111111);
@@ -50,12 +52,15 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
       setState(() => _errorText = 'Ingresa un correo válido');
       return;
     }
+
     if (password.length < 8) {
       setState(
-        () => _errorText = 'La contraseña debe tener al menos 8 caracteres',
+        () => _errorText =
+            'La contraseña debe tener al menos 8 caracteres',
       );
       return;
     }
+
     if (password != confirm) {
       setState(() => _errorText = 'Las contraseñas no coinciden');
       return;
@@ -67,18 +72,43 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
     });
 
     try {
-      await Supabase.instance.client.auth.signUp(
+      final response = await Supabase.instance.client.auth.signUp(
         email: email,
         password: password,
+        emailRedirectTo: Env.authRedirectUrl,
+        data: const {
+          'numination_email_pending': true,
+        },
       );
+
       if (!mounted) return;
-      Navigator.of(context).popUntil((route) => route.isFirst);
+
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute<void>(
+          builder: (_) => OpenMailScreen(
+            email: response.user?.email ?? email,
+          ),
+        ),
+        (route) => false,
+      );
     } on AuthException catch (e) {
-      setState(() => _errorText = e.message);
+      if (!mounted) return;
+
+      setState(() {
+        _errorText = e.message;
+      });
     } catch (_) {
-      setState(() => _errorText = 'Ocurrió un error inesperado');
+      if (!mounted) return;
+
+      setState(() {
+        _errorText = 'Ocurrió un error inesperado';
+      });
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -92,13 +122,14 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
             return SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 28),
               child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: 12),
 
-                    // Back button
                     IconButton(
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
@@ -114,7 +145,6 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
 
                     const SizedBox(height: 28),
 
-                    // Title
                     const Text(
                       'Create your\naccount',
                       style: TextStyle(
@@ -139,7 +169,6 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
 
                     const SizedBox(height: 36),
 
-                    // Email
                     _buildField(
                       controller: _emailController,
                       hint: 'Correo electrónico',
@@ -150,7 +179,6 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
 
                     const SizedBox(height: 14),
 
-                    // Password
                     _buildField(
                       controller: _passwordController,
                       hint: 'Contraseña',
@@ -165,15 +193,18 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
                           color: _muted,
                           size: 22,
                         ),
-                        onPressed: () {
-                          setState(() => _obscurePassword = !_obscurePassword);
-                        },
+                        onPressed: _isLoading
+                            ? null
+                            : () {
+                                setState(() {
+                                  _obscurePassword = !_obscurePassword;
+                                });
+                              },
                       ),
                     ),
 
                     const SizedBox(height: 14),
 
-                    // Confirm password
                     _buildField(
                       controller: _confirmController,
                       hint: 'Confirmar contraseña',
@@ -189,13 +220,16 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
                           color: _muted,
                           size: 22,
                         ),
-                        onPressed: () {
-                          setState(() => _obscureConfirm = !_obscureConfirm);
-                        },
+                        onPressed: _isLoading
+                            ? null
+                            : () {
+                                setState(() {
+                                  _obscureConfirm = !_obscureConfirm;
+                                });
+                              },
                       ),
                     ),
 
-                    // Error
                     if (_errorText != null) ...[
                       const SizedBox(height: 12),
                       Text(
@@ -210,7 +244,6 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
 
                     const SizedBox(height: 28),
 
-                    // Create account button
                     SizedBox(
                       width: double.infinity,
                       height: 52,
@@ -249,7 +282,6 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
 
                     const SizedBox(height: 28),
 
-                    // Already have account
                     Center(
                       child: GestureDetector(
                         onTap: _isLoading
@@ -257,9 +289,14 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
                             : () => Navigator.of(context).pop(),
                         child: const Text.rich(
                           TextSpan(
-                            style: TextStyle(fontSize: 14, color: _muted),
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: _muted,
+                            ),
                             children: [
-                              TextSpan(text: 'Already have an account? '),
+                              TextSpan(
+                                text: 'Already have an account? ',
+                              ),
                               TextSpan(
                                 text: 'Log in',
                                 style: TextStyle(
@@ -303,7 +340,10 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
       onSubmitted: onSubmitted,
       enabled: !_isLoading,
       autocorrect: false,
-      style: const TextStyle(fontSize: 15, color: _ink),
+      style: const TextStyle(
+        fontSize: 15,
+        color: _ink,
+      ),
       cursorColor: _navy,
       decoration: InputDecoration(
         hintText: hint,
@@ -313,8 +353,15 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
           fontWeight: FontWeight.w400,
         ),
         prefixIcon: Padding(
-          padding: const EdgeInsets.only(left: 16, right: 10),
-          child: Icon(prefixIcon, size: 20, color: _muted),
+          padding: const EdgeInsets.only(
+            left: 16,
+            right: 10,
+          ),
+          child: Icon(
+            prefixIcon,
+            size: 20,
+            color: _muted,
+          ),
         ),
         prefixIconConstraints: const BoxConstraints(
           minWidth: 46,
@@ -337,7 +384,9 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(28),
-          borderSide: const BorderSide(color: Color(0xFF9AA7BC)),
+          borderSide: const BorderSide(
+            color: Color(0xFF9AA7BC),
+          ),
         ),
         disabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(28),
