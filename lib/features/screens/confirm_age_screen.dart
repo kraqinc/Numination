@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/api.dart';
+import '../../core/auth_controller.dart';
+
 import 'home_screen.dart';
 
 const _ageConfirmedKey = 'age_14_plus';
@@ -50,28 +53,50 @@ class _ConfirmAgeScreenState extends ConsumerState<ConfirmAgeScreen> {
   Future<void> _onContinue() async {
     if (!_confirmed || _isLoading) return;
 
-    setState(() {
-      _isLoading = true;
-      _errorText = null;
-    });
+    setState(() { _isLoading = true; _errorText = null; });
 
     try {
-      await Supabase.instance.client.auth.updateUser(
-        UserAttributes(
-          data: {_ageConfirmedKey: true, _bannedUnderageKey: false},
-        ),
-      );
+      final session = Supabase.instance.client.auth.currentSession;
+      if (session == null) {
+        throw const ApiException(401, 'Tu sesión expiró. Inicia sesión nuevamente.');
+      }
+      ApiClient.setToken(session.accessToken);
+
+      final response = await ApiClient.post('/auth/age', {'confirmed14Plus': true});
+      final data = ApiClient.decode(response);
+      if (data is! Map<String, dynamic> || data['verified'] != true) {
+        throw const ApiException(500, 'El backend no confirmó la edad.');
+      }
+
+      final currentUser =
+          Supabase.instance.client.auth.currentUser;
+
+      if (currentUser != null) {
+        final metadata = <String, dynamic>{
+          ...(currentUser.userMetadata ?? const <String, dynamic>{}),
+          'age_14_plus': true,
+          'banned_underage': false,
+          'numination_email_pending': false,
+        };
+
+        await Supabase.instance.client.auth.updateUser(
+          UserAttributes(data: metadata),
+        );
+      }
+
+      await ref.read(authControllerProvider.notifier).refresh();
       if (!mounted) return;
+
       Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute<void>(builder: (_) => const HomeScreen()),
         (route) => false,
       );
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _errorText = e.message);
     } on AuthException catch (e) {
-      if (!mounted) return;
-      setState(() => _errorText = e.message);
+      if (mounted) setState(() => _errorText = e.message);
     } catch (_) {
-      if (!mounted) return;
-      setState(() => _errorText = 'No se pudo guardar la confirmación');
+      if (mounted) setState(() => _errorText = 'No se pudo guardar la confirmación');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -80,60 +105,32 @@ class _ConfirmAgeScreenState extends ConsumerState<ConfirmAgeScreen> {
   Future<void> _onUnderage() async {
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: const Text(
-            'Esta cuenta se bloqueará',
-            style: TextStyle(
-              fontWeight: FontWeight.w800,
-              fontSize: 18,
-              color: _ink,
-            ),
-          ),
-          content: const Text(
-            'Numination es solo para mayores de 14 años. Si continúas, esta cuenta quedará baneada y no podrás entrar.',
-            style: TextStyle(fontSize: 14, height: 1.4, color: _ink),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('Cancelar', style: TextStyle(color: _muted)),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(true),
-              child: const Text(
-                'Bloquear cuenta',
-                style: TextStyle(
-                  color: Color(0xFFC23B3B),
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (ok != true) return;
-
-    setState(() {
-      _isLoading = true;
-      _errorText = null;
-    });
-
-    try {
-      await Supabase.instance.client.auth.updateUser(
-        UserAttributes(
-          data: {_ageConfirmedKey: false, _bannedUnderageKey: true},
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Esta cuenta se bloqueará', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: _ink)),
+        content: const Text(
+          'Numination es solo para mayores de 14 años. Si continúas, esta cuenta quedará baneada y no podrás entrar.',
+          style: TextStyle(fontSize: 14, height: 1.4, color: _ink),
         ),
-      );
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancelar', style: TextStyle(color: _muted))),
+          TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Bloquear cuenta', style: TextStyle(color: Color(0xFFC23B3B), fontWeight: FontWeight.w700))),
+        ],
+      ),
+    );
+    if (ok != true || _isLoading) return;
+
+    setState(() { _isLoading = true; _errorText = null; });
+    try {
+      final session = Supabase.instance.client.auth.currentSession;
+      if (session != null) {
+        ApiClient.setToken(session.accessToken);
+        try { await ApiClient.post('/auth/age', {'confirmedUnder14': true}); } catch (_) {}
+      }
+    } finally {
       await Supabase.instance.client.auth.signOut();
-    } catch (_) {
-      await Supabase.instance.client.auth.signOut();
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 

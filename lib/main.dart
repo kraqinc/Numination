@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app.dart';
@@ -21,9 +21,14 @@ Future<void> main() async {
   await Supabase.initialize(
     url: Env.supabaseUrl,
     publishableKey: Env.supabasePublishableKey,
+    authOptions: const FlutterAuthClientOptions(
+      authFlowType: AuthFlowType.pkce,
+    ),
   );
 
-  await GoogleSignIn.instance.initialize(serverClientId: Env.googleClientId);
+  await GoogleSignIn.instance.initialize(
+    serverClientId: Env.googleClientId,
+  );
 
   runApp(const ProviderScope(child: NuminationApp()));
 }

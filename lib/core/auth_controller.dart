@@ -55,49 +55,82 @@ class AuthController extends Notifier<AuthState> {
   AuthState build() {
     final client = supabase.Supabase.instance.client;
 
-    ref.onDispose(() {
-      _sub?.cancel();
-    });
+    ref.onDispose(() => _sub?.cancel());
 
     _sub = client.auth.onAuthStateChange.listen(
       (authState) {
         final session = authState.session;
-
         if (session == null) {
           ApiClient.setToken(null);
           state = const AuthUnauthenticated();
           return;
         }
-
         ApiClient.setToken(session.accessToken);
-
-        state = AuthAuthenticated.fromUser(
-          session.user,
-        );
+        state = AuthAuthenticated.fromUser(session.user);
+        unawaited(_syncWithBackend(session.user));
       },
-      onError: (Object error, StackTrace stackTrace) {
-        // Los errores del stream no deben tumbar la aplicación.
-      },
+      onError: (Object error, StackTrace stackTrace) {},
     );
 
-    final currentSession = client.auth.currentSession;
+    final session = client.auth.currentSession;
+    if (session == null) return const AuthUnauthenticated();
 
-    if (currentSession != null) {
-      ApiClient.setToken(
-        currentSession.accessToken,
-      );
+    ApiClient.setToken(session.accessToken);
+    unawaited(_syncWithBackend(session.user));
+    return AuthAuthenticated.fromUser(session.user);
+  }
 
-      return AuthAuthenticated.fromUser(
-        currentSession.user,
+  Future<void> _syncWithBackend(supabase.User user) async {
+    try {
+      final response = await ApiClient.get('/auth/me');
+      final data = ApiClient.decode(response);
+      if (data is! Map<String, dynamic>) return;
+      final serverUser = data['user'];
+      if (serverUser is! Map<String, dynamic>) return;
+
+      final current = supabase.Supabase.instance.client.auth.currentUser;
+      if (!mounted || current?.id != user.id) return;
+
+      state = AuthAuthenticated(
+        userId: user.id,
+        email: user.email ?? '',
+        ageConfirmed: serverUser['ageVerified'] == true,
+        bannedUnderage: serverUser['bannedUnderage'] == true,
+        needsPasswordAfterEmailConfirmation:
+            user.userMetadata?['numination_email_pending'] == true &&
+            user.emailConfirmedAt != null,
       );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      if (e.statusCode == 403) {
+        state = AuthAuthenticated(
+          userId: user.id,
+          email: user.email ?? '',
+          ageConfirmed: false,
+          bannedUnderage: true,
+          needsPasswordAfterEmailConfirmation:
+              user.userMetadata?['numination_email_pending'] == true &&
+              user.emailConfirmedAt != null,
+        );
+      }
+    } catch (_) {}
+  }
+
+  Future<void> refresh() async {
+    final client = supabase.Supabase.instance.client;
+    final session = client.auth.currentSession;
+    if (session == null) {
+      ApiClient.setToken(null);
+      state = const AuthUnauthenticated();
+      return;
     }
-
-    return const AuthUnauthenticated();
+    ApiClient.setToken(session.accessToken);
+    state = AuthAuthenticated.fromUser(session.user);
+    await _syncWithBackend(session.user);
   }
 
   Future<void> signOut() async {
     ApiClient.setToken(null);
-
     await supabase.Supabase.instance.client.auth.signOut();
   }
 }

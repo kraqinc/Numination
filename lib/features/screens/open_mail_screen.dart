@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'confirm_age_screen.dart';
+
 class OpenMailScreen extends StatefulWidget {
   const OpenMailScreen({
     super.key,
@@ -35,20 +37,55 @@ class _OpenMailScreenState extends State<OpenMailScreen> {
   String? _successText;
 
   Timer? _timer;
+  StreamSubscription<AuthState>? _authSubscription;
+  bool _isNavigating = false;
 
   @override
   void initState() {
     super.initState();
 
+    _authSubscription =
+        Supabase.instance.client.auth.onAuthStateChange.listen(
+      (data) {
+        final user = data.session?.user;
+
+        if (user?.emailConfirmedAt != null) {
+          _openPostConfirmation();
+        }
+      },
+      onError: (_, __) {},
+    );
+
     _timer = Timer.periodic(
       const Duration(seconds: 3),
       (_) => _checkConfirmation(silent: true),
+    );
+
+    _checkConfirmation(silent: true);
+  }
+
+  Future<void> _openPostConfirmation() async {
+    if (!mounted || _isNavigating) return;
+
+    final user = Supabase.instance.client.auth.currentUser;
+
+    if (user?.emailConfirmedAt == null) return;
+
+    _isNavigating = true;
+    _timer?.cancel();
+
+    Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+      MaterialPageRoute<void>(
+        builder: (_) => const ConfirmAgeScreen(),
+      ),
+      (route) => false,
     );
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _authSubscription?.cancel();
     super.dispose();
   }
 
@@ -75,7 +112,7 @@ class _OpenMailScreenState extends State<OpenMailScreen> {
       final user = client.auth.currentUser;
 
       if (user != null && user.emailConfirmedAt != null) {
-        _timer?.cancel();
+        await _openPostConfirmation();
         return;
       }
 
@@ -227,7 +264,8 @@ class _OpenMailScreenState extends State<OpenMailScreen> {
           child: LayoutBuilder(
             builder: (context, constraints) {
               return SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 32),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 32),
                 child: ConstrainedBox(
                   constraints: BoxConstraints(
                     minHeight: constraints.maxHeight,
@@ -236,7 +274,6 @@ class _OpenMailScreenState extends State<OpenMailScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const SizedBox(height: 20),
-
                       const Text(
                         'Check your email.',
                         textAlign: TextAlign.center,
@@ -248,9 +285,7 @@ class _OpenMailScreenState extends State<OpenMailScreen> {
                           color: _ink,
                         ),
                       ),
-
                       const SizedBox(height: 8),
-
                       const Text(
                         'Confirma tu email para continuar.',
                         textAlign: TextAlign.center,
@@ -260,9 +295,7 @@ class _OpenMailScreenState extends State<OpenMailScreen> {
                           height: 1.4,
                         ),
                       ),
-
                       const SizedBox(height: 30),
-
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(
@@ -281,7 +314,8 @@ class _OpenMailScreenState extends State<OpenMailScreen> {
                               height: 48,
                               decoration: BoxDecoration(
                                 color: _bg,
-                                borderRadius: BorderRadius.circular(16),
+                                borderRadius:
+                                    BorderRadius.circular(16),
                               ),
                               child: const Icon(
                                 Icons.mail_outline_rounded,
@@ -300,18 +334,21 @@ class _OpenMailScreenState extends State<OpenMailScreen> {
                                     style: TextStyle(
                                       fontSize: 12,
                                       color: _muted,
-                                      fontWeight: FontWeight.w500,
+                                      fontWeight:
+                                          FontWeight.w500,
                                     ),
                                   ),
                                   const SizedBox(height: 3),
                                   Text(
                                     widget.email,
                                     maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
+                                    overflow:
+                                        TextOverflow.ellipsis,
                                     style: const TextStyle(
                                       fontSize: 14,
                                       color: _ink,
-                                      fontWeight: FontWeight.w600,
+                                      fontWeight:
+                                          FontWeight.w600,
                                     ),
                                   ),
                                 ],
@@ -320,9 +357,7 @@ class _OpenMailScreenState extends State<OpenMailScreen> {
                           ],
                         ),
                       ),
-
                       const SizedBox(height: 16),
-
                       const Text(
                         'Busca el mensaje de confirmación de Numination '
                         'y pulsa el enlace que aparece dentro.',
@@ -333,9 +368,7 @@ class _OpenMailScreenState extends State<OpenMailScreen> {
                           color: _muted,
                         ),
                       ),
-
                       const SizedBox(height: 28),
-
                       SizedBox(
                         width: double.infinity,
                         height: 52,
@@ -349,23 +382,27 @@ class _OpenMailScreenState extends State<OpenMailScreen> {
                             foregroundColor: Colors.white,
                             disabledBackgroundColor:
                                 _navy.withValues(alpha: 0.65),
-                            disabledForegroundColor: Colors.white,
+                            disabledForegroundColor:
+                                Colors.white,
                             elevation: 0,
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(28),
+                              borderRadius:
+                                  BorderRadius.circular(28),
                             ),
                           ),
                           child: _isOpeningGmail
                               ? const SizedBox(
                                   width: 21,
                                   height: 21,
-                                  child: CircularProgressIndicator(
+                                  child:
+                                      CircularProgressIndicator(
                                     strokeWidth: 2.3,
                                     color: Colors.white,
                                   ),
                                 )
                               : const Row(
-                                  mainAxisSize: MainAxisSize.min,
+                                  mainAxisSize:
+                                      MainAxisSize.min,
                                   children: [
                                     Icon(
                                       Icons.mail_rounded,
@@ -376,38 +413,41 @@ class _OpenMailScreenState extends State<OpenMailScreen> {
                                       'Abrir aplicación Gmail',
                                       style: TextStyle(
                                         fontSize: 15,
-                                        fontWeight: FontWeight.w600,
+                                        fontWeight:
+                                            FontWeight.w600,
                                       ),
                                     ),
                                   ],
                                 ),
                         ),
                       ),
-
                       const SizedBox(height: 12),
-
                       SizedBox(
                         width: double.infinity,
                         height: 50,
                         child: OutlinedButton(
                           onPressed:
                               _isChecking ||
-                                  _isOpeningGmail ||
-                                  _isResending
-                              ? null
-                              : () => _checkConfirmation(),
+                                      _isOpeningGmail ||
+                                      _isResending
+                                  ? null
+                                  : () =>
+                                      _checkConfirmation(),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: _ink,
-                            side: const BorderSide(color: _line),
+                            side:
+                                const BorderSide(color: _line),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(28),
+                              borderRadius:
+                                  BorderRadius.circular(28),
                             ),
                           ),
                           child: _isChecking
                               ? const SizedBox(
                                   width: 20,
                                   height: 20,
-                                  child: CircularProgressIndicator(
+                                  child:
+                                      CircularProgressIndicator(
                                     strokeWidth: 2.2,
                                     color: _navy,
                                   ),
@@ -416,23 +456,25 @@ class _OpenMailScreenState extends State<OpenMailScreen> {
                                   'Ya confirmé mi correo',
                                   style: TextStyle(
                                     fontSize: 15,
-                                    fontWeight: FontWeight.w600,
+                                    fontWeight:
+                                        FontWeight.w600,
                                   ),
                                 ),
                         ),
                       ),
-
                       if (_errorText != null) ...[
                         const SizedBox(height: 14),
                         Container(
                           width: double.infinity,
-                          padding: const EdgeInsets.symmetric(
+                          padding:
+                              const EdgeInsets.symmetric(
                             horizontal: 14,
                             vertical: 11,
                           ),
                           decoration: BoxDecoration(
                             color: const Color(0xFFFDF0F0),
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius:
+                                BorderRadius.circular(14),
                           ),
                           child: Text(
                             _errorText!,
@@ -445,18 +487,19 @@ class _OpenMailScreenState extends State<OpenMailScreen> {
                           ),
                         ),
                       ],
-
                       if (_successText != null) ...[
                         const SizedBox(height: 14),
                         Container(
                           width: double.infinity,
-                          padding: const EdgeInsets.symmetric(
+                          padding:
+                              const EdgeInsets.symmetric(
                             horizontal: 14,
                             vertical: 11,
                           ),
                           decoration: BoxDecoration(
                             color: const Color(0xFFF1F5F3),
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius:
+                                BorderRadius.circular(14),
                           ),
                           child: Text(
                             _successText!,
@@ -470,9 +513,7 @@ class _OpenMailScreenState extends State<OpenMailScreen> {
                           ),
                         ),
                       ],
-
                       const SizedBox(height: 22),
-
                       GestureDetector(
                         onTap:
                             _isResending || _isOpeningGmail
@@ -486,13 +527,12 @@ class _OpenMailScreenState extends State<OpenMailScreen> {
                             fontSize: 14,
                             color: _muted,
                             fontWeight: FontWeight.w500,
-                            decoration: TextDecoration.underline,
+                            decoration:
+                                TextDecoration.underline,
                           ),
                         ),
                       ),
-
                       const SizedBox(height: 18),
-
                       GestureDetector(
                         onTap:
                             _isOpeningGmail || _isResending
@@ -504,11 +544,11 @@ class _OpenMailScreenState extends State<OpenMailScreen> {
                             fontSize: 14,
                             color: _muted,
                             fontWeight: FontWeight.w500,
-                            decoration: TextDecoration.underline,
+                            decoration:
+                                TextDecoration.underline,
                           ),
                         ),
                       ),
-
                       const SizedBox(height: 24),
                     ],
                   ),

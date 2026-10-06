@@ -31,6 +31,7 @@ class UpdateService {
       'https://api.github.com/repos/kraqinc/Numination/releases/latest';
 
   static const _lastCheckKey = 'last_update_check';
+  static const _pendingApkPathKey = 'pending_apk_path';
 
   static bool _checkedThisLaunch = false;
 
@@ -49,6 +50,8 @@ class UpdateService {
     if (!enabled) return;
 
     _checkedThisLaunch = true;
+
+    await resumeAfterInstallPermission();
 
     final prefs = await SharedPreferences.getInstance();
     final lastCheck = prefs.getInt(_lastCheckKey) ?? 0;
@@ -72,19 +75,22 @@ class UpdateService {
         return;
       }
 
+      final apk = await _downloadAndVerify(update);
+
       final canInstall =
           await _channel.invokeMethod<bool>('canInstallPackages') ?? false;
 
       if (!canInstall) {
+        await prefs.setString(_pendingApkPathKey, apk.path);
         await _channel.invokeMethod('openUnknownSourcesSettings');
         return;
       }
 
-      final apk = await _downloadAndVerify(update);
-
       await _channel.invokeMethod('installApk', <String, dynamic>{
         'path': apk.path,
       });
+
+      await prefs.remove(_pendingApkPathKey);
     } catch (_) {
       // Una actualización fallida no debe bloquear la aplicación.
     }
@@ -131,7 +137,7 @@ class UpdateService {
 
       final name = raw['name']?.toString();
 
-      if (name == 'Numination-release.apk') {
+      if (name == 'Numination.apk') {
         apkAsset = Map<String, dynamic>.from(raw);
         break;
       }
@@ -205,7 +211,7 @@ class UpdateService {
 
       final tempDir = await getTemporaryDirectory();
 
-      final apk = File('${tempDir.path}/Numination-release.apk');
+      final apk = File('${tempDir.path}/Numination.apk');
 
       if (await apk.exists()) {
         await apk.delete();
@@ -250,4 +256,28 @@ class UpdateService {
       client.close();
     }
   }
+
+  static Future<void> resumeAfterInstallPermission() async {
+    final prefs = await SharedPreferences.getInstance();
+    final path = prefs.getString(_pendingApkPathKey);
+    if (path == null || path.isEmpty) return;
+
+    final apk = File(path);
+    if (!await apk.exists()) {
+      await prefs.remove(_pendingApkPathKey);
+      return;
+    }
+
+    try {
+      final canInstall =
+          await _channel.invokeMethod<bool>('canInstallPackages') ?? false;
+      if (!canInstall) return;
+
+      await _channel.invokeMethod('installApk', <String, dynamic>{
+        'path': apk.path,
+      });
+      await prefs.remove(_pendingApkPathKey);
+    } catch (_) {}
+  }
+
 }
