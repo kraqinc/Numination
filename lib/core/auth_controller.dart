@@ -89,7 +89,7 @@ class AuthController extends Notifier<AuthState> {
       if (serverUser is! Map<String, dynamic>) return;
 
       final current = supabase.Supabase.instance.client.auth.currentUser;
-      if (!mounted || current?.id != user.id) return;
+      if (current?.id != user.id) return;
 
       state = AuthAuthenticated(
         userId: user.id,
@@ -101,7 +101,6 @@ class AuthController extends Notifier<AuthState> {
             user.emailConfirmedAt != null,
       );
     } on ApiException catch (e) {
-      if (!mounted) return;
       if (e.statusCode == 403) {
         state = AuthAuthenticated(
           userId: user.id,

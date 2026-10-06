@@ -53,7 +53,7 @@ class _OpenMailScreenState extends State<OpenMailScreen> {
           _openPostConfirmation();
         }
       },
-      onError: (_, __) {},
+      onError: (_, _) {},
     );
 
     _timer = Timer.periodic(
