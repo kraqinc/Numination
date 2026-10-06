@@ -10,17 +10,37 @@ import 'core/theme_controller.dart';
 import 'core/theme.dart';
 import 'features/screens/auth_screen.dart';
 import 'features/screens/home_screen.dart';
+import 'features/screens/reset_password_screen.dart';
 import 'l10n/gen/app_localizations.dart';
 
 class NuminationApp extends ConsumerWidget {
   const NuminationApp({super.key});
+
+  static final GlobalKey<NavigatorState> _navigatorKey =
+      GlobalKey<NavigatorState>();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final AuthState auth = ref.watch(authControllerProvider);
     final palette = ref.watch(appPaletteProvider);
 
+    ref.listen<AuthState>(authControllerProvider, (previous, next) {
+      if (next is AuthPasswordRecovery && previous is! AuthPasswordRecovery) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          final navigator = _navigatorKey.currentState;
+          if (navigator == null) return;
+          navigator.pushAndRemoveUntil(
+            MaterialPageRoute<void>(
+              builder: (_) => const ResetPasswordScreen(),
+            ),
+            (route) => false,
+          );
+        });
+      }
+    });
+
     return MaterialApp(
+      navigatorKey: _navigatorKey,
       title: 'Numination',
       debugShowCheckedModeBanner: false,
       theme: buildTheme(palette),
@@ -47,6 +67,7 @@ class NuminationApp extends ConsumerWidget {
         return ConnectivityBanner(child: child ?? const SizedBox.shrink());
       },
       home: switch (auth) {
+        AuthPasswordRecovery() => const ResetPasswordScreen(),
         AuthAuthenticated(:final bannedUnderage, :final ageConfirmed) =>
           bannedUnderage || !ageConfirmed
               ? const ConfirmAgeScreen()

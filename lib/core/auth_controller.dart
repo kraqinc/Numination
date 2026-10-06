@@ -17,6 +17,10 @@ class AuthUnauthenticated extends AuthState {
   const AuthUnauthenticated();
 }
 
+class AuthPasswordRecovery extends AuthState {
+  const AuthPasswordRecovery();
+}
+
 class AuthAuthenticated extends AuthState {
   final String userId;
   final String email;
@@ -50,6 +54,7 @@ class AuthAuthenticated extends AuthState {
 
 class AuthController extends Notifier<AuthState> {
   StreamSubscription<supabase.AuthState>? _sub;
+  int _syncGeneration = 0;
 
   @override
   AuthState build() {
@@ -60,16 +65,31 @@ class AuthController extends Notifier<AuthState> {
     _sub = client.auth.onAuthStateChange.listen(
       (authState) {
         final session = authState.session;
+
+        if (authState.event == supabase.AuthChangeEvent.passwordRecovery) {
+          _syncGeneration++;
+          ApiClient.setToken(session?.accessToken);
+          state = const AuthPasswordRecovery();
+          return;
+        }
+
         if (session == null) {
+          _syncGeneration++;
           ApiClient.setToken(null);
           state = const AuthUnauthenticated();
           return;
         }
+
         ApiClient.setToken(session.accessToken);
-        state = AuthAuthenticated.fromUser(session.user);
+        state = const AuthInitial();
         unawaited(_syncWithBackend(session.user));
       },
-      onError: (Object error, StackTrace stackTrace) {},
+      onError: (Object error, StackTrace stackTrace) {
+        final session = client.auth.currentSession;
+        if (session != null) {
+          state = AuthAuthenticated.fromUser(session.user);
+        }
+      },
     );
 
     final session = client.auth.currentSession;
@@ -77,30 +97,49 @@ class AuthController extends Notifier<AuthState> {
 
     ApiClient.setToken(session.accessToken);
     unawaited(_syncWithBackend(session.user));
-    return AuthAuthenticated.fromUser(session.user);
+    return const AuthInitial();
   }
 
   Future<void> _syncWithBackend(supabase.User user) async {
-    try {
-      final response = await ApiClient.get('/auth/me');
-      final data = ApiClient.decode(response);
-      if (data is! Map<String, dynamic>) return;
-      final serverUser = data['user'];
-      if (serverUser is! Map<String, dynamic>) return;
+    final client = supabase.Supabase.instance.client;
+    final generation = ++_syncGeneration;
 
-      final current = supabase.Supabase.instance.client.auth.currentUser;
-      if (current?.id != user.id) return;
+    bool isCurrentRequest() =>
+        generation == _syncGeneration && client.auth.currentUser?.id == user.id;
+
+    void useMetadataFallback() {
+      if (isCurrentRequest()) {
+        state = AuthAuthenticated.fromUser(user);
+      }
+    }
+
+    try {
+      final response = await ApiClient.get('/auth/me').timeout(
+        const Duration(seconds: 12),
+      );
+      final data = ApiClient.decode(response);
+      if (data is! Map<String, dynamic>) {
+        useMetadataFallback();
+        return;
+      }
+      final serverUser = data['user'];
+      if (serverUser is! Map<String, dynamic>) {
+        useMetadataFallback();
+        return;
+      }
+      if (!isCurrentRequest()) return;
 
       state = AuthAuthenticated(
         userId: user.id,
         email: user.email ?? '',
         ageConfirmed: serverUser['ageVerified'] == true,
-        bannedUnderage: serverUser['bannedUnderage'] == true,
+        bannedUnderage: false,
         needsPasswordAfterEmailConfirmation:
             user.userMetadata?['numination_email_pending'] == true &&
             user.emailConfirmedAt != null,
       );
     } on ApiException catch (e) {
+      if (!isCurrentRequest()) return;
       if (e.statusCode == 403) {
         state = AuthAuthenticated(
           userId: user.id,
@@ -111,8 +150,12 @@ class AuthController extends Notifier<AuthState> {
               user.userMetadata?['numination_email_pending'] == true &&
               user.emailConfirmedAt != null,
         );
+      } else {
+        useMetadataFallback();
       }
-    } catch (_) {}
+    } catch (_) {
+      useMetadataFallback();
+    }
   }
 
   Future<void> refresh() async {
@@ -124,7 +167,7 @@ class AuthController extends Notifier<AuthState> {
       return;
     }
     ApiClient.setToken(session.accessToken);
-    state = AuthAuthenticated.fromUser(session.user);
+    state = const AuthInitial();
     await _syncWithBackend(session.user);
   }
 

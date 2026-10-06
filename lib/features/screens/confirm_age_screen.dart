@@ -47,7 +47,9 @@ class _ConfirmAgeScreenState extends ConsumerState<ConfirmAgeScreen> {
   @override
   void initState() {
     super.initState();
-    _banned = isBannedUnderage(Supabase.instance.client.auth.currentUser);
+    final authState = ref.read(authControllerProvider);
+    _banned = isBannedUnderage(Supabase.instance.client.auth.currentUser) ||
+        (authState is AuthAuthenticated && authState.bannedUnderage);
   }
 
   Future<void> _onContinue() async {

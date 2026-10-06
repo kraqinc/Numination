@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
+import 'package:lucide_flutter/lucide_flutter.dart';
+import 'package:simple_icons/simple_icons.dart';
 
 import '../../core/theme.dart';
 import '../../core/theme_controller.dart';
@@ -48,7 +50,10 @@ class AiResponse extends ConsumerWidget {
   List<_ResponsePart> _parseResponse(String source) {
     final result = <_ResponsePart>[];
 
-    final codeRegex = RegExp(r'```([^\n`]*)\n?([\s\S]*?)```', multiLine: true);
+    final codeRegex = RegExp(
+      r'```([^\n`]*)\n?([\s\S]*?)```',
+      multiLine: true,
+    );
 
     var cursor = 0;
 
@@ -193,10 +198,16 @@ class _ResponsePartView extends StatelessWidget {
   Widget build(BuildContext context) {
     switch (part.type) {
       case _ResponsePartType.text:
-        return _TextResponse(text: part.content, palette: palette);
+        return _TextResponse(
+          text: part.content,
+          palette: palette,
+        );
 
       case _ResponsePartType.math:
-        return _MathResponse(expression: part.content, palette: palette);
+        return _MathResponse(
+          expression: part.content,
+          palette: palette,
+        );
 
       case _ResponsePartType.code:
         return _CodeResponse(
@@ -210,7 +221,10 @@ class _ResponsePartView extends StatelessWidget {
 }
 
 class _TextResponse extends StatelessWidget {
-  const _TextResponse({required this.text, required this.palette});
+  const _TextResponse({
+    required this.text,
+    required this.palette,
+  });
 
   final String text;
   final AppPalette palette;
@@ -226,7 +240,10 @@ class _TextResponse extends StatelessWidget {
           if (line.trim().isNotEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 2),
-              child: _FormattedLine(line: line, palette: palette),
+              child: _FormattedLine(
+                line: line,
+                palette: palette,
+              ),
             ),
       ],
     );
@@ -234,7 +251,10 @@ class _TextResponse extends StatelessWidget {
 }
 
 class _FormattedLine extends StatelessWidget {
-  const _FormattedLine({required this.line, required this.palette});
+  const _FormattedLine({
+    required this.line,
+    required this.palette,
+  });
 
   final String line;
   final AppPalette palette;
@@ -277,8 +297,14 @@ class _FormattedLine extends StatelessWidget {
     }
 
     return Text.rich(
-      TextSpan(children: _spans(line)),
-      style: TextStyle(color: palette.textPrimary, fontSize: 15, height: 1.45),
+      TextSpan(
+        children: _spans(line),
+      ),
+      style: TextStyle(
+        color: palette.textPrimary,
+        fontSize: 15,
+        height: 1.45,
+      ),
     );
   }
 
@@ -291,7 +317,11 @@ class _FormattedLine extends StatelessWidget {
 
     for (final match in regex.allMatches(value)) {
       if (match.start > cursor) {
-        result.add(TextSpan(text: value.substring(cursor, match.start)));
+        result.add(
+          TextSpan(
+            text: value.substring(cursor, match.start),
+          ),
+        );
       }
 
       final token = match.group(0)!;
@@ -300,7 +330,9 @@ class _FormattedLine extends StatelessWidget {
         result.add(
           TextSpan(
             text: token.substring(2, token.length - 2),
-            style: const TextStyle(fontWeight: FontWeight.w700),
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+            ),
           ),
         );
       } else {
@@ -309,7 +341,10 @@ class _FormattedLine extends StatelessWidget {
             alignment: PlaceholderAlignment.middle,
             child: Container(
               margin: const EdgeInsets.symmetric(horizontal: 2),
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 5,
+                vertical: 2,
+              ),
               decoration: BoxDecoration(
                 color: palette.surfaceAlt,
                 borderRadius: BorderRadius.circular(5),
@@ -331,7 +366,11 @@ class _FormattedLine extends StatelessWidget {
     }
 
     if (cursor < value.length) {
-      result.add(TextSpan(text: value.substring(cursor)));
+      result.add(
+        TextSpan(
+          text: value.substring(cursor),
+        ),
+      );
     }
 
     return result;
@@ -339,7 +378,10 @@ class _FormattedLine extends StatelessWidget {
 }
 
 class _MathResponse extends StatelessWidget {
-  const _MathResponse({required this.expression, required this.palette});
+  const _MathResponse({
+    required this.expression,
+    required this.palette,
+  });
 
   final String expression;
   final AppPalette palette;
@@ -348,18 +390,26 @@ class _MathResponse extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 14,
+        vertical: 16,
+      ),
       decoration: BoxDecoration(
         color: palette.surfaceAlt,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: palette.border),
+        border: Border.all(
+          color: palette.border,
+        ),
       ),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Math.tex(
           expression,
           mathStyle: MathStyle.display,
-          textStyle: TextStyle(color: palette.textPrimary, fontSize: 18),
+          textStyle: TextStyle(
+            color: palette.textPrimary,
+            fontSize: 18,
+          ),
           onErrorFallback: (error) {
             return Text(
               expression,
@@ -390,56 +440,308 @@ class _CodeResponse extends StatelessWidget {
   final ValueChanged<String> onCopy;
 
   IconData _iconForLanguage() {
-    final value = language.toLowerCase();
+    final value = language
+        .toLowerCase()
+        .trim()
+        .replaceAll('_', '-')
+        .replaceAll(' ', '');
 
     if (value.contains('dart')) {
-      return NumiIcons.code;
+      return SimpleIcons.dart;
     }
 
     if (value.contains('python') || value == 'py') {
-      return NumiIcons.memory_outlined;
+      return SimpleIcons.python;
+    }
+
+    if (value.contains('julia')) {
+      return SimpleIcons.julia;
     }
 
     if (value.contains('javascript') ||
         value == 'js' ||
-        value.contains('typescript') ||
-        value == 'ts') {
-      return NumiIcons.javascript;
+        value == 'jsx' ||
+        value.contains('node')) {
+      return SimpleIcons.javascript;
+    }
+
+    if (value.contains('typescript') ||
+        value == 'ts' ||
+        value == 'tsx') {
+      return SimpleIcons.typescript;
+    }
+
+    if (value.contains('java')) {
+      return SimpleIcons.openjdk;
+    }
+
+    if (value.contains('kotlin') || value == 'kt' || value == 'kts') {
+      return SimpleIcons.kotlin;
+    }
+
+    if (value == 'c' || value == 'h') {
+      return SimpleIcons.c;
+    }
+
+    if (value.contains('c++') ||
+        value.contains('cpp') ||
+        value == 'cc' ||
+        value == 'cxx') {
+      return SimpleIcons.cplusplus;
+    }
+
+    if (value.contains('c#') ||
+        value.contains('csharp') ||
+        value == 'cs') {
+      return SimpleIcons.dotnet;
+    }
+
+    if (value == 'go' || value == 'golang') {
+      return SimpleIcons.go;
+    }
+
+    if (value.contains('rust') || value == 'rs') {
+      return SimpleIcons.rust;
+    }
+
+    if (value.contains('swift')) {
+      return SimpleIcons.swift;
+    }
+
+    if (value.contains('php')) {
+      return SimpleIcons.php;
+    }
+
+    if (value.contains('ruby') || value == 'rb') {
+      return SimpleIcons.ruby;
+    }
+
+    if (value.contains('perl') || value == 'pl') {
+      return SimpleIcons.perl;
+    }
+
+    if (value.contains('lua')) {
+      return SimpleIcons.lua;
+    }
+
+    if (value == 'r' || value == 'rscript') {
+      return SimpleIcons.r;
+    }
+
+    if (value.contains('haskell') || value == 'hs') {
+      return SimpleIcons.haskell;
+    }
+
+    if (value.contains('elixir') || value == 'ex' || value == 'exs') {
+      return SimpleIcons.elixir;
+    }
+
+    if (value.contains('erlang') || value == 'erl') {
+      return SimpleIcons.erlang;
+    }
+
+    if (value.contains('scala')) {
+      return SimpleIcons.scala;
+    }
+
+    if (value.contains('groovy') || value == 'gvy') {
+      return SimpleIcons.apachegroovy;
+    }
+
+    if (value.contains('fortran') ||
+        value == 'f77' ||
+        value == 'f90' ||
+        value == 'f95' ||
+        value == 'f03' ||
+        value == 'f08' ||
+        value == 'f18') {
+      return SimpleIcons.fortran;
+    }
+
+    if (value.contains('f#') ||
+        value.contains('fsharp') ||
+        value == 'fs' ||
+        value == 'fsi' ||
+        value == 'fsx') {
+      return SimpleIcons.fsharp;
+    }
+
+    if (value.contains('ocaml') || value == 'ml') {
+      return SimpleIcons.ocaml;
+    }
+
+    if (value.contains('nim')) {
+      return SimpleIcons.nim;
+    }
+
+    if (value.contains('crystal') || value == 'cr') {
+      return SimpleIcons.crystal;
+    }
+
+    if (value.contains('zig')) {
+      return SimpleIcons.zig;
+    }
+
+    if (value.contains('solidity') || value == 'sol') {
+      return SimpleIcons.solidity;
+    }
+
+    if (value.contains('ada')) {
+      return SimpleIcons.ada;
+    }
+
+    if (value.contains('delphi') || value.contains('pascal')) {
+      return SimpleIcons.delphi;
+    }
+
+    if (value.contains('coffeescript') || value == 'coffee') {
+      return SimpleIcons.coffeescript;
+    }
+
+    if (value.contains('assemblyscript')) {
+      return SimpleIcons.assemblyscript;
+    }
+
+    if (value == 'assembly' ||
+        value == 'asm' ||
+        value.contains('x86asm') ||
+        value.contains('armasm')) {
+      return SimpleIcons.webassembly;
+    }
+
+    if (value == 'wasm' || value.contains('webassembly')) {
+      return SimpleIcons.webassembly;
+    }
+
+    if (value.contains('html') ||
+        value == 'htm' ||
+        value.contains('xhtml') ||
+        value.contains('html5')) {
+      return SimpleIcons.html5;
+    }
+
+    if (value.contains('css')) {
+      return SimpleIcons.css;
+    }
+
+    if (value.contains('scss') || value.contains('sass')) {
+      return SimpleIcons.sass;
+    }
+
+    if (value.contains('less')) {
+      return SimpleIcons.less;
+    }
+
+    if (value.contains('sql') ||
+        value.contains('postgres') ||
+        value.contains('postgresql')) {
+      return SimpleIcons.postgresql;
+    }
+
+    if (value.contains('mysql')) {
+      return SimpleIcons.mysql;
+    }
+
+    if (value.contains('mariadb')) {
+      return SimpleIcons.mariadb;
+    }
+
+    if (value.contains('sqlite')) {
+      return SimpleIcons.sqlite;
+    }
+
+    if (value.contains('graphql') || value == 'gql') {
+      return SimpleIcons.graphql;
     }
 
     if (value.contains('json')) {
-      return NumiIcons.data_object;
+      return SimpleIcons.json;
     }
 
-    if (value.contains('html') || value.contains('css')) {
-      return NumiIcons.web;
+    if (value.contains('yaml') || value.contains('yml')) {
+      return SimpleIcons.yaml;
     }
 
-    if (value.contains('sql')) {
-      return NumiIcons.storage_outlined;
+    if (value.contains('xml')) {
+      return SimpleIcons.xml;
+    }
+
+    if (value.contains('markdown') || value == 'md' || value == 'mdown') {
+      return SimpleIcons.markdown;
     }
 
     if (value.contains('bash') ||
         value.contains('shell') ||
         value == 'sh' ||
         value == 'zsh') {
-      return NumiIcons.terminal;
+      return value == 'zsh'
+          ? SimpleIcons.zsh
+          : SimpleIcons.gnubash;
     }
 
-    if (value.contains('yaml') || value.contains('yml')) {
-      return NumiIcons.settings_outlined;
+    if (value == 'fish' || value.contains('fishshell')) {
+      return SimpleIcons.fishshell;
     }
 
-    if (value.contains('java')) {
-      return NumiIcons.coffee;
+    if (value.contains('dockerfile') || value == 'docker') {
+      return SimpleIcons.docker;
     }
 
-    if (value.contains('kotlin')) {
-      return NumiIcons.android;
+    if (value.contains('terraform') || value == 'tf') {
+      return SimpleIcons.terraform;
     }
 
-    if (value.contains('cpp') || value.contains('c++')) {
-      return NumiIcons.memory;
+    if (value.contains('ansible')) {
+      return SimpleIcons.ansible;
+    }
+
+    if (value.contains('nix') || value.contains('nixos')) {
+      return SimpleIcons.nixos;
+    }
+
+    if (value.contains('graphql')) {
+      return SimpleIcons.graphql;
+    }
+
+    if (value.contains('react')) {
+      return SimpleIcons.react;
+    }
+
+    if (value.contains('vue')) {
+      return SimpleIcons.vuedotjs;
+    }
+
+    if (value.contains('angular')) {
+      return SimpleIcons.angular;
+    }
+
+    if (value.contains('flutter')) {
+      return SimpleIcons.flutter;
+    }
+
+    if (value.contains('electron')) {
+      return SimpleIcons.electronbuilder;
+    }
+
+    if (value.contains('gradle')) {
+      return SimpleIcons.gradle;
+    }
+
+    if (value.contains('springboot') ||
+        value.contains('spring-boot')) {
+      return SimpleIcons.springboot;
+    }
+
+    if (value.contains('spring')) {
+      return SimpleIcons.spring;
+    }
+
+    if (value.contains('rustdesk')) {
+      return SimpleIcons.rustdesk;
+    }
+
+    if (value.contains('markdown')) {
+      return SimpleIcons.markdown;
     }
 
     return NumiIcons.code_rounded;
@@ -452,13 +754,20 @@ class _CodeResponse extends StatelessWidget {
       decoration: BoxDecoration(
         color: palette.surfaceAlt,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: palette.border),
+        border: Border.all(
+          color: palette.border,
+        ),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 9, 8, 9),
+            padding: const EdgeInsets.fromLTRB(
+              12,
+              9,
+              8,
+              9,
+            ),
             child: Row(
               children: [
                 Icon(
@@ -483,16 +792,19 @@ class _CodeResponse extends StatelessWidget {
                   onPressed: () => onCopy(code),
                   tooltip: 'Copiar',
                   visualDensity: VisualDensity.compact,
-                  icon: Image.asset(
-                    'assets/images/copy_icon.png',
-                    width: 19,
-                    height: 19,
+                  icon: Icon(
+                    LucideIcons.copy,
+                    color: palette.textSecondary,
+                    size: 19,
                   ),
                 ),
               ],
             ),
           ),
-          Divider(height: 1, color: palette.border),
+          Divider(
+            height: 1,
+            color: palette.border,
+          ),
           Align(
             alignment: Alignment.centerLeft,
             child: SingleChildScrollView(

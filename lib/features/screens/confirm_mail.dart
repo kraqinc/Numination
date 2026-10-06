@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/auth_controller.dart';
+import '../../core/env.dart';
+import 'auth_screen.dart';
+
 import 'confirm_age_screen.dart';
 import 'home_screen.dart';
 
@@ -24,8 +28,10 @@ class _ConfirmMailScreenState
 
   bool _obscurePassword = true;
   bool _isLoading = false;
+  bool _isSendingReset = false;
 
   String? _errorText;
+  String? _successText;
 
   static const _bg = Color(0xFFF7F9F8);
   static const _navy = Color(0xFF16325C);
@@ -37,23 +43,6 @@ class _ConfirmMailScreenState
   void dispose() {
     _passwordController.dispose();
     super.dispose();
-  }
-
-  Widget _screenAfterLogin(User user) {
-    final meta =
-        user.userMetadata ?? const <String, dynamic>{};
-
-    final banned =
-        meta['banned_underage'] == true;
-
-    final ageConfirmed =
-        meta['age_14_plus'] == true;
-
-    if (!ageConfirmed || banned) {
-      return const ConfirmAgeScreen();
-    }
-
-    return const HomeScreen();
   }
 
   Future<void> _onLogin() async {
@@ -69,6 +58,7 @@ class _ConfirmMailScreenState
     setState(() {
       _isLoading = true;
       _errorText = null;
+      _successText = null;
     });
 
     final client = Supabase.instance.client;
@@ -87,14 +77,19 @@ class _ConfirmMailScreenState
         );
       }
 
+      await ref.read(authControllerProvider.notifier).refresh();
       if (!mounted) return;
 
-      Navigator.of(
-        context,
-        rootNavigator: true,
-      ).pushAndRemoveUntil(
+      final authState = ref.read(authControllerProvider);
+      final ageConfirmed = authState is AuthAuthenticated &&
+          authState.ageConfirmed &&
+          !authState.bannedUnderage;
+
+      Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
         MaterialPageRoute<void>(
-          builder: (_) => _screenAfterLogin(user),
+          builder: (_) => ageConfirmed
+              ? const HomeScreen()
+              : const ConfirmAgeScreen(),
         ),
         (route) => false,
       );
@@ -137,6 +132,46 @@ class _ConfirmMailScreenState
         });
       }
     }
+  }
+
+  Future<void> _onForgotPassword() async {
+    if (_isLoading || _isSendingReset) return;
+
+    setState(() {
+      _isSendingReset = true;
+      _errorText = null;
+      _successText = null;
+    });
+
+    try {
+      await Supabase.instance.client.auth.resetPasswordForEmail(
+        widget.email,
+        redirectTo: Env.authRedirectUrl,
+      );
+      if (!mounted) return;
+      setState(() {
+        _successText = 'Te enviamos un enlace para restablecer la contraseña. Revisa tu correo.';
+      });
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      setState(() => _errorText = e.message);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _errorText = 'No se pudo enviar el enlace de recuperación.');
+    } finally {
+      if (mounted) setState(() => _isSendingReset = false);
+    }
+  }
+
+  Future<void> _changeAccount() async {
+    try {
+      await ref.read(authControllerProvider.notifier).signOut();
+    } catch (_) {}
+    if (!mounted) return;
+    Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+      MaterialPageRoute<void>(builder: (_) => const AuthScreen()),
+      (route) => false,
+    );
   }
 
   @override
@@ -306,7 +341,7 @@ class _ConfirmMailScreenState
                       width: double.infinity,
                       height: 50,
                       child: ElevatedButton(
-                        onPressed: _isLoading
+                        onPressed: _isLoading || _isSendingReset
                             ? null
                             : _onLogin,
                         style:
@@ -350,6 +385,48 @@ class _ConfirmMailScreenState
                                       0.1,
                                 ),
                               ),
+                      ),
+                    ),
+                    if (_successText != null) ...[
+                      const SizedBox(height: 10),
+                      Text(
+                        _successText!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: _navy,
+                          fontSize: 13,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: _isLoading || _isSendingReset
+                          ? null
+                          : _onForgotPassword,
+                      child: Text(
+                        _isSendingReset
+                            ? 'Enviando enlace...'
+                            : '¿Olvidaste tu contraseña?',
+                        style: const TextStyle(
+                          color: _navy,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: _isLoading || _isSendingReset ? null : _changeAccount,
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 8),
+                        child: Text(
+                          'Cambiar correo o cuenta',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: _muted,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
                       ),
                     ),
                   ],

@@ -2,12 +2,17 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
+import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/auth_controller.dart';
+import 'auth_screen.dart';
 import 'confirm_age_screen.dart';
+import 'home_screen.dart';
 
-class OpenMailScreen extends StatefulWidget {
+class OpenMailScreen extends ConsumerStatefulWidget {
   const OpenMailScreen({
     super.key,
     required this.email,
@@ -16,10 +21,10 @@ class OpenMailScreen extends StatefulWidget {
   final String email;
 
   @override
-  State<OpenMailScreen> createState() => _OpenMailScreenState();
+  ConsumerState<OpenMailScreen> createState() => _OpenMailScreenState();
 }
 
-class _OpenMailScreenState extends State<OpenMailScreen> {
+class _OpenMailScreenState extends ConsumerState<OpenMailScreen> {
   static const _gmailChannel = MethodChannel('numination/gmail');
 
   static const _bg = Color(0xFFF7F9F8);
@@ -37,7 +42,7 @@ class _OpenMailScreenState extends State<OpenMailScreen> {
   String? _successText;
 
   Timer? _timer;
-  StreamSubscription<AuthState>? _authSubscription;
+  StreamSubscription<supabase.AuthState>? _authSubscription;
   bool _isNavigating = false;
 
   @override
@@ -47,7 +52,10 @@ class _OpenMailScreenState extends State<OpenMailScreen> {
     _authSubscription =
         Supabase.instance.client.auth.onAuthStateChange.listen(
       (data) {
-        final user = data.session?.user;
+        if (data.event == AuthChangeEvent.passwordRecovery) return;
+
+        final user = data.session?.user ??
+            Supabase.instance.client.auth.currentUser;
 
         if (user?.emailConfirmedAt != null) {
           _openPostConfirmation();
@@ -68,15 +76,27 @@ class _OpenMailScreenState extends State<OpenMailScreen> {
     if (!mounted || _isNavigating) return;
 
     final user = Supabase.instance.client.auth.currentUser;
-
     if (user?.emailConfirmedAt == null) return;
 
     _isNavigating = true;
     _timer?.cancel();
 
+    await ref.read(authControllerProvider.notifier).refresh();
+
+    if (!mounted) return;
+
+    final authState = ref.read(authControllerProvider);
+
+    final Widget destination =
+        authState is AuthAuthenticated &&
+                authState.ageConfirmed &&
+                !authState.bannedUnderage
+            ? const HomeScreen()
+            : const ConfirmAgeScreen();
+
     Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
       MaterialPageRoute<void>(
-        builder: (_) => const ConfirmAgeScreen(),
+        builder: (_) => destination,
       ),
       (route) => false,
     );
@@ -105,9 +125,11 @@ class _OpenMailScreenState extends State<OpenMailScreen> {
     try {
       final client = Supabase.instance.client;
 
-      try {
-        await client.auth.refreshSession();
-      } catch (_) {}
+      if (client.auth.currentSession != null) {
+        try {
+          await client.auth.refreshSession();
+        } catch (_) {}
+      }
 
       final user = client.auth.currentUser;
 
@@ -159,6 +181,7 @@ class _OpenMailScreenState extends State<OpenMailScreen> {
       try {
         final result =
             await _gmailChannel.invokeMethod<bool>('openGmail');
+
         opened = result == true;
       } on PlatformException {
         opened = false;
@@ -245,9 +268,21 @@ class _OpenMailScreenState extends State<OpenMailScreen> {
     }
   }
 
-  Future<void> _signOut() async {
+  Future<void> _useAnotherAccount() async {
     _timer?.cancel();
-    await Supabase.instance.client.auth.signOut();
+
+    try {
+      await ref.read(authControllerProvider.notifier).signOut();
+    } catch (_) {}
+
+    if (!mounted) return;
+
+    Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+      MaterialPageRoute<void>(
+        builder: (_) => const AuthScreen(),
+      ),
+      (route) => false,
+    );
   }
 
   @override
@@ -256,7 +291,7 @@ class _OpenMailScreenState extends State<OpenMailScreen> {
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
-        _signOut();
+        _useAnotherAccount();
       },
       child: Scaffold(
         backgroundColor: _bg,
@@ -264,8 +299,9 @@ class _OpenMailScreenState extends State<OpenMailScreen> {
           child: LayoutBuilder(
             builder: (context, constraints) {
               return SingleChildScrollView(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 32),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32,
+                ),
                 child: ConstrainedBox(
                   constraints: BoxConstraints(
                     minHeight: constraints.maxHeight,
@@ -305,7 +341,9 @@ class _OpenMailScreenState extends State<OpenMailScreen> {
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(22),
-                          border: Border.all(color: _line),
+                          border: Border.all(
+                            color: _line,
+                          ),
                         ),
                         child: Row(
                           children: [
@@ -435,8 +473,9 @@ class _OpenMailScreenState extends State<OpenMailScreen> {
                                       _checkConfirmation(),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: _ink,
-                            side:
-                                const BorderSide(color: _line),
+                            side: const BorderSide(
+                              color: _line,
+                            ),
                             shape: RoundedRectangleBorder(
                               borderRadius:
                                   BorderRadius.circular(28),
@@ -466,8 +505,7 @@ class _OpenMailScreenState extends State<OpenMailScreen> {
                         const SizedBox(height: 14),
                         Container(
                           width: double.infinity,
-                          padding:
-                              const EdgeInsets.symmetric(
+                          padding: const EdgeInsets.symmetric(
                             horizontal: 14,
                             vertical: 11,
                           ),
@@ -491,8 +529,7 @@ class _OpenMailScreenState extends State<OpenMailScreen> {
                         const SizedBox(height: 14),
                         Container(
                           width: double.infinity,
-                          padding:
-                              const EdgeInsets.symmetric(
+                          padding: const EdgeInsets.symmetric(
                             horizontal: 14,
                             vertical: 11,
                           ),
@@ -537,7 +574,7 @@ class _OpenMailScreenState extends State<OpenMailScreen> {
                         onTap:
                             _isOpeningGmail || _isResending
                                 ? null
-                                : _signOut,
+                                : _useAnotherAccount,
                         child: const Text(
                           'Usar otra cuenta',
                           style: TextStyle(

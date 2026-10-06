@@ -3,12 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/auth_controller.dart';
 import '../../core/env.dart';
 import '../../core/numi_icons.dart';
-import 'confirm_age_screen.dart';
 import 'confirm_mail.dart';
 import 'create_acc.dart';
-import 'home_screen.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key});
@@ -38,23 +37,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   bool _isValidEmail(String email) {
     return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
         .hasMatch(email);
-  }
-
-  Widget _googleDestination(User user) {
-    final metadata =
-        user.userMetadata ?? const <String, dynamic>{};
-
-    final banned =
-        metadata['banned_underage'] == true;
-
-    final ageConfirmed =
-        metadata['age_14_plus'] == true;
-
-    if (banned || !ageConfirmed) {
-      return const ConfirmAgeScreen();
-    }
-
-    return const HomeScreen();
   }
 
   Future<void> _onContinue() async {
@@ -156,15 +138,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
       if (!mounted) return;
 
-      Navigator.of(
-        context,
-        rootNavigator: true,
-      ).pushAndRemoveUntil(
-        MaterialPageRoute<void>(
-          builder: (_) => _googleDestination(user),
-        ),
-        (route) => false,
-      );
+      await ref
+          .read(authControllerProvider.notifier)
+          .refresh();
+
+      if (!mounted) return;
     } on GoogleSignInException catch (e) {
       if (!mounted) return;
 
