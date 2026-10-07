@@ -82,6 +82,13 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     });
 
     try {
+      if (Env.googleClientId.trim().isEmpty) {
+        throw StateError(
+          'Falta SUPABASE_AUTH_GOOGLE_CLIENT_ID en .env. '
+          'Debe ser el Client ID web de Google.',
+        );
+      }
+
       final googleSignIn = GoogleSignIn.instance;
 
       await googleSignIn.signOut();
@@ -165,12 +172,13 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       setState(() {
         _errorText = e.message;
       });
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
 
       setState(() {
-        _errorText =
-            'No se pudo iniciar sesión con Google';
+        _errorText = e
+            .toString()
+            .replaceFirst('Bad state: ', '');
       });
     } finally {
       if (mounted) {

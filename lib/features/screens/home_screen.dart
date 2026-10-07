@@ -2,9 +2,10 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:lucide_flutter/lucide_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/ai_modes_controller.dart';
 import '../../core/api.dart';
@@ -22,8 +23,27 @@ import 'coder_screen.dart';
 class ChatMessage {
   final String text;
   final bool fromUser;
+  final String? id;
+  final String? chatId;
 
-  const ChatMessage({required this.text, required this.fromUser});
+  const ChatMessage({
+    required this.text,
+    required this.fromUser,
+    this.id,
+    this.chatId,
+  });
+}
+
+class PendingAttachment {
+  final String name;
+  final String content;
+  final int sizeBytes;
+
+  const PendingAttachment({
+    required this.name,
+    required this.content,
+    required this.sizeBytes,
+  });
 }
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -44,6 +64,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
   bool _isListening = false;
   bool _speechAvailable = false;
   bool _isAttaching = false;
+  bool _overthink = false;
+
+  ApiCancelToken? _generationToken;
+  final List<PendingAttachment> _pendingAttachments = [];
 
   String? _activeChatId;
 
@@ -174,7 +198,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
       setState(() {
         _messages.addAll(
           list.map(
-            (m) => ChatMessage(text: m.content, fromUser: m.role == 'user'),
+            (m) => ChatMessage(
+              text: m.content,
+              fromUser: m.role == 'user',
+              id: m.id,
+              chatId: m.chatId,
+            ),
           ),
         );
       });
@@ -248,79 +277,128 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     );
   }
 
+  Future<void> _openAddMenu() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (sheetContext, setSheetState) {
+            return SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ListTile(
+                    leading: const Icon(LucideIcons.paperclip),
+                    title: const Text('Añadir archivos'),
+                    subtitle: const Text(
+                      'Vista previa local hasta enviar el mensaje',
+                    ),
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      _attachFile();
+                    },
+                  ),
+                  ListTile(
+                    leading: Icon(
+                      _modeId == 'coder'
+                          ? LucideIcons.messageCircle
+                          : LucideIcons.code2,
+                    ),
+                    title: Text(
+                      _modeId == 'coder'
+                          ? 'Cambiar a chat'
+                          : 'Cambiar a coder',
+                    ),
+                    trailing: const Icon(
+                      LucideIcons.chevronRight,
+                    ),
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      _toggleMode(
+                        _modeId == 'coder' ? 'chat' : 'coder',
+                      );
+                    },
+                  ),
+                  SwitchListTile(
+                    secondary: const Icon(LucideIcons.brain),
+                    title: const Text('Sobrepensar'),
+                    subtitle: const Text(
+                      'Revisión más profunda antes de responder',
+                    ),
+                    value: _overthink,
+                    onChanged: (value) {
+                      setState(() => _overthink = value);
+                      setSheetState(() {});
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   Future<void> _attachFile() async {
     if (_isAttaching) return;
 
     final picked = await FilePicker.pickFile();
-
-    if (picked == null || picked.path == null) {
-      return;
-    }
+    if (picked == null || picked.path == null) return;
 
     setState(() => _isAttaching = true);
 
     try {
-      final client = Supabase.instance.client;
-      final userId = client.auth.currentUser?.id;
+      const textExtensions = <String>{
+        'txt', 'md', 'dart', 'py', 'js', 'jsx', 'ts', 'tsx',
+        'json', 'yaml', 'yml', 'html', 'css', 'xml', 'sql',
+        'sh', 'kt', 'java', 'go', 'rs', 'swift', 'env',
+        'toml', 'gradle', 'properties', 'c', 'h', 'cpp', 'php',
+      };
 
-      if (userId == null) {
-        throw Exception('Sesión no encontrada');
+      final extension = (picked.extension ?? '').toLowerCase();
+      if (!textExtensions.contains(extension)) {
+        throw Exception(
+          'Por ahora la vista previa admite archivos de texto y código.',
+        );
       }
 
       final file = File(picked.path!);
-      final sizeBytes = await file.length();
+      final size = await file.length();
 
-      const maxFileBytes = 20 * 1024 * 1024;
-
-      if (sizeBytes <= 0) {
-        throw Exception('Archivo vacío');
+      if (size <= 0) {
+        throw Exception('El archivo está vacío.');
       }
 
-      if (sizeBytes > maxFileBytes) {
-        throw Exception('Archivo demasiado grande');
+      if (size > 1024 * 1024) {
+        throw Exception(
+          'Por ahora cada archivo de texto debe pesar máximo 1 MB.',
+        );
       }
 
-      final originalName = picked.name.trim();
-
-      final safeName = originalName
-          .replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_')
-          .replaceAll(RegExp(r'_+'), '_');
-
-      if (safeName.isEmpty ||
-          safeName == '.' ||
-          safeName == '..' ||
-          safeName.contains('..')) {
-        throw Exception('Nombre de archivo inválido');
+      final content = await file.readAsString();
+      if (content.length > 100000) {
+        throw Exception('El contenido del archivo es demasiado largo.');
       }
 
-      final storagePath =
-          '$userId/${DateTime.now().microsecondsSinceEpoch}_$safeName';
+      if (!mounted) return;
 
-      await client.storage.from('artifacts').upload(storagePath, file);
-
-      final extension = picked.extension?.toLowerCase() ?? '';
-
-      await ApiClient.post('/artifacts', {
-        'title': safeName,
-        'kind': 'file',
-        'storagePath': storagePath,
-        'mimeType': extension,
-        'sizeBytes': sizeBytes,
-        'chatId': _activeChatId,
+      setState(() {
+        _pendingAttachments.add(
+          PendingAttachment(
+            name: picked.name,
+            content: content,
+            sizeBytes: size,
+          ),
+        );
       });
-
+    } catch (e) {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('"${picked.name}" se guardó en Artefactos')),
-      );
-    } catch (_) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No se pudo adjuntar el archivo. Inténtalo de nuevo.'),
-        ),
+        SnackBar(content: Text('$e')),
       );
     } finally {
       if (mounted) {
@@ -329,16 +407,53 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     }
   }
 
+  void _cancelGeneration() {
+    _generationToken?.cancel();
+  }
+
   Future<void> _sendMessage() async {
     final text = _messageController.text.trim();
+    final attachments =
+        List<PendingAttachment>.from(_pendingAttachments);
 
-    if (text.isEmpty || _isSending) return;
+    if ((text.isEmpty && attachments.isEmpty) || _isSending) {
+      return;
+    }
+
+    final visibleText = text.isEmpty
+        ? 'Revisa los archivos adjuntos.'
+        : text;
+
+    final attachmentContext = attachments.map((file) {
+      return '--- ${file.name} ---\n${file.content}';
+    }).join('\n\n');
+
+    var effectivePrompt = visibleText;
+    if (attachmentContext.isNotEmpty) {
+      effectivePrompt += '\n\nArchivos adjuntos:\n$attachmentContext';
+    }
+
+    if (effectivePrompt.length > 9900) {
+      effectivePrompt =
+          '${effectivePrompt.substring(0, 9900)}\n[Contenido truncado]';
+    }
+
+    final token = ApiCancelToken();
+    final userMessageIndex = _messages.length;
 
     setState(() {
-      _messages.add(ChatMessage(text: text, fromUser: true));
-
+      _messages.add(
+        ChatMessage(
+          text: attachments.isEmpty
+              ? visibleText
+              : '$visibleText\n\n${attachments.length} archivo(s) adjunto(s)',
+          fromUser: true,
+        ),
+      );
       _isSending = true;
+      _generationToken = token;
       _messageController.clear();
+      _pendingAttachments.clear();
     });
 
     _scrollToBottom();
@@ -348,13 +463,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
 
       if (chatId == null) {
         final createRes = await ApiClient.post('/chats', {
-          'title': text.length > 40 ? '${text.substring(0, 40)}...' : text,
+          'title': visibleText.length > 40
+              ? '${visibleText.substring(0, 40)}...'
+              : visibleText,
           'mode': _modeId,
         });
 
-        final createData = ApiClient.decode(createRes) as Map<String, dynamic>;
-
-        chatId = (createData['chat'] as Map<String, dynamic>)['id'] as String;
+        final createData =
+            ApiClient.decode(createRes) as Map<String, dynamic>;
+        final chat = Map<String, dynamic>.from(
+          createData['chat'] as Map,
+        );
+        chatId = '${chat['id']}';
 
         if (mounted) {
           setState(() {
@@ -364,52 +484,177 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
         }
       }
 
-      final response = await ApiClient.post('/ai/chat', {
-        'prompt': text,
-        'mode': _modeId,
-        'chatId': chatId,
-      });
+      if (token.isCancelled) {
+        throw const ApiRequestCancelled();
+      }
 
-      final data = ApiClient.decode(response) as Map<String, dynamic>;
+      final response = await ApiClient.postCancelable(
+        '/ai/chat',
+        {
+          'prompt': effectivePrompt,
+          'mode': _modeId,
+          'chatId': chatId,
+          'overthink': _overthink,
+        },
+        token,
+      );
+
+      final data =
+          ApiClient.decode(response) as Map<String, dynamic>;
       final chatResponse = ChatResponse.fromJson(data);
 
-      if (!mounted) return;
+      if (!mounted || token.isCancelled) return;
 
       setState(() {
+        if (userMessageIndex < _messages.length) {
+          final old = _messages[userMessageIndex];
+          _messages[userMessageIndex] = ChatMessage(
+            text: old.text,
+            fromUser: true,
+            id: data['userMessageId']?.toString(),
+            chatId: chatId,
+          );
+        }
+
         _messages.add(
-          ChatMessage(text: chatResponse.response, fromUser: false),
+          ChatMessage(
+            text: chatResponse.response,
+            fromUser: false,
+            id: data['assistantMessageId']?.toString(),
+            chatId: chatId,
+          ),
         );
 
-        if (chatResponse.chatTitle != null &&
-            chatResponse.chatTitle!.trim().isNotEmpty) {
+        if (chatResponse.chatTitle?.trim().isNotEmpty == true) {
           _chatRevision++;
         }
       });
+    } on ApiRequestCancelled {
+      // Cancelar no agrega una respuesta falsa ni un mensaje de error.
     } on ApiException catch (e) {
-      if (!mounted) return;
+      if (!mounted || token.isCancelled) return;
 
       setState(() {
         _messages.add(
-          ChatMessage(text: 'Error: ${e.message}', fromUser: false),
+          ChatMessage(
+            text: 'Error: ${e.message}',
+            fromUser: false,
+          ),
         );
       });
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || token.isCancelled) return;
 
       setState(() {
         _messages.add(
           const ChatMessage(
-            text: 'No se pudo contactar al servidor. Intenta de nuevo.',
+            text: 'No se pudo contactar al servidor. Inténtalo de nuevo.',
             fromUser: false,
           ),
         );
       });
     } finally {
       if (mounted) {
-        setState(() => _isSending = false);
+        setState(() {
+          _isSending = false;
+          if (identical(_generationToken, token)) {
+            _generationToken = null;
+          }
+        });
       }
 
       _scrollToBottom();
+    }
+  }
+
+  void _copyMessage(ChatMessage message) {
+    Clipboard.setData(ClipboardData(text: message.text));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Mensaje copiado')),
+    );
+  }
+
+  void _editMessage(ChatMessage message) {
+    setState(() {
+      _messageController.text = message.text;
+      _messageController.selection = TextSelection.fromPosition(
+        TextPosition(offset: _messageController.text.length),
+      );
+    });
+  }
+
+  Future<void> _sendFeedback(
+    ChatMessage message,
+    String kind,
+  ) async {
+    final messageId = message.id;
+    if (messageId == null || messageId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Este mensaje todavía no tiene un ID guardado.'),
+        ),
+      );
+      return;
+    }
+
+    String? note;
+    TextEditingController? noteController;
+
+    if (kind == 'negative') {
+      noteController = TextEditingController();
+
+      note = await showDialog<String>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('¿Qué falló en esta respuesta?'),
+          content: TextField(
+            controller: noteController,
+            minLines: 2,
+            maxLines: 5,
+            decoration: const InputDecoration(
+              hintText: 'Cuéntanos qué estuvo mal o qué faltó...',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(
+                  dialogContext,
+                  noteController!.text.trim(),
+                );
+              },
+              child: const Text('Enviar feedback'),
+            ),
+          ],
+        ),
+      );
+
+      noteController.dispose();
+      if (note == null) return;
+    }
+
+    try {
+      await ApiClient.post('/feedback', {
+        'messageId': messageId,
+        'kind': kind,
+        if (note != null && note.isNotEmpty) 'note': note,
+      });
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Feedback enviado')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo enviar feedback: $e')),
+      );
     }
   }
 
@@ -474,11 +719,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                         horizontal: 16,
                         vertical: 12,
                       ),
-                      itemCount: _messages.length,
+                      itemCount:
+                          _messages.length + (_isSending ? 1 : 0),
                       itemBuilder: (context, index) {
+                        if (_isSending && index == _messages.length) {
+                          return const _ThinkingMessage();
+                        }
+
                         final msg = _messages[index];
 
-                        return _MessageBubble(message: msg);
+                        return _MessageBubble(
+                          message: msg,
+                          onCopy: _copyMessage,
+                          onEdit: _editMessage,
+                          onFeedback: _sendFeedback,
+                        );
                       },
                     ),
             ),
@@ -489,10 +744,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
               isSending: _isSending,
               isListening: _isListening,
               isAttaching: _isAttaching,
+              overthink: _overthink,
+              pendingAttachments: _pendingAttachments,
+              onRemoveAttachment: (file) {
+                setState(() => _pendingAttachments.remove(file));
+              },
+              onToggleOverthink: () {
+                setState(() => _overthink = !_overthink);
+              },
+              onCancel: _cancelGeneration,
               onModeChange: _toggleMode,
               onSend: _sendMessage,
               onMicTap: _toggleListening,
-              onAttachTap: _attachFile,
+              onAttachTap: _openAddMenu,
             ),
           ],
         ),
@@ -651,44 +915,89 @@ class _EmptyState extends ConsumerWidget {
 }
 
 class _MessageBubble extends ConsumerWidget {
-  const _MessageBubble({required this.message});
+  const _MessageBubble({
+    required this.message,
+    required this.onCopy,
+    required this.onEdit,
+    required this.onFeedback,
+  });
 
   final ChatMessage message;
+  final ValueChanged<ChatMessage> onCopy;
+  final ValueChanged<ChatMessage> onEdit;
+  final void Function(ChatMessage, String) onFeedback;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = ref.watch(appPaletteProvider);
     final isUser = message.fromUser;
 
-    final bubbleColor = isUser
-        ? palette.accent.withValues(alpha: 0.14)
-        : palette.surface;
-
     return Align(
-      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+      alignment: isUser
+          ? Alignment.centerRight
+          : Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 5),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.78,
+          maxWidth: MediaQuery.of(context).size.width * 0.88,
         ),
-        decoration: BoxDecoration(
-          color: bubbleColor,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: isUser
-                ? palette.accent.withValues(alpha: 0.25)
-                : palette.border.withValues(alpha: 0.6),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 6,
-              offset: const Offset(0, 1),
+        child: Column(
+          crossAxisAlignment: isUser
+              ? CrossAxisAlignment.end
+              : CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
+              decoration: BoxDecoration(
+                color: isUser
+                    ? palette.accent.withValues(alpha: 0.14)
+                    : palette.surface,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: isUser
+                      ? palette.accent.withValues(alpha: 0.25)
+                      : palette.border.withValues(alpha: 0.6),
+                ),
+              ),
+              child: AiResponse(text: message.text),
+            ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (isUser)
+                  IconButton(
+                    tooltip: 'Editar mensaje',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => onEdit(message),
+                    icon: const Icon(LucideIcons.pencil, size: 17),
+                  ),
+                IconButton(
+                  tooltip: 'Copiar mensaje',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => onCopy(message),
+                  icon: const Icon(LucideIcons.copy, size: 17),
+                ),
+                if (!isUser) ...[
+                  IconButton(
+                    tooltip: 'Buena respuesta',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => onFeedback(message, 'positive'),
+                    icon: const Icon(LucideIcons.thumbsUp, size: 17),
+                  ),
+                  IconButton(
+                    tooltip: 'Reportar respuesta',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => onFeedback(message, 'negative'),
+                    icon: const Icon(LucideIcons.thumbsDown, size: 17),
+                  ),
+                ],
+              ],
             ),
           ],
         ),
-        child: AiResponse(text: message.text),
       ),
     );
   }
@@ -702,6 +1011,11 @@ class _BottomInputBar extends ConsumerWidget {
     required this.isSending,
     required this.isListening,
     required this.isAttaching,
+    required this.overthink,
+    required this.pendingAttachments,
+    required this.onRemoveAttachment,
+    required this.onToggleOverthink,
+    required this.onCancel,
     required this.onModeChange,
     required this.onSend,
     required this.onMicTap,
@@ -714,6 +1028,11 @@ class _BottomInputBar extends ConsumerWidget {
   final bool isSending;
   final bool isListening;
   final bool isAttaching;
+  final bool overthink;
+  final List<PendingAttachment> pendingAttachments;
+  final ValueChanged<PendingAttachment> onRemoveAttachment;
+  final VoidCallback onToggleOverthink;
+  final VoidCallback onCancel;
   final ValueChanged<String> onModeChange;
   final VoidCallback onSend;
   final VoidCallback onMicTap;
@@ -728,148 +1047,145 @@ class _BottomInputBar extends ConsumerWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (pendingAttachments.isNotEmpty)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Wrap(
+                spacing: 7,
+                runSpacing: 7,
+                children: pendingAttachments.map((file) {
+                  return InputChip(
+                    avatar: const Icon(
+                      LucideIcons.fileText,
+                      size: 16,
+                    ),
+                    label: Text(
+                      file.name,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    onDeleted: () => onRemoveAttachment(file),
+                  );
+                }).toList(),
+              ),
+            ),
+          if (overthink)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: ActionChip(
+                  avatar: const Icon(LucideIcons.brain, size: 16),
+                  label: const Text('Sobrepensar activado'),
+                  onPressed: onToggleOverthink,
+                ),
+              ),
+            ),
           if (availableModes.length > 1)
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
-                  children: availableModes
-                      .map(
-                        (m) => Padding(
-                          padding: const EdgeInsets.only(right: 6),
-                          child: _ModeChip(
-                            label: m.label,
-                            selected: modeId == m.id,
-                            onTap: () => onModeChange(m.id),
-                          ),
-                        ),
-                      )
-                      .toList(),
+                  children: availableModes.map((mode) {
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: _ModeChip(
+                        label: mode.label,
+                        selected: modeId == mode.id,
+                        onTap: () => onModeChange(mode.id),
+                      ),
+                    );
+                  }).toList(),
                 ),
               ),
             ),
           Container(
-            constraints: const BoxConstraints(minHeight: 52, maxHeight: 180),
+            constraints: const BoxConstraints(
+              minHeight: 52,
+              maxHeight: 180,
+            ),
             decoration: BoxDecoration(
               color: palette.surface,
               borderRadius: BorderRadius.circular(28),
-              border: Border.all(color: palette.border.withValues(alpha: 0.65)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 12,
-                  offset: const Offset(0, 3),
-                ),
-              ],
+              border: Border.all(
+                color: palette.border.withValues(alpha: 0.65),
+              ),
             ),
             child: Row(
               children: [
                 Padding(
                   padding: const EdgeInsets.only(left: 6),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: isAttaching ? null : onAttachTap,
-                      onLongPress: onMicTap,
-                      borderRadius: BorderRadius.circular(22),
-                      child: Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: palette.textPrimary.withValues(alpha: 0.08),
-                          shape: BoxShape.circle,
-                        ),
-                        child: isAttaching
-                            ? Padding(
-                                padding: const EdgeInsets.all(10),
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: palette.textSecondary,
-                                ),
-                              )
-                            : Icon(
-                                isListening
-                                    ? Icons.mic_rounded
-                                    : Icons.add_rounded,
-                                color: isListening
-                                    ? palette.accent
-                                    : palette.textPrimary.withValues(
-                                        alpha: 0.85,
-                                      ),
-                                size: 22,
-                              ),
-                      ),
-                    ),
+                  child: IconButton(
+                    tooltip: 'Más herramientas',
+                    onPressed: isAttaching ? null : onAttachTap,
+                    icon: isAttaching
+                        ? const SizedBox(
+                            width: 19,
+                            height: 19,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Icon(LucideIcons.plus),
                   ),
                 ),
                 Expanded(
                   child: TextField(
                     controller: controller,
+                    enabled: !isSending,
                     minLines: 1,
                     maxLines: 6,
                     keyboardType: TextInputType.multiline,
                     textInputAction: TextInputAction.newline,
                     cursorColor: palette.accent,
-                    cursorWidth: 2,
-                    cursorRadius: const Radius.circular(2),
                     style: TextStyle(
                       color: palette.textPrimary,
                       fontSize: 15,
                       height: 1.45,
-                      fontWeight: FontWeight.w400,
                     ),
                     decoration: InputDecoration(
                       hintText: context.l10n.askSomething,
                       hintStyle: TextStyle(
                         color: palette.textSecondary.withValues(alpha: 0.72),
-                        fontSize: 15,
-                        height: 1.45,
                       ),
-                      filled: false,
-                      fillColor: Colors.transparent,
-                      hoverColor: Colors.transparent,
-                      focusColor: Colors.transparent,
                       border: InputBorder.none,
                       enabledBorder: InputBorder.none,
                       focusedBorder: InputBorder.none,
                       disabledBorder: InputBorder.none,
-                      errorBorder: InputBorder.none,
-                      focusedErrorBorder: InputBorder.none,
                       isCollapsed: true,
                       contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
+                        horizontal: 8,
+                        vertical: 14,
                       ),
                     ),
                   ),
                 ),
+                IconButton(
+                  tooltip: isListening
+                      ? 'Detener dictado'
+                      : 'Dictar mensaje',
+                  onPressed: onMicTap,
+                  icon: Icon(
+                    isListening
+                        ? LucideIcons.micOff
+                        : LucideIcons.mic,
+                    color: isListening
+                        ? palette.accent
+                        : palette.textPrimary,
+                  ),
+                ),
                 Padding(
                   padding: const EdgeInsets.only(right: 6),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: isSending ? null : onSend,
-                      borderRadius: BorderRadius.circular(22),
-                      child: SizedBox(
-                        width: 40,
-                        height: 40,
-                        child: isSending
-                            ? Padding(
-                                padding: const EdgeInsets.all(10),
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: palette.textPrimary,
-                                ),
-                              )
-                            : Icon(
-                                Icons.send_rounded,
-                                color: palette.textPrimary.withValues(
-                                  alpha: 0.75,
-                                ),
-                                size: 22,
-                              ),
-                      ),
+                  child: IconButton.filled(
+                    tooltip: isSending
+                        ? 'Detener generación'
+                        : 'Enviar mensaje',
+                    onPressed: isSending ? onCancel : onSend,
+                    icon: Icon(
+                      isSending
+                          ? LucideIcons.square
+                          : LucideIcons.arrowUp,
+                      size: 20,
                     ),
                   ),
                 ),
@@ -878,6 +1194,63 @@ class _BottomInputBar extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ThinkingMessage extends StatefulWidget {
+  const _ThinkingMessage();
+
+  @override
+  State<_ThinkingMessage> createState() => _ThinkingMessageState();
+}
+
+class _ThinkingMessageState extends State<_ThinkingMessage>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller =
+      AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        return Align(
+          alignment: Alignment.centerLeft,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 12, 18, 16),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: List.generate(3, (index) {
+                final phase = (_controller.value * 3 - index).abs();
+                final opacity = (1 - phase).clamp(0.25, 1.0);
+
+                return Opacity(
+                  opacity: opacity,
+                  child: Container(
+                    width: 7,
+                    height: 7,
+                    margin: const EdgeInsets.symmetric(horizontal: 3),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.onSurface,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
+        );
+      },
     );
   }
 }

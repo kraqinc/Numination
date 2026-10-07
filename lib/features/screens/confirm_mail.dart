@@ -146,7 +146,7 @@ class _ConfirmMailScreenState
     try {
       await Supabase.instance.client.auth.resetPasswordForEmail(
         widget.email,
-        redirectTo: Env.authRedirectUrl,
+        redirectTo: '${Env.authRedirectUrl}?flow=recovery',
       );
       if (!mounted) return;
       setState(() {

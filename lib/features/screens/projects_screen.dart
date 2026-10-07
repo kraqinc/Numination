@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_morphing_icons/flutter_morphing_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_flutter/lucide_flutter.dart';
 
 import '../../core/api.dart';
+import 'coder_chat_screen.dart';
 import '../../core/i18n.dart';
 import '../../core/models.dart';
 import '../../core/theme.dart';
@@ -216,6 +218,16 @@ class _ProjectsScreenState extends ConsumerState<ProjectsScreen> {
                     palette: palette,
                     onToggle: () => _toggleProject(project.id),
                     onOpenChat: widget.onOpenChat,
+                    onOpenCoder: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => CoderChatScreen(
+                            projectId: project.id,
+                            projectName: project.name,
+                          ),
+                        ),
+                      );
+                    },
                   );
                 },
               ),
@@ -232,6 +244,7 @@ class _ProjectCard extends StatelessWidget {
     required this.palette,
     required this.onToggle,
     this.onOpenChat,
+    this.onOpenCoder,
   });
 
   final Project project;
@@ -240,6 +253,7 @@ class _ProjectCard extends StatelessWidget {
   final AppPalette palette;
   final VoidCallback onToggle;
   final ValueChanged<ChatSession>? onOpenChat;
+  final VoidCallback? onOpenCoder;
 
   @override
   Widget build(BuildContext context) {
@@ -315,7 +329,13 @@ class _ProjectCard extends StatelessWidget {
                           ],
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 4),
+                      IconButton(
+                        tooltip: 'Abrir en Coder',
+                        onPressed: onOpenCoder,
+                        icon: const Icon(LucideIcons.code2),
+                      ),
+                      const SizedBox(width: 4),
                       MorphingIcon.icons(
                         icons: const [
                           NumiIcons.keyboard_arrow_down_rounded,

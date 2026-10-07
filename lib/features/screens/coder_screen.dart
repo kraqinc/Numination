@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api.dart';
 import '../../core/i18n.dart';
 import '../../core/theme_controller.dart';
-import 'projects_screen.dart';
+import 'coder_chat_screen.dart';
 import 'package:numination/core/numi_icons.dart';
 
 class CoderScreen extends ConsumerStatefulWidget {
@@ -36,12 +36,26 @@ class _CoderScreenState extends ConsumerState<CoderScreen> {
     });
 
     try {
-      await ApiClient.post('/projects', {'name': name});
+      final response = await ApiClient.post(
+        '/projects',
+        {'name': name},
+      );
+
+      final data =
+          ApiClient.decode(response) as Map<String, dynamic>;
+      final project = Map<String, dynamic>.from(
+        data['project'] as Map,
+      );
 
       if (!mounted) return;
 
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const ProjectsScreen()),
+        MaterialPageRoute<void>(
+          builder: (_) => CoderChatScreen(
+            projectId: '${project['id']}',
+            projectName: '${project['name'] ?? name}',
+          ),
+        ),
       );
     } on ApiException catch (e) {
       if (!mounted) return;
