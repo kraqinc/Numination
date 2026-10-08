@@ -1,0 +1,166 @@
+import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
+import 'package:lucide_flutter/lucide_flutter.dart';
+
+class VoiceInputButton extends StatefulWidget {
+  const VoiceInputButton({
+    super.key,
+    required this.isListening,
+    required this.onTap,
+    required this.color,
+    this.enabled = true,
+  });
+
+  final bool isListening;
+  final VoidCallback onTap;
+  final Color color;
+  final bool enabled;
+
+  @override
+  State<VoiceInputButton> createState() => _VoiceInputButtonState();
+}
+
+class _VoiceInputButtonState extends State<VoiceInputButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller =
+      AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1500),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+
+    if (widget.isListening) {
+      _controller.repeat();
+    }
+  }
+
+  @override
+  void didUpdateWidget(
+    covariant VoiceInputButton oldWidget,
+  ) {
+    super.didUpdateWidget(oldWidget);
+
+    if (widget.isListening && !oldWidget.isListening) {
+      _controller.repeat();
+    } else if (!widget.isListening &&
+        oldWidget.isListening) {
+      _controller.stop();
+      _controller.value = 0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final active =
+        widget.isListening && widget.enabled;
+
+    return SizedBox(
+      width: 52,
+      height: 52,
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) {
+          final wave =
+              1 +
+              math.sin(
+                    _controller.value *
+                        math.pi *
+                        2,
+                  ) *
+                  .08;
+
+          final wave2 =
+              1 +
+              math.sin(
+                    (_controller.value *
+                            math.pi *
+                            2) +
+                        math.pi,
+                  ) *
+                  .06;
+
+          return Stack(
+            alignment: Alignment.center,
+            children: [
+              if (active)
+                Transform.scale(
+                  scale: wave,
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: widget.color
+                            .withValues(alpha: .22),
+                        width: 1.5,
+                      ),
+                    ),
+                  ),
+                ),
+
+              if (active)
+                Transform.scale(
+                  scale: wave2,
+                  child: Container(
+                    width: 35,
+                    height: 35,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: widget.color
+                          .withValues(alpha: .08),
+                    ),
+                  ),
+                ),
+
+              AnimatedContainer(
+                duration:
+                    const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
+                width: active ? 42 : 38,
+                height: active ? 42 : 38,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: active
+                      ? widget.color
+                          .withValues(alpha: .14)
+                      : Colors.transparent,
+                  border: Border.all(
+                    color: active
+                        ? widget.color
+                            .withValues(alpha: .34)
+                        : Colors.transparent,
+                  ),
+                ),
+              ),
+
+              IconButton(
+                tooltip: active
+                    ? 'Detener y transcribir'
+                    : 'Hablar',
+                onPressed: widget.enabled
+                    ? widget.onTap
+                    : null,
+                splashRadius: 24,
+                icon: const Icon(
+                  LucideIcons.mic,
+                  size: 21,
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
