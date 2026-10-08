@@ -11,6 +11,7 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../../core/api.dart';
 import '../../core/models.dart';
 import '../../core/theme_controller.dart';
+import '../widgets/coder_preview_screen.dart';
 
 class CoderChatScreen extends ConsumerStatefulWidget {
   const CoderChatScreen({
@@ -61,6 +62,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
   String? _chatId;
   String? _errorText;
   String? _savedZipPath;
+  String? _previewUrl;
 
   bool _loadingFiles = true;
   bool _isSending = false;
@@ -69,6 +71,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
   bool _showFiles = false;
   bool _overthink = false;
   bool _hasChanges = false;
+  bool _previewReady = false;
 
   ApiCancelToken? _generationToken;
 
@@ -93,15 +96,21 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
     _speechAvailable = await _speech.initialize(
       onStatus: (status) {
         if (status == 'done' || status == 'notListening') {
-          if (mounted) setState(() => _isListening = false);
+          if (mounted) {
+            setState(() => _isListening = false);
+          }
         }
       },
       onError: (_) {
-        if (mounted) setState(() => _isListening = false);
+        if (mounted) {
+          setState(() => _isListening = false);
+        }
       },
     );
 
-    if (mounted) setState(() {});
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   Future<void> _toggleListening() async {
@@ -112,7 +121,11 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
 
     if (_isListening) {
       await _speech.stop();
-      if (mounted) setState(() => _isListening = false);
+
+      if (mounted) {
+        setState(() => _isListening = false);
+      }
+
       return;
     }
 
@@ -145,6 +158,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
       final response = await ApiClient.get(
         '/projects/${Uri.encodeComponent(widget.projectId)}/files',
       );
+
       final data = ApiClient.decode(response) as Map<String, dynamic>;
 
       final files = (data['files'] as List? ?? [])
@@ -170,6 +184,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
 
   Future<void> _attachFile() async {
     final picked = await FilePicker.pickFile();
+
     if (picked == null || picked.path == null) return;
 
     try {
@@ -237,6 +252,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
       });
     } catch (e) {
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
     }
   }
@@ -302,7 +318,9 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
     final text = _messageController.text.trim();
     final attachments = List<_CoderAttachment>.from(_pendingAttachments);
 
-    if ((text.isEmpty && attachments.isEmpty) || _isSending) return;
+    if ((text.isEmpty && attachments.isEmpty) || _isSending) {
+      return;
+    }
 
     final prompt = text.isEmpty
         ? 'Revisa los archivos adjuntos y dime qué cambios recomiendas.'
@@ -320,6 +338,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
           fromUser: true,
         ),
       );
+
       _pendingAttachments.clear();
       _messageController.clear();
       _isSending = true;
@@ -340,7 +359,9 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
         });
 
         final data = ApiClient.decode(response) as Map<String, dynamic>;
+
         final chat = Map<String, dynamic>.from(data['chat'] as Map);
+
         _chatId = '${chat['id']}';
       }
 
@@ -365,9 +386,19 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
       final changed = data['changedFiles'] as List? ?? [];
       final deleted = data['deletedFiles'] as List? ?? [];
 
+      final previewReady = data['previewReady'] == true;
+      final previewUrl = data['previewUrl']?.toString().trim();
+
       setState(() {
+        _previewReady = previewReady;
+        _previewUrl =
+            previewReady && previewUrl != null && previewUrl.isNotEmpty
+            ? previewUrl
+            : null;
+
         if (userIndex < _messages.length) {
           final old = _messages[userIndex];
+
           _messages[userIndex] = _CoderMessage(
             text: old.text,
             fromUser: true,
@@ -412,6 +443,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
       if (mounted) {
         setState(() {
           _isSending = false;
+
           if (identical(_generationToken, token)) {
             _generationToken = null;
           }
@@ -428,10 +460,16 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
         '/projects/${Uri.encodeComponent(widget.projectId)}/undo',
         {},
       );
+
       ApiClient.decode(response);
 
       if (!mounted) return;
-      setState(() => _hasChanges = false);
+
+      setState(() {
+        _hasChanges = false;
+        _previewReady = false;
+        _previewUrl = null;
+      });
 
       ScaffoldMessenger.of(
         context,
@@ -440,11 +478,13 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
       await _loadFiles();
     } on ApiException catch (e) {
       if (!mounted) return;
+
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No se pudieron revertir los cambios')),
       );
@@ -463,15 +503,18 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
       }
 
       final directory = await getApplicationDocumentsDirectory();
+
       final safeName = widget.projectName.replaceAll(
         RegExp(r'[^A-Za-z0-9._-]'),
         '-',
       );
 
       final file = File('${directory.path}/$safeName.zip');
+
       await file.writeAsBytes(response.bodyBytes, flush: true);
 
       if (!mounted) return;
+
       setState(() => _savedZipPath = file.path);
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -482,11 +525,13 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
       );
     } on ApiException catch (e) {
       if (!mounted) return;
+
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No se pudo descargar el proyecto')),
       );
@@ -561,6 +606,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
           content: Text('Este mensaje todavía no tiene un ID guardado.'),
         ),
       );
+
       return;
     }
 
@@ -593,6 +639,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
           ],
         ),
       );
+
       if (note == null) {
         controller.dispose();
         return;
@@ -609,11 +656,13 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
       });
 
       if (!mounted) return;
+
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Feedback enviado')));
     } catch (e) {
       if (!mounted) return;
+
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('No se pudo enviar feedback: $e')));
@@ -631,9 +680,27 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
 
   void _copyMessage(_CoderMessage message) {
     Clipboard.setData(ClipboardData(text: message.text));
+
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('Mensaje copiado')));
+  }
+
+  void _openPreview() {
+    final url = _previewUrl;
+
+    if (!_previewReady || url == null || url.isEmpty) {
+      return;
+    }
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CoderPreviewScreen(
+          previewUrl: url,
+          projectName: widget.projectName,
+        ),
+      ),
+    );
   }
 
   void _scrollToBottom() {
@@ -779,8 +846,18 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
               child: ListView.builder(
                 controller: _scrollController,
                 padding: const EdgeInsets.all(14),
-                itemCount: _messages.length + (_isSending ? 1 : 0),
+                itemCount:
+                    _messages.length +
+                    (_isSending ? 1 : 0) +
+                    (!_isSending ? 1 : 0),
                 itemBuilder: (context, index) {
+                  if (!_isSending && index == _messages.length) {
+                    return CoderPreviewCard(
+                      ready: _previewReady,
+                      onOpen: _openPreview,
+                    );
+                  }
+
                   if (_isSending && index == _messages.length) {
                     return const _CoderThinking();
                   }
@@ -855,7 +932,9 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
                           border: InputBorder.none,
                         ),
                         onSubmitted: (_) {
-                          if (!_isSending) _sendMessage();
+                          if (!_isSending) {
+                            _sendMessage();
+                          }
                         },
                       ),
                     ),
@@ -1015,6 +1094,7 @@ class _CoderThinkingState extends State<_CoderThinking>
               mainAxisSize: MainAxisSize.min,
               children: List.generate(3, (index) {
                 final phase = (_controller.value * 3 - index).abs();
+
                 return Opacity(
                   opacity: (1 - phase).clamp(.25, 1.0),
                   child: Container(
