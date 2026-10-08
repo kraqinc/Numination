@@ -8,8 +8,7 @@ class ResetPasswordScreen extends StatefulWidget {
   const ResetPasswordScreen({super.key});
 
   @override
-  State<ResetPasswordScreen> createState() =>
-      _ResetPasswordScreenState();
+  State<ResetPasswordScreen> createState() => _ResetPasswordScreenState();
 }
 
 class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
@@ -63,9 +62,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
     try {
       // Cambia de verdad la contraseña del usuario en Supabase Auth.
-      await auth.updateUser(
-        UserAttributes(password: password),
-      );
+      await auth.updateUser(UserAttributes(password: password));
 
       if (!mounted) return;
 
@@ -97,9 +94,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     if (!mounted) return;
 
     Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
-      MaterialPageRoute<void>(
-        builder: (_) => const AuthScreen(),
-      ),
+      MaterialPageRoute<void>(builder: (_) => const AuthScreen()),
       (_) => false,
     );
   }
@@ -125,9 +120,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
         suffixIcon: IconButton(
           onPressed: _busy ? null : onToggle,
           icon: Icon(
-            obscure
-                ? Icons.visibility_outlined
-                : Icons.visibility_off_outlined,
+            obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
           ),
         ),
       ),
@@ -137,9 +130,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Restablecer contraseña'),
-      ),
+      appBar: AppBar(title: const Text('Restablecer contraseña')),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -196,9 +187,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                       const SizedBox(height: 14),
                       Text(
                         _error!,
-                        style: const TextStyle(
-                          color: Colors.redAccent,
-                        ),
+                        style: const TextStyle(color: Colors.redAccent),
                       ),
                     ],
                   ] else if (_error != null) ...[
@@ -215,15 +204,13 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                       onPressed: _busy
                           ? null
                           : _completed
-                              ? _returnToLogin
-                              : _savePassword,
+                          ? _returnToLogin
+                          : _savePassword,
                       child: _busy
                           ? const SizedBox(
                               width: 22,
                               height: 22,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                              ),
+                              child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : Text(
                               _completed

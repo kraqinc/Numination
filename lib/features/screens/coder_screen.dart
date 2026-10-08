@@ -36,16 +36,10 @@ class _CoderScreenState extends ConsumerState<CoderScreen> {
     });
 
     try {
-      final response = await ApiClient.post(
-        '/projects',
-        {'name': name},
-      );
+      final response = await ApiClient.post('/projects', {'name': name});
 
-      final data =
-          ApiClient.decode(response) as Map<String, dynamic>;
-      final project = Map<String, dynamic>.from(
-        data['project'] as Map,
-      );
+      final data = ApiClient.decode(response) as Map<String, dynamic>;
+      final project = Map<String, dynamic>.from(data['project'] as Map);
 
       if (!mounted) return;
 

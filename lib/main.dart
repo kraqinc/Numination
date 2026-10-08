@@ -15,8 +15,7 @@ Future<void> main() async {
 
   await dotenv.load(fileName: '.env');
 
-  if (Env.supabaseUrl.isEmpty ||
-      Env.supabasePublishableKey.isEmpty) {
+  if (Env.supabaseUrl.isEmpty || Env.supabasePublishableKey.isEmpty) {
     runApp(const ProviderScope(child: _MissingEnvApp()));
     return;
   }
@@ -46,9 +45,7 @@ Future<void> main() async {
   );
 
   if (Env.googleClientId.trim().isNotEmpty) {
-    await GoogleSignIn.instance.initialize(
-      serverClientId: Env.googleClientId,
-    );
+    await GoogleSignIn.instance.initialize(serverClientId: Env.googleClientId);
   }
 
   runApp(const ProviderScope(child: NuminationApp()));

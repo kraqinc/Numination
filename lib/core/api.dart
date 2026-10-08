@@ -65,33 +65,28 @@ class ApiClient {
 
   static void setToken(String? token) {
     final normalized = token?.trim();
-    _token = normalized == null || normalized.isEmpty
-        ? null
-        : normalized;
+    _token = normalized == null || normalized.isEmpty ? null : normalized;
   }
 
   static Map<String, String> get _headers => {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        if (_token != null) 'Authorization': 'Bearer $_token',
-      };
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    if (_token != null) 'Authorization': 'Bearer $_token',
+  };
 
   static Uri _uri(String path) {
     final base = Env.apiBaseUrl.trim();
 
     if (base.isEmpty ||
-        !(base.startsWith('http://') ||
-            base.startsWith('https://'))) {
+        !(base.startsWith('http://') || base.startsWith('https://'))) {
       throw const ApiException(
         -1,
         'API_BASE_URL no está configurado correctamente en .env.',
       );
     }
 
-    final normalizedBase =
-        base.replaceFirst(RegExp(r'/+$'), '');
-    final normalizedPath =
-        path.startsWith('/') ? path : '/$path';
+    final normalizedBase = base.replaceFirst(RegExp(r'/+$'), '');
+    final normalizedPath = path.startsWith('/') ? path : '/$path';
 
     return Uri.parse('$normalizedBase$normalizedPath');
   }
@@ -117,9 +112,7 @@ class ApiClient {
           throw const ApiRequestCancelled();
         }
 
-        return await request(client).timeout(
-          const Duration(seconds: 35),
-        );
+        return await request(client).timeout(const Duration(seconds: 35));
       } on ApiRequestCancelled {
         rethrow;
       } catch (error) {
@@ -156,18 +149,12 @@ class ApiClient {
 
   static Future<http.Response> get(String path) {
     return _send(
-      (client) => client.get(
-        _uri(path),
-        headers: _headers,
-      ),
+      (client) => client.get(_uri(path), headers: _headers),
       retryable: true,
     );
   }
 
-  static Future<http.Response> post(
-    String path, [
-    Map<String, dynamic>? body,
-  ]) {
+  static Future<http.Response> post(String path, [Map<String, dynamic>? body]) {
     return _send(
       (client) => client.post(
         _uri(path),
@@ -185,20 +172,14 @@ class ApiClient {
     ApiCancelToken token,
   ) {
     return _send(
-      (client) => client.post(
-        _uri(path),
-        headers: _headers,
-        body: jsonEncode(body),
-      ),
+      (client) =>
+          client.post(_uri(path), headers: _headers, body: jsonEncode(body)),
       retryable: false,
       cancelToken: token,
     );
   }
 
-  static Future<http.Response> put(
-    String path, [
-    Map<String, dynamic>? body,
-  ]) {
+  static Future<http.Response> put(String path, [Map<String, dynamic>? body]) {
     return _send(
       (client) => client.put(
         _uri(path),
@@ -225,10 +206,7 @@ class ApiClient {
 
   static Future<http.Response> delete(String path) {
     return _send(
-      (client) => client.delete(
-        _uri(path),
-        headers: _headers,
-      ),
+      (client) => client.delete(_uri(path), headers: _headers),
       retryable: false,
     );
   }
@@ -244,8 +222,7 @@ class ApiClient {
       data = <String, dynamic>{};
     }
 
-    if (response.statusCode < 200 ||
-        response.statusCode >= 300) {
+    if (response.statusCode < 200 || response.statusCode >= 300) {
       final message = data is Map
           ? '${data['error'] ?? data['message'] ?? 'Error del servidor'}'
           : 'Error ${response.statusCode}';

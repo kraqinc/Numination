@@ -55,8 +55,7 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
 
     if (password.length < 8) {
       setState(
-        () => _errorText =
-            'La contraseña debe tener al menos 8 caracteres',
+        () => _errorText = 'La contraseña debe tener al menos 8 caracteres',
       );
       return;
     }
@@ -76,18 +75,14 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
         email: email,
         password: password,
         emailRedirectTo: Env.authRedirectUrl,
-        data: const {
-          'numination_email_pending': true,
-        },
+        data: const {'numination_email_pending': true},
       );
 
       if (!mounted) return;
 
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute<void>(
-          builder: (_) => OpenMailScreen(
-            email: response.user?.email ?? email,
-          ),
+          builder: (_) => OpenMailScreen(email: response.user?.email ?? email),
         ),
         (route) => false,
       );
@@ -122,9 +117,7 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
             return SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 28),
               child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: constraints.maxHeight,
-                ),
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -252,8 +245,7 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _navy,
                           foregroundColor: Colors.white,
-                          disabledBackgroundColor:
-                              _navy.withValues(alpha: 0.7),
+                          disabledBackgroundColor: _navy.withValues(alpha: 0.7),
                           disabledForegroundColor: Colors.white,
                           elevation: 0,
                           shape: RoundedRectangleBorder(
@@ -289,14 +281,9 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
                             : () => Navigator.of(context).pop(),
                         child: const Text.rich(
                           TextSpan(
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: _muted,
-                            ),
+                            style: TextStyle(fontSize: 14, color: _muted),
                             children: [
-                              TextSpan(
-                                text: 'Already have an account? ',
-                              ),
+                              TextSpan(text: 'Already have an account? '),
                               TextSpan(
                                 text: 'Log in',
                                 style: TextStyle(
@@ -340,10 +327,7 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
       onSubmitted: onSubmitted,
       enabled: !_isLoading,
       autocorrect: false,
-      style: const TextStyle(
-        fontSize: 15,
-        color: _ink,
-      ),
+      style: const TextStyle(fontSize: 15, color: _ink),
       cursorColor: _navy,
       decoration: InputDecoration(
         hintText: hint,
@@ -353,15 +337,8 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
           fontWeight: FontWeight.w400,
         ),
         prefixIcon: Padding(
-          padding: const EdgeInsets.only(
-            left: 16,
-            right: 10,
-          ),
-          child: Icon(
-            prefixIcon,
-            size: 20,
-            color: _muted,
-          ),
+          padding: const EdgeInsets.only(left: 16, right: 10),
+          child: Icon(prefixIcon, size: 20, color: _muted),
         ),
         prefixIconConstraints: const BoxConstraints(
           minWidth: 46,
@@ -384,9 +361,7 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(28),
-          borderSide: const BorderSide(
-            color: Color(0xFF9AA7BC),
-          ),
+          borderSide: const BorderSide(color: Color(0xFF9AA7BC)),
         ),
         disabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(28),

@@ -13,10 +13,7 @@ import 'confirm_age_screen.dart';
 import 'home_screen.dart';
 
 class OpenMailScreen extends ConsumerStatefulWidget {
-  const OpenMailScreen({
-    super.key,
-    required this.email,
-  });
+  const OpenMailScreen({super.key, required this.email});
 
   final String email;
 
@@ -49,20 +46,18 @@ class _OpenMailScreenState extends ConsumerState<OpenMailScreen> {
   void initState() {
     super.initState();
 
-    _authSubscription =
-        Supabase.instance.client.auth.onAuthStateChange.listen(
-      (data) {
-        if (data.event == AuthChangeEvent.passwordRecovery) return;
+    _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((
+      data,
+    ) {
+      if (data.event == AuthChangeEvent.passwordRecovery) return;
 
-        final user = data.session?.user ??
-            Supabase.instance.client.auth.currentUser;
+      final user =
+          data.session?.user ?? Supabase.instance.client.auth.currentUser;
 
-        if (user?.emailConfirmedAt != null) {
-          _openPostConfirmation();
-        }
-      },
-      onError: (_, _) {},
-    );
+      if (user?.emailConfirmedAt != null) {
+        _openPostConfirmation();
+      }
+    }, onError: (_, _) {});
 
     _timer = Timer.periodic(
       const Duration(seconds: 3),
@@ -89,15 +84,13 @@ class _OpenMailScreenState extends ConsumerState<OpenMailScreen> {
 
     final Widget destination =
         authState is AuthAuthenticated &&
-                authState.ageConfirmed &&
-                !authState.bannedUnderage
-            ? const HomeScreen()
-            : const ConfirmAgeScreen();
+            authState.ageConfirmed &&
+            !authState.bannedUnderage
+        ? const HomeScreen()
+        : const ConfirmAgeScreen();
 
     Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
-      MaterialPageRoute<void>(
-        builder: (_) => destination,
-      ),
+      MaterialPageRoute<void>(builder: (_) => destination),
       (route) => false,
     );
   }
@@ -109,9 +102,7 @@ class _OpenMailScreenState extends ConsumerState<OpenMailScreen> {
     super.dispose();
   }
 
-  Future<void> _checkConfirmation({
-    bool silent = false,
-  }) async {
+  Future<void> _checkConfirmation({bool silent = false}) async {
     if (_isChecking) return;
 
     if (!silent) {
@@ -140,8 +131,7 @@ class _OpenMailScreenState extends ConsumerState<OpenMailScreen> {
 
       if (!silent && mounted) {
         setState(() {
-          _errorText =
-              'Todavía no detectamos la confirmación del correo.';
+          _errorText = 'Todavía no detectamos la confirmación del correo.';
         });
       }
     } on AuthException catch (e) {
@@ -154,8 +144,7 @@ class _OpenMailScreenState extends ConsumerState<OpenMailScreen> {
       if (!mounted || silent) return;
 
       setState(() {
-        _errorText =
-            'No se pudo comprobar el estado del correo.';
+        _errorText = 'No se pudo comprobar el estado del correo.';
       });
     } finally {
       if (!silent && mounted) {
@@ -179,8 +168,7 @@ class _OpenMailScreenState extends ConsumerState<OpenMailScreen> {
       bool opened = false;
 
       try {
-        final result =
-            await _gmailChannel.invokeMethod<bool>('openGmail');
+        final result = await _gmailChannel.invokeMethod<bool>('openGmail');
 
         opened = result == true;
       } on PlatformException {
@@ -190,16 +178,11 @@ class _OpenMailScreenState extends ConsumerState<OpenMailScreen> {
       if (!opened) {
         final uri = Uri(
           scheme: 'mailto',
-          queryParameters: {
-            'to': widget.email,
-          },
+          queryParameters: {'to': widget.email},
         );
 
         if (await canLaunchUrl(uri)) {
-          opened = await launchUrl(
-            uri,
-            mode: LaunchMode.externalApplication,
-          );
+          opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
         }
       }
 
@@ -244,8 +227,7 @@ class _OpenMailScreenState extends ConsumerState<OpenMailScreen> {
       if (!mounted) return;
 
       setState(() {
-        _successText =
-            'Te enviamos otro correo de confirmación.';
+        _successText = 'Te enviamos otro correo de confirmación.';
       });
     } on AuthException catch (e) {
       if (!mounted) return;
@@ -278,9 +260,7 @@ class _OpenMailScreenState extends ConsumerState<OpenMailScreen> {
     if (!mounted) return;
 
     Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
-      MaterialPageRoute<void>(
-        builder: (_) => const AuthScreen(),
-      ),
+      MaterialPageRoute<void>(builder: (_) => const AuthScreen()),
       (route) => false,
     );
   }
@@ -299,13 +279,9 @@ class _OpenMailScreenState extends ConsumerState<OpenMailScreen> {
           child: LayoutBuilder(
             builder: (context, constraints) {
               return SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 32,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 32),
                 child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    minHeight: constraints.maxHeight,
-                  ),
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -341,9 +317,7 @@ class _OpenMailScreenState extends ConsumerState<OpenMailScreen> {
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(22),
-                          border: Border.all(
-                            color: _line,
-                          ),
+                          border: Border.all(color: _line),
                         ),
                         child: Row(
                           children: [
@@ -352,8 +326,7 @@ class _OpenMailScreenState extends ConsumerState<OpenMailScreen> {
                               height: 48,
                               decoration: BoxDecoration(
                                 color: _bg,
-                                borderRadius:
-                                    BorderRadius.circular(16),
+                                borderRadius: BorderRadius.circular(16),
                               ),
                               child: const Icon(
                                 Icons.mail_outline_rounded,
@@ -364,29 +337,25 @@ class _OpenMailScreenState extends ConsumerState<OpenMailScreen> {
                             const SizedBox(width: 14),
                             Expanded(
                               child: Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   const Text(
                                     'Correo enviado a',
                                     style: TextStyle(
                                       fontSize: 12,
                                       color: _muted,
-                                      fontWeight:
-                                          FontWeight.w500,
+                                      fontWeight: FontWeight.w500,
                                     ),
                                   ),
                                   const SizedBox(height: 3),
                                   Text(
                                     widget.email,
                                     maxLines: 2,
-                                    overflow:
-                                        TextOverflow.ellipsis,
+                                    overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
                                       fontSize: 14,
                                       color: _ink,
-                                      fontWeight:
-                                          FontWeight.w600,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                 ],
@@ -411,48 +380,40 @@ class _OpenMailScreenState extends ConsumerState<OpenMailScreen> {
                         width: double.infinity,
                         height: 52,
                         child: ElevatedButton(
-                          onPressed:
-                              _isOpeningGmail || _isResending
-                                  ? null
-                                  : _openGmail,
+                          onPressed: _isOpeningGmail || _isResending
+                              ? null
+                              : _openGmail,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: _navy,
                             foregroundColor: Colors.white,
-                            disabledBackgroundColor:
-                                _navy.withValues(alpha: 0.65),
-                            disabledForegroundColor:
-                                Colors.white,
+                            disabledBackgroundColor: _navy.withValues(
+                              alpha: 0.65,
+                            ),
+                            disabledForegroundColor: Colors.white,
                             elevation: 0,
                             shape: RoundedRectangleBorder(
-                              borderRadius:
-                                  BorderRadius.circular(28),
+                              borderRadius: BorderRadius.circular(28),
                             ),
                           ),
                           child: _isOpeningGmail
                               ? const SizedBox(
                                   width: 21,
                                   height: 21,
-                                  child:
-                                      CircularProgressIndicator(
+                                  child: CircularProgressIndicator(
                                     strokeWidth: 2.3,
                                     color: Colors.white,
                                   ),
                                 )
                               : const Row(
-                                  mainAxisSize:
-                                      MainAxisSize.min,
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(
-                                      Icons.mail_rounded,
-                                      size: 19,
-                                    ),
+                                    Icon(Icons.mail_rounded, size: 19),
                                     SizedBox(width: 9),
                                     Text(
                                       'Abrir aplicación Gmail',
                                       style: TextStyle(
                                         fontSize: 15,
-                                        fontWeight:
-                                            FontWeight.w600,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
                                   ],
@@ -465,28 +426,21 @@ class _OpenMailScreenState extends ConsumerState<OpenMailScreen> {
                         height: 50,
                         child: OutlinedButton(
                           onPressed:
-                              _isChecking ||
-                                      _isOpeningGmail ||
-                                      _isResending
-                                  ? null
-                                  : () =>
-                                      _checkConfirmation(),
+                              _isChecking || _isOpeningGmail || _isResending
+                              ? null
+                              : () => _checkConfirmation(),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: _ink,
-                            side: const BorderSide(
-                              color: _line,
-                            ),
+                            side: const BorderSide(color: _line),
                             shape: RoundedRectangleBorder(
-                              borderRadius:
-                                  BorderRadius.circular(28),
+                              borderRadius: BorderRadius.circular(28),
                             ),
                           ),
                           child: _isChecking
                               ? const SizedBox(
                                   width: 20,
                                   height: 20,
-                                  child:
-                                      CircularProgressIndicator(
+                                  child: CircularProgressIndicator(
                                     strokeWidth: 2.2,
                                     color: _navy,
                                   ),
@@ -495,8 +449,7 @@ class _OpenMailScreenState extends ConsumerState<OpenMailScreen> {
                                   'Ya confirmé mi correo',
                                   style: TextStyle(
                                     fontSize: 15,
-                                    fontWeight:
-                                        FontWeight.w600,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
                         ),
@@ -511,8 +464,7 @@ class _OpenMailScreenState extends ConsumerState<OpenMailScreen> {
                           ),
                           decoration: BoxDecoration(
                             color: const Color(0xFFFDF0F0),
-                            borderRadius:
-                                BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(14),
                           ),
                           child: Text(
                             _errorText!,
@@ -535,8 +487,7 @@ class _OpenMailScreenState extends ConsumerState<OpenMailScreen> {
                           ),
                           decoration: BoxDecoration(
                             color: const Color(0xFFF1F5F3),
-                            borderRadius:
-                                BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(14),
                           ),
                           child: Text(
                             _successText!,
@@ -552,10 +503,9 @@ class _OpenMailScreenState extends ConsumerState<OpenMailScreen> {
                       ],
                       const SizedBox(height: 22),
                       GestureDetector(
-                        onTap:
-                            _isResending || _isOpeningGmail
-                                ? null
-                                : _resendEmail,
+                        onTap: _isResending || _isOpeningGmail
+                            ? null
+                            : _resendEmail,
                         child: Text(
                           _isResending
                               ? 'Enviando...'
@@ -564,25 +514,22 @@ class _OpenMailScreenState extends ConsumerState<OpenMailScreen> {
                             fontSize: 14,
                             color: _muted,
                             fontWeight: FontWeight.w500,
-                            decoration:
-                                TextDecoration.underline,
+                            decoration: TextDecoration.underline,
                           ),
                         ),
                       ),
                       const SizedBox(height: 18),
                       GestureDetector(
-                        onTap:
-                            _isOpeningGmail || _isResending
-                                ? null
-                                : _useAnotherAccount,
+                        onTap: _isOpeningGmail || _isResending
+                            ? null
+                            : _useAnotherAccount,
                         child: const Text(
                           'Usar otra cuenta',
                           style: TextStyle(
                             fontSize: 14,
                             color: _muted,
                             fontWeight: FontWeight.w500,
-                            decoration:
-                                TextDecoration.underline,
+                            decoration: TextDecoration.underline,
                           ),
                         ),
                       ),

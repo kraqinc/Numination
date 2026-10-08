@@ -48,30 +48,38 @@ class _ConfirmAgeScreenState extends ConsumerState<ConfirmAgeScreen> {
   void initState() {
     super.initState();
     final authState = ref.read(authControllerProvider);
-    _banned = isBannedUnderage(Supabase.instance.client.auth.currentUser) ||
+    _banned =
+        isBannedUnderage(Supabase.instance.client.auth.currentUser) ||
         (authState is AuthAuthenticated && authState.bannedUnderage);
   }
 
   Future<void> _onContinue() async {
     if (!_confirmed || _isLoading) return;
 
-    setState(() { _isLoading = true; _errorText = null; });
+    setState(() {
+      _isLoading = true;
+      _errorText = null;
+    });
 
     try {
       final session = Supabase.instance.client.auth.currentSession;
       if (session == null) {
-        throw const ApiException(401, 'Tu sesión expiró. Inicia sesión nuevamente.');
+        throw const ApiException(
+          401,
+          'Tu sesión expiró. Inicia sesión nuevamente.',
+        );
       }
       ApiClient.setToken(session.accessToken);
 
-      final response = await ApiClient.post('/auth/age', {'confirmed14Plus': true});
+      final response = await ApiClient.post('/auth/age', {
+        'confirmed14Plus': true,
+      });
       final data = ApiClient.decode(response);
       if (data is! Map<String, dynamic> || data['verified'] != true) {
         throw const ApiException(500, 'El backend no confirmó la edad.');
       }
 
-      final currentUser =
-          Supabase.instance.client.auth.currentUser;
+      final currentUser = Supabase.instance.client.auth.currentUser;
 
       if (currentUser != null) {
         final metadata = <String, dynamic>{
@@ -98,7 +106,9 @@ class _ConfirmAgeScreenState extends ConsumerState<ConfirmAgeScreen> {
     } on AuthException catch (e) {
       if (mounted) setState(() => _errorText = e.message);
     } catch (_) {
-      if (mounted) setState(() => _errorText = 'No se pudo guardar la confirmación');
+      if (mounted) {
+        setState(() => _errorText = 'No se pudo guardar la confirmación');
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -110,25 +120,49 @@ class _ConfirmAgeScreenState extends ConsumerState<ConfirmAgeScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Esta cuenta se bloqueará', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: _ink)),
+        title: const Text(
+          'Esta cuenta se bloqueará',
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            fontSize: 18,
+            color: _ink,
+          ),
+        ),
         content: const Text(
           'Numination es solo para mayores de 14 años. Si continúas, esta cuenta quedará baneada y no podrás entrar.',
           style: TextStyle(fontSize: 14, height: 1.4, color: _ink),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancelar', style: TextStyle(color: _muted))),
-          TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Bloquear cuenta', style: TextStyle(color: Color(0xFFC23B3B), fontWeight: FontWeight.w700))),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar', style: TextStyle(color: _muted)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text(
+              'Bloquear cuenta',
+              style: TextStyle(
+                color: Color(0xFFC23B3B),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
         ],
       ),
     );
     if (ok != true || _isLoading) return;
 
-    setState(() { _isLoading = true; _errorText = null; });
+    setState(() {
+      _isLoading = true;
+      _errorText = null;
+    });
     try {
       final session = Supabase.instance.client.auth.currentSession;
       if (session != null) {
         ApiClient.setToken(session.accessToken);
-        try { await ApiClient.post('/auth/age', {'confirmedUnder14': true}); } catch (_) {}
+        try {
+          await ApiClient.post('/auth/age', {'confirmedUnder14': true});
+        } catch (_) {}
       }
     } finally {
       await Supabase.instance.client.auth.signOut();

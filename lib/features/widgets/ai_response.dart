@@ -50,10 +50,7 @@ class AiResponse extends ConsumerWidget {
   List<_ResponsePart> _parseResponse(String source) {
     final result = <_ResponsePart>[];
 
-    final codeRegex = RegExp(
-      r'```([^\n`]*)\n?([\s\S]*?)```',
-      multiLine: true,
-    );
+    final codeRegex = RegExp(r'```([^\n`]*)\n?([\s\S]*?)```', multiLine: true);
 
     var cursor = 0;
 
@@ -198,16 +195,10 @@ class _ResponsePartView extends StatelessWidget {
   Widget build(BuildContext context) {
     switch (part.type) {
       case _ResponsePartType.text:
-        return _TextResponse(
-          text: part.content,
-          palette: palette,
-        );
+        return _TextResponse(text: part.content, palette: palette);
 
       case _ResponsePartType.math:
-        return _MathResponse(
-          expression: part.content,
-          palette: palette,
-        );
+        return _MathResponse(expression: part.content, palette: palette);
 
       case _ResponsePartType.code:
         return _CodeResponse(
@@ -221,10 +212,7 @@ class _ResponsePartView extends StatelessWidget {
 }
 
 class _TextResponse extends StatelessWidget {
-  const _TextResponse({
-    required this.text,
-    required this.palette,
-  });
+  const _TextResponse({required this.text, required this.palette});
 
   final String text;
   final AppPalette palette;
@@ -240,10 +228,7 @@ class _TextResponse extends StatelessWidget {
           if (line.trim().isNotEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 2),
-              child: _FormattedLine(
-                line: line,
-                palette: palette,
-              ),
+              child: _FormattedLine(line: line, palette: palette),
             ),
       ],
     );
@@ -251,10 +236,7 @@ class _TextResponse extends StatelessWidget {
 }
 
 class _FormattedLine extends StatelessWidget {
-  const _FormattedLine({
-    required this.line,
-    required this.palette,
-  });
+  const _FormattedLine({required this.line, required this.palette});
 
   final String line;
   final AppPalette palette;
@@ -297,14 +279,8 @@ class _FormattedLine extends StatelessWidget {
     }
 
     return Text.rich(
-      TextSpan(
-        children: _spans(line),
-      ),
-      style: TextStyle(
-        color: palette.textPrimary,
-        fontSize: 15,
-        height: 1.45,
-      ),
+      TextSpan(children: _spans(line)),
+      style: TextStyle(color: palette.textPrimary, fontSize: 15, height: 1.45),
     );
   }
 
@@ -317,11 +293,7 @@ class _FormattedLine extends StatelessWidget {
 
     for (final match in regex.allMatches(value)) {
       if (match.start > cursor) {
-        result.add(
-          TextSpan(
-            text: value.substring(cursor, match.start),
-          ),
-        );
+        result.add(TextSpan(text: value.substring(cursor, match.start)));
       }
 
       final token = match.group(0)!;
@@ -330,9 +302,7 @@ class _FormattedLine extends StatelessWidget {
         result.add(
           TextSpan(
             text: token.substring(2, token.length - 2),
-            style: const TextStyle(
-              fontWeight: FontWeight.w700,
-            ),
+            style: const TextStyle(fontWeight: FontWeight.w700),
           ),
         );
       } else {
@@ -341,10 +311,7 @@ class _FormattedLine extends StatelessWidget {
             alignment: PlaceholderAlignment.middle,
             child: Container(
               margin: const EdgeInsets.symmetric(horizontal: 2),
-              padding: const EdgeInsets.symmetric(
-                horizontal: 5,
-                vertical: 2,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
               decoration: BoxDecoration(
                 color: palette.surfaceAlt,
                 borderRadius: BorderRadius.circular(5),
@@ -366,11 +333,7 @@ class _FormattedLine extends StatelessWidget {
     }
 
     if (cursor < value.length) {
-      result.add(
-        TextSpan(
-          text: value.substring(cursor),
-        ),
-      );
+      result.add(TextSpan(text: value.substring(cursor)));
     }
 
     return result;
@@ -378,10 +341,7 @@ class _FormattedLine extends StatelessWidget {
 }
 
 class _MathResponse extends StatelessWidget {
-  const _MathResponse({
-    required this.expression,
-    required this.palette,
-  });
+  const _MathResponse({required this.expression, required this.palette});
 
   final String expression;
   final AppPalette palette;
@@ -390,26 +350,18 @@ class _MathResponse extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(
-        horizontal: 14,
-        vertical: 16,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
       decoration: BoxDecoration(
         color: palette.surfaceAlt,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: palette.border,
-        ),
+        border: Border.all(color: palette.border),
       ),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Math.tex(
           expression,
           mathStyle: MathStyle.display,
-          textStyle: TextStyle(
-            color: palette.textPrimary,
-            fontSize: 18,
-          ),
+          textStyle: TextStyle(color: palette.textPrimary, fontSize: 18),
           onErrorFallback: (error) {
             return Text(
               expression,
@@ -465,9 +417,7 @@ class _CodeResponse extends StatelessWidget {
       return SimpleIcons.javascript;
     }
 
-    if (value.contains('typescript') ||
-        value == 'ts' ||
-        value == 'tsx') {
+    if (value.contains('typescript') || value == 'ts' || value == 'tsx') {
       return SimpleIcons.typescript;
     }
 
@@ -490,9 +440,7 @@ class _CodeResponse extends StatelessWidget {
       return SimpleIcons.cplusplus;
     }
 
-    if (value.contains('c#') ||
-        value.contains('csharp') ||
-        value == 'cs') {
+    if (value.contains('c#') || value.contains('csharp') || value == 'cs') {
       return SimpleIcons.dotnet;
     }
 
@@ -674,9 +622,7 @@ class _CodeResponse extends StatelessWidget {
         value.contains('shell') ||
         value == 'sh' ||
         value == 'zsh') {
-      return value == 'zsh'
-          ? SimpleIcons.zsh
-          : SimpleIcons.gnubash;
+      return value == 'zsh' ? SimpleIcons.zsh : SimpleIcons.gnubash;
     }
 
     if (value == 'fish' || value.contains('fishshell')) {
@@ -727,8 +673,7 @@ class _CodeResponse extends StatelessWidget {
       return SimpleIcons.gradle;
     }
 
-    if (value.contains('springboot') ||
-        value.contains('spring-boot')) {
+    if (value.contains('springboot') || value.contains('spring-boot')) {
       return SimpleIcons.springboot;
     }
 
@@ -754,20 +699,13 @@ class _CodeResponse extends StatelessWidget {
       decoration: BoxDecoration(
         color: palette.surfaceAlt,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: palette.border,
-        ),
+        border: Border.all(color: palette.border),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(
-              12,
-              9,
-              8,
-              9,
-            ),
+            padding: const EdgeInsets.fromLTRB(12, 9, 8, 9),
             child: Row(
               children: [
                 Icon(
@@ -801,10 +739,7 @@ class _CodeResponse extends StatelessWidget {
               ],
             ),
           ),
-          Divider(
-            height: 1,
-            color: palette.border,
-          ),
+          Divider(height: 1, color: palette.border),
           Align(
             alignment: Alignment.centerLeft,
             child: SingleChildScrollView(

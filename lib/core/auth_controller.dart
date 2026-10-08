@@ -92,8 +92,7 @@ class AuthController extends Notifier<AuthState> {
           return;
         }
 
-        if (authState.event ==
-            supabase.AuthChangeEvent.passwordRecovery) {
+        if (authState.event == supabase.AuthChangeEvent.passwordRecovery) {
           _passwordRecoveryActive = true;
           _syncGeneration++;
           state = const AuthPasswordRecovery();
@@ -147,8 +146,7 @@ class AuthController extends Notifier<AuthState> {
     final generation = ++_syncGeneration;
 
     bool isCurrentRequest() =>
-        generation == _syncGeneration &&
-        client.auth.currentUser?.id == user.id;
+        generation == _syncGeneration && client.auth.currentUser?.id == user.id;
 
     void metadataFallback() {
       if (isCurrentRequest()) {
@@ -157,9 +155,9 @@ class AuthController extends Notifier<AuthState> {
     }
 
     try {
-      final response = await ApiClient.get('/auth/me').timeout(
-        const Duration(seconds: 12),
-      );
+      final response = await ApiClient.get(
+        '/auth/me',
+      ).timeout(const Duration(seconds: 12));
 
       final data = ApiClient.decode(response);
 
@@ -230,7 +228,6 @@ class AuthController extends Notifier<AuthState> {
   }
 }
 
-final authControllerProvider =
-    NotifierProvider<AuthController, AuthState>(
+final authControllerProvider = NotifierProvider<AuthController, AuthState>(
   AuthController.new,
 );

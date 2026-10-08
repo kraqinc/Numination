@@ -35,8 +35,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   }
 
   bool _isValidEmail(String email) {
-    return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
-        .hasMatch(email);
+    return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email);
   }
 
   Future<void> _onContinue() async {
@@ -58,11 +57,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       if (!mounted) return;
 
       await Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => ConfirmMailScreen(
-            email: email,
-          ),
-        ),
+        MaterialPageRoute(builder: (_) => ConfirmMailScreen(email: email)),
       );
     } finally {
       if (mounted) {
@@ -93,68 +88,48 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
       await googleSignIn.signOut();
 
-      final googleUser =
-          await googleSignIn.authenticate();
+      final googleUser = await googleSignIn.authenticate();
 
-      final googleAuth =
-          googleUser.authentication;
+      final googleAuth = googleUser.authentication;
 
       final idToken = googleAuth.idToken;
 
       if (idToken == null || idToken.isEmpty) {
-        throw StateError(
-          'Google no devolvió un ID token.',
-        );
+        throw StateError('Google no devolvió un ID token.');
       }
 
-      const scopes = <String>[
-        'email',
-        'profile',
-      ];
+      const scopes = <String>['email', 'profile'];
 
-      final authorization =
-          await googleUser.authorizationClient
-              .authorizeScopes(scopes);
+      final authorization = await googleUser.authorizationClient
+          .authorizeScopes(scopes);
 
-      final accessToken =
-          authorization.accessToken;
+      final accessToken = authorization.accessToken;
 
       if (accessToken.isEmpty) {
-        throw StateError(
-          'Google no devolvió un access token.',
-        );
+        throw StateError('Google no devolvió un access token.');
       }
 
-      final response =
-          await Supabase.instance.client.auth
-              .signInWithIdToken(
+      final response = await Supabase.instance.client.auth.signInWithIdToken(
         provider: OAuthProvider.google,
         idToken: idToken,
         accessToken: accessToken,
       );
 
-      final user =
-          response.user ??
-          Supabase.instance.client.auth.currentUser;
+      final user = response.user ?? Supabase.instance.client.auth.currentUser;
 
       if (user == null) {
-        throw StateError(
-          'Google autenticó, pero no se creó la sesión.',
-        );
+        throw StateError('Google autenticó, pero no se creó la sesión.');
       }
 
       if (!mounted) return;
 
-      await ref
-          .read(authControllerProvider.notifier)
-          .refresh();
+      await ref.read(authControllerProvider.notifier).refresh();
 
       if (!mounted) return;
     } on GoogleSignInException catch (e) {
       if (!mounted) return;
 
-      if (e.code ==
-          GoogleSignInExceptionCode.canceled) {
+      if (e.code == GoogleSignInExceptionCode.canceled) {
         setState(() {
           _errorText = null;
         });
@@ -162,9 +137,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       }
 
       setState(() {
-        _errorText =
-            e.description ??
-            'No se pudo iniciar sesión con Google';
+        _errorText = e.description ?? 'No se pudo iniciar sesión con Google';
       });
     } on AuthException catch (e) {
       if (!mounted) return;
@@ -176,9 +149,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       if (!mounted) return;
 
       setState(() {
-        _errorText = e
-            .toString()
-            .replaceFirst('Bad state: ', '');
+        _errorText = e.toString().replaceFirst('Bad state: ', '');
       });
     } finally {
       if (mounted) {
@@ -198,8 +169,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     });
 
     try {
-      await Supabase.instance.client.auth
-          .signInWithOAuth(
+      await Supabase.instance.client.auth.signInWithOAuth(
         OAuthProvider.github,
         redirectTo: Env.authRedirectUrl,
       );
@@ -213,8 +183,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       if (!mounted) return;
 
       setState(() {
-        _errorText =
-            'No se pudo iniciar sesión con GitHub';
+        _errorText = 'No se pudo iniciar sesión con GitHub';
       });
     } finally {
       if (mounted) {
@@ -233,17 +202,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         child: LayoutBuilder(
           builder: (context, constraints) {
             return SingleChildScrollView(
-              padding:
-                  const EdgeInsets.symmetric(
-                horizontal: 32,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 32),
               child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: constraints.maxHeight,
-                ),
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
                 child: Column(
-                  mainAxisAlignment:
-                      MainAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Text(
                       'Welcome to\nNumination.',
@@ -260,104 +223,55 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     const SizedBox(height: 44),
 
                     TextField(
-                      controller:
-                          _emailController,
-                      keyboardType:
-                          TextInputType.emailAddress,
+                      controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
                       autocorrect: false,
                       enabled: !_isLoading,
-                      textInputAction:
-                          TextInputAction.next,
-                      onSubmitted: (_) =>
-                          _onContinue(),
-                      style: const TextStyle(
-                        fontSize: 15,
-                        color: _ink,
-                      ),
-                      decoration:
-                          InputDecoration(
-                        hintText:
-                            'Correo electrónico',
-                        hintStyle:
-                            const TextStyle(
+                      textInputAction: TextInputAction.next,
+                      onSubmitted: (_) => _onContinue(),
+                      style: const TextStyle(fontSize: 15, color: _ink),
+                      decoration: InputDecoration(
+                        hintText: 'Correo electrónico',
+                        hintStyle: const TextStyle(
                           color: _muted,
                           fontSize: 15,
-                          fontWeight:
-                              FontWeight.w400,
+                          fontWeight: FontWeight.w400,
                         ),
-                        prefixIcon:
-                            const Padding(
-                          padding:
-                              EdgeInsets.only(
-                            left: 16,
-                            right: 8,
-                          ),
+                        prefixIcon: const Padding(
+                          padding: EdgeInsets.only(left: 16, right: 8),
                           child: Icon(
-                            Icons
-                                .mail_outline_rounded,
+                            Icons.mail_outline_rounded,
                             size: 20,
                             color: _muted,
                           ),
                         ),
-                        prefixIconConstraints:
-                            const BoxConstraints(
+                        prefixIconConstraints: const BoxConstraints(
                           minWidth: 44,
                           minHeight: 20,
                         ),
                         filled: true,
-                        fillColor:
-                            Colors.white,
-                        contentPadding:
-                            const EdgeInsets
-                                .symmetric(
+                        fillColor: Colors.white,
+                        contentPadding: const EdgeInsets.symmetric(
                           horizontal: 18,
                           vertical: 16,
                         ),
-                        border:
-                            OutlineInputBorder(
-                          borderRadius:
-                              BorderRadius.circular(
-                            28,
-                          ),
-                          borderSide:
-                              const BorderSide(
-                            color: _line,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(28),
+                          borderSide: const BorderSide(color: _line),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(28),
+                          borderSide: const BorderSide(color: _line),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(28),
+                          borderSide: const BorderSide(
+                            color: Color(0xFF9AA7BC),
                           ),
                         ),
-                        enabledBorder:
-                            OutlineInputBorder(
-                          borderRadius:
-                              BorderRadius.circular(
-                            28,
-                          ),
-                          borderSide:
-                              const BorderSide(
-                            color: _line,
-                          ),
-                        ),
-                        focusedBorder:
-                            OutlineInputBorder(
-                          borderRadius:
-                              BorderRadius.circular(
-                            28,
-                          ),
-                          borderSide:
-                              const BorderSide(
-                            color: Color(
-                              0xFF9AA7BC,
-                            ),
-                          ),
-                        ),
-                        disabledBorder:
-                            OutlineInputBorder(
-                          borderRadius:
-                              BorderRadius.circular(
-                            28,
-                          ),
-                          borderSide:
-                              const BorderSide(
-                            color: _line,
-                          ),
+                        disabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(28),
+                          borderSide: const BorderSide(color: _line),
                         ),
                       ),
                     ),
@@ -365,15 +279,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     if (_errorText != null) ...[
                       const SizedBox(height: 8),
                       Align(
-                        alignment:
-                            Alignment.centerLeft,
+                        alignment: Alignment.centerLeft,
                         child: Text(
                           _errorText!,
-                          style:
-                              const TextStyle(
-                            color: Color(
-                              0xFFC23B3B,
-                            ),
+                          style: const TextStyle(
+                            color: Color(0xFFC23B3B),
                             fontSize: 13,
                           ),
                         ),
@@ -383,74 +293,42 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     const SizedBox(height: 16),
 
                     SizedBox(
-                      width:
-                          double.infinity,
+                      width: double.infinity,
                       height: 50,
-                      child:
-                          ElevatedButton(
-                        onPressed:
-                            _isLoading
-                                ? null
-                                : _onContinue,
-                        style:
-                            ElevatedButton.styleFrom(
-                          backgroundColor:
-                              _navy,
-                          foregroundColor:
-                              Colors.white,
-                          disabledBackgroundColor:
-                              _navy.withValues(
-                            alpha: 0.7,
-                          ),
-                          disabledForegroundColor:
-                              Colors.white,
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : _onContinue,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _navy,
+                          foregroundColor: Colors.white,
+                          disabledBackgroundColor: _navy.withValues(alpha: 0.7),
+                          disabledForegroundColor: Colors.white,
                           elevation: 0,
-                          shape:
-                              RoundedRectangleBorder(
-                            borderRadius:
-                                BorderRadius.circular(
-                              28,
-                            ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(28),
                           ),
                         ),
                         child: _isLoading
                             ? const SizedBox(
                                 width: 20,
                                 height: 20,
-                                child:
-                                    CircularProgressIndicator(
-                                  strokeWidth:
-                                      2.4,
-                                  color:
-                                      Colors.white,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.4,
+                                  color: Colors.white,
                                 ),
                               )
                             : const Row(
-                                mainAxisSize:
-                                    MainAxisSize
-                                        .min,
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Text(
                                     'Continuar',
-                                    style:
-                                        TextStyle(
-                                      fontSize:
-                                          15,
-                                      fontWeight:
-                                          FontWeight
-                                              .w600,
-                                      letterSpacing:
-                                          0.1,
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: 0.1,
                                     ),
                                   ),
-                                  SizedBox(
-                                    width: 8,
-                                  ),
-                                  Icon(
-                                    NumiIcons
-                                        .arrow_right,
-                                    size: 18,
-                                  ),
+                                  SizedBox(width: 8),
+                                  Icon(NumiIcons.arrow_right, size: 18),
                                 ],
                               ),
                       ),
@@ -459,15 +337,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     const SizedBox(height: 40),
 
                     Row(
-                      mainAxisAlignment:
-                          MainAxisAlignment.center,
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         _OAuthIconButton(
                           tooltip: 'Google',
-                          isLoading:
-                              _isLoading,
-                          onTap:
-                              _onGoogleSignIn,
+                          isLoading: _isLoading,
+                          onTap: _onGoogleSignIn,
                           icon: Image.asset(
                             'assets/images/google.png',
                             width: 22,
@@ -477,10 +352,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                         const SizedBox(width: 12),
                         _OAuthIconButton(
                           tooltip: 'GitHub',
-                          isLoading:
-                              _isLoading,
-                          onTap:
-                              _onGithubSignIn,
+                          isLoading: _isLoading,
+                          onTap: _onGithubSignIn,
                           icon: Image.asset(
                             'assets/images/github.png',
                             width: 22,
@@ -496,35 +369,23 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       onTap: _isLoading
                           ? null
                           : () {
-                              Navigator.of(
-                                context,
-                              ).push(
+                              Navigator.of(context).push(
                                 MaterialPageRoute(
-                                  builder: (_) =>
-                                      const CreateAccountScreen(),
+                                  builder: (_) => const CreateAccountScreen(),
                                 ),
                               );
                             },
                       child: const Text.rich(
                         TextSpan(
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: _muted,
-                          ),
+                          style: TextStyle(fontSize: 14, color: _muted),
                           children: [
-                            TextSpan(
-                              text:
-                                  "Don't have an account? ",
-                            ),
+                            TextSpan(text: "Don't have an account? "),
                             TextSpan(
                               text: 'Sign up',
                               style: TextStyle(
                                 color: _ink,
-                                fontWeight:
-                                    FontWeight.w700,
-                                decoration:
-                                    TextDecoration
-                                        .underline,
+                                fontWeight: FontWeight.w700,
+                                decoration: TextDecoration.underline,
                               ),
                             ),
                           ],
@@ -544,8 +405,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   }
 }
 
-class _OAuthIconButton
-    extends StatelessWidget {
+class _OAuthIconButton extends StatelessWidget {
   const _OAuthIconButton({
     required this.icon,
     required this.onTap,
@@ -568,22 +428,14 @@ class _OAuthIconButton
         child: Material(
           color: Colors.white,
           elevation: 0,
-          shape:
-              RoundedRectangleBorder(
-            borderRadius:
-                BorderRadius.circular(14),
-            side: const BorderSide(
-              color: Color(0xFFE2E2E2),
-            ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+            side: const BorderSide(color: Color(0xFFE2E2E2)),
           ),
           child: InkWell(
-            onTap:
-                isLoading ? null : onTap,
-            borderRadius:
-                BorderRadius.circular(14),
-            child: Center(
-              child: icon,
-            ),
+            onTap: isLoading ? null : onTap,
+            borderRadius: BorderRadius.circular(14),
+            child: Center(child: icon),
           ),
         ),
       ),

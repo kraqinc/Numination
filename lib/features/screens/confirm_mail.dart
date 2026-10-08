@@ -10,20 +10,15 @@ import 'confirm_age_screen.dart';
 import 'home_screen.dart';
 
 class ConfirmMailScreen extends ConsumerStatefulWidget {
-  const ConfirmMailScreen({
-    super.key,
-    required this.email,
-  });
+  const ConfirmMailScreen({super.key, required this.email});
 
   final String email;
 
   @override
-  ConsumerState<ConfirmMailScreen> createState() =>
-      _ConfirmMailScreenState();
+  ConsumerState<ConfirmMailScreen> createState() => _ConfirmMailScreenState();
 }
 
-class _ConfirmMailScreenState
-    extends ConsumerState<ConfirmMailScreen> {
+class _ConfirmMailScreenState extends ConsumerState<ConfirmMailScreen> {
   final _passwordController = TextEditingController();
 
   bool _obscurePassword = true;
@@ -72,24 +67,22 @@ class _ConfirmMailScreenState
       final user = client.auth.currentUser;
 
       if (user == null) {
-        throw const AuthException(
-          'No se pudo crear la sesión.',
-        );
+        throw const AuthException('No se pudo crear la sesión.');
       }
 
       await ref.read(authControllerProvider.notifier).refresh();
       if (!mounted) return;
 
       final authState = ref.read(authControllerProvider);
-      final ageConfirmed = authState is AuthAuthenticated &&
+      final ageConfirmed =
+          authState is AuthAuthenticated &&
           authState.ageConfirmed &&
           !authState.bannedUnderage;
 
       Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
         MaterialPageRoute<void>(
-          builder: (_) => ageConfirmed
-              ? const HomeScreen()
-              : const ConfirmAgeScreen(),
+          builder: (_) =>
+              ageConfirmed ? const HomeScreen() : const ConfirmAgeScreen(),
         ),
         (route) => false,
       );
@@ -109,11 +102,9 @@ class _ConfirmMailScreenState
 
       setState(() {
         if (isWrongPassword) {
-          _errorText =
-              '¡Ups! La contraseña no es correcta';
+          _errorText = '¡Ups! La contraseña no es correcta';
         } else if (isEmailNotConfirmed) {
-          _errorText =
-              'Primero confirma tu correo electrónico.';
+          _errorText = 'Primero confirma tu correo electrónico.';
         } else {
           _errorText = e.message;
         }
@@ -122,8 +113,7 @@ class _ConfirmMailScreenState
       if (!mounted) return;
 
       setState(() {
-        _errorText =
-            'Ocurrió un error inesperado';
+        _errorText = 'Ocurrió un error inesperado';
       });
     } finally {
       if (mounted) {
@@ -150,14 +140,17 @@ class _ConfirmMailScreenState
       );
       if (!mounted) return;
       setState(() {
-        _successText = 'Te enviamos un enlace para restablecer la contraseña. Revisa tu correo.';
+        _successText =
+            'Te enviamos un enlace para restablecer la contraseña. Revisa tu correo.';
       });
     } on AuthException catch (e) {
       if (!mounted) return;
       setState(() => _errorText = e.message);
     } catch (_) {
       if (!mounted) return;
-      setState(() => _errorText = 'No se pudo enviar el enlace de recuperación.');
+      setState(
+        () => _errorText = 'No se pudo enviar el enlace de recuperación.',
+      );
     } finally {
       if (mounted) setState(() => _isSendingReset = false);
     }
@@ -182,15 +175,11 @@ class _ConfirmMailScreenState
         child: LayoutBuilder(
           builder: (context, constraints) {
             return SingleChildScrollView(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 32),
+              padding: const EdgeInsets.symmetric(horizontal: 32),
               child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: constraints.maxHeight,
-                ),
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
                 child: Column(
-                  mainAxisAlignment:
-                      MainAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Text(
                       'Enter your password\nto continue',
@@ -209,111 +198,63 @@ class _ConfirmMailScreenState
                     Text(
                       widget.email,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: _muted,
-                      ),
+                      style: const TextStyle(fontSize: 13, color: _muted),
                     ),
 
                     const SizedBox(height: 24),
 
                     TextField(
-                      controller:
-                          _passwordController,
-                      obscureText:
-                          _obscurePassword,
+                      controller: _passwordController,
+                      obscureText: _obscurePassword,
                       enabled: !_isLoading,
-                      textInputAction:
-                          TextInputAction.done,
-                      onSubmitted: (_) =>
-                          _onLogin(),
-                      style: const TextStyle(
-                        fontSize: 15,
-                        color: _ink,
-                      ),
-                      decoration:
-                          InputDecoration(
-                        prefixIcon:
-                            GestureDetector(
+                      textInputAction: TextInputAction.done,
+                      onSubmitted: (_) => _onLogin(),
+                      style: const TextStyle(fontSize: 15, color: _ink),
+                      decoration: InputDecoration(
+                        prefixIcon: GestureDetector(
                           onTap: _isLoading
                               ? null
                               : () {
                                   setState(() {
-                                    _obscurePassword =
-                                        !_obscurePassword;
+                                    _obscurePassword = !_obscurePassword;
                                   });
                                 },
                           child: const Padding(
-                            padding:
-                                EdgeInsets.only(
-                              left: 16,
-                              right: 8,
-                            ),
+                            padding: EdgeInsets.only(left: 16, right: 8),
                             child: Icon(
-                              Icons
-                                  .lock_outline_rounded,
+                              Icons.lock_outline_rounded,
                               size: 20,
                               color: _muted,
                             ),
                           ),
                         ),
-                        prefixIconConstraints:
-                            const BoxConstraints(
+                        prefixIconConstraints: const BoxConstraints(
                           minWidth: 44,
                           minHeight: 20,
                         ),
                         filled: true,
                         fillColor: Colors.white,
-                        contentPadding:
-                            const EdgeInsets.symmetric(
+                        contentPadding: const EdgeInsets.symmetric(
                           horizontal: 18,
                           vertical: 16,
                         ),
-                        border:
-                            OutlineInputBorder(
-                          borderRadius:
-                              BorderRadius.circular(
-                            28,
-                          ),
-                          borderSide:
-                              const BorderSide(
-                            color: _line,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(28),
+                          borderSide: const BorderSide(color: _line),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(28),
+                          borderSide: const BorderSide(color: _line),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(28),
+                          borderSide: const BorderSide(
+                            color: Color(0xFF9AA7BC),
                           ),
                         ),
-                        enabledBorder:
-                            OutlineInputBorder(
-                          borderRadius:
-                              BorderRadius.circular(
-                            28,
-                          ),
-                          borderSide:
-                              const BorderSide(
-                            color: _line,
-                          ),
-                        ),
-                        focusedBorder:
-                            OutlineInputBorder(
-                          borderRadius:
-                              BorderRadius.circular(
-                            28,
-                          ),
-                          borderSide:
-                              const BorderSide(
-                            color: Color(
-                              0xFF9AA7BC,
-                            ),
-                          ),
-                        ),
-                        disabledBorder:
-                            OutlineInputBorder(
-                          borderRadius:
-                              BorderRadius.circular(
-                            28,
-                          ),
-                          borderSide:
-                              const BorderSide(
-                            color: _line,
-                          ),
+                        disabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(28),
+                          borderSide: const BorderSide(color: _line),
                         ),
                       ),
                     ),
@@ -321,14 +262,11 @@ class _ConfirmMailScreenState
                     if (_errorText != null) ...[
                       const SizedBox(height: 8),
                       Align(
-                        alignment:
-                            Alignment.centerLeft,
+                        alignment: Alignment.centerLeft,
                         child: Text(
                           _errorText!,
-                          style:
-                              const TextStyle(
-                            color:
-                                Color(0xFFC23B3B),
+                          style: const TextStyle(
+                            color: Color(0xFFC23B3B),
                             fontSize: 13,
                           ),
                         ),
@@ -344,45 +282,31 @@ class _ConfirmMailScreenState
                         onPressed: _isLoading || _isSendingReset
                             ? null
                             : _onLogin,
-                        style:
-                            ElevatedButton.styleFrom(
+                        style: ElevatedButton.styleFrom(
                           backgroundColor: _navy,
-                          foregroundColor:
-                              Colors.white,
-                          disabledBackgroundColor:
-                              _navy.withValues(
-                            alpha: 0.7,
-                          ),
-                          disabledForegroundColor:
-                              Colors.white,
+                          foregroundColor: Colors.white,
+                          disabledBackgroundColor: _navy.withValues(alpha: 0.7),
+                          disabledForegroundColor: Colors.white,
                           elevation: 0,
-                          shape:
-                              RoundedRectangleBorder(
-                            borderRadius:
-                                BorderRadius.circular(
-                              28,
-                            ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(28),
                           ),
                         ),
                         child: _isLoading
                             ? const SizedBox(
                                 width: 20,
                                 height: 20,
-                                child:
-                                    CircularProgressIndicator(
+                                child: CircularProgressIndicator(
                                   strokeWidth: 2.4,
-                                  color:
-                                      Colors.white,
+                                  color: Colors.white,
                                 ),
                               )
                             : const Text(
                                 'Verify  →',
                                 style: TextStyle(
                                   fontSize: 15,
-                                  fontWeight:
-                                      FontWeight.w600,
-                                  letterSpacing:
-                                      0.1,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.1,
                                 ),
                               ),
                       ),
@@ -416,7 +340,9 @@ class _ConfirmMailScreenState
                       ),
                     ),
                     GestureDetector(
-                      onTap: _isLoading || _isSendingReset ? null : _changeAccount,
+                      onTap: _isLoading || _isSendingReset
+                          ? null
+                          : _changeAccount,
                       child: const Padding(
                         padding: EdgeInsets.symmetric(vertical: 8),
                         child: Text(

@@ -279,5 +279,4 @@ class UpdateService {
       await prefs.remove(_pendingApkPathKey);
     } catch (_) {}
   }
-
 }
