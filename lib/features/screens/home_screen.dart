@@ -112,41 +112,89 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     }
   }
 
-  Future<void> _initSpeech() async {
-    _speechAvailable = await _speech.initialize(
-      onStatus: (status) {
-        if (status == 'done' || status == 'notListening') {
-          if (mounted) {
-            setState(() => _isListening = false);
-          }
-        }
-      },
-      onError: (_) {
-        if (mounted) {
-          setState(() => _isListening = false);
-        }
-      },
-    );
+ Future<void> _initSpeech() async {
+   _speechAvailable = await _speech.initialize(
+     onStatus: (status) async {
+       if (!_isListening) return;
 
-    if (_speechAvailable) {
-      try {
-        final locales = await _speech.locales();
+       if (status == 'done' || status == 'notListening') {
+         await _restartSpeechListening();
+       }
+     },
+     onError: (_) async {
+       if (!_isListening) return;
 
-        const preferred = <String>['es_CO', 'es_ES', 'es_MX', 'es_US'];
+       await _restartSpeechListening();
+     },
+   );
 
-        for (final wanted in preferred) {
-          if (locales.any((locale) => locale.localeId == wanted)) {
-            _speechLocaleId = wanted;
-            break;
-          }
-        }
-      } catch (_) {}
-    }
+   if (_speechAvailable) {
+     try {
+       final locales = await _speech.locales();
 
-    if (mounted) {
-      setState(() {});
-    }
-  }
+       const preferred = <String>[
+         'es_CO',
+         'es_ES',
+         'es_MX',
+         'es_US',
+       ];
+
+       for (final wanted in preferred) {
+         if (locales.any((locale) => locale.localeId == wanted)) {
+           _speechLocaleId = wanted;
+           break;
+         }
+       }
+     } catch (_) {}
+   }
+
+   if (mounted) {
+     setState(() {});
+   }
+ }
+
+ Future<void> _restartSpeechListening() async {
+   if (!_isListening || !_speechAvailable) return;
+
+   try {
+     await _speech.listen(
+       listenOptions: stt.SpeechListenOptions(
+         localeId: _speechLocaleId,
+         partialResults: true,
+         listenFor: const Duration(minutes: 5),
+         pauseFor: const Duration(seconds: 3),
+       ),
+       onResult: (result) {
+         if (!mounted || !_isListening) return;
+
+         final spoken = result.recognizedWords.trim();
+
+         if (spoken.isEmpty) return;
+
+         final merged = [
+           if (_speechBaseText.isNotEmpty) _speechBaseText,
+           spoken,
+         ].join(_speechBaseText.isNotEmpty ? ' ' : '');
+
+         setState(() {
+           _messageController.text = merged;
+           _messageController.selection = TextSelection.fromPosition(
+             TextPosition(offset: merged.length),
+           );
+         });
+       },
+     );
+   } catch (_) {
+     if (!mounted || !_isListening) return;
+
+     await Future<void>.delayed(const Duration(milliseconds: 250));
+
+     if (_isListening) {
+       await _restartSpeechListening();
+     }
+   }
+ }
+
 
   Future<void> _loadProfile() async {
     try {
