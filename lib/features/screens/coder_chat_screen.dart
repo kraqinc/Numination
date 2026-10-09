@@ -23,11 +23,13 @@ class CoderPreviewState {
   });
 }
 
-class CoderPreviewNotifier
-    extends FamilyNotifier<CoderPreviewState, String> {
+class CoderPreviewNotifier extends Notifier<CoderPreviewState> {
+  CoderPreviewNotifier(this.projectId);
+
+  final String projectId;
+
   @override
-  CoderPreviewState build(String projectId) =>
-      const CoderPreviewState();
+  CoderPreviewState build() => const CoderPreviewState();
 
   void setPreview({required bool ready, String? url}) {
     state = CoderPreviewState(ready: ready, url: url);
