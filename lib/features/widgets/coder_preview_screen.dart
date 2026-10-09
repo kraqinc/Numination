@@ -55,7 +55,10 @@ class CoderPreviewCard extends StatelessWidget {
                     color: scheme.primary.withValues(alpha: .22),
                   ),
                 ),
-                child: Icon(LucideIcons.monitorPlay, color: scheme.primary),
+                child: Icon(
+                  LucideIcons.monitorPlay,
+                  color: scheme.primary,
+                ),
               ),
               const SizedBox(width: 12),
               const Expanded(
@@ -69,13 +72,14 @@ class CoderPreviewCard extends StatelessWidget {
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                    SizedBox(height: 2),
-                    Text('Vite + React', style: TextStyle(fontSize: 12)),
                   ],
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 9,
+                  vertical: 5,
+                ),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(999),
                   color: ready
@@ -83,12 +87,13 @@ class CoderPreviewCard extends StatelessWidget {
                       : scheme.surfaceContainerHighest.withValues(alpha: .7),
                 ),
                 child: Text(
-                  ready ? 'LISTO' : 'ESPERANDO',
+                  ready ? 'Listo' : 'Esperando',
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w800,
                     letterSpacing: .6,
-                    color: ready ? scheme.primary : scheme.onSurfaceVariant,
+                    color:
+                        ready ? scheme.primary : scheme.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -97,8 +102,8 @@ class CoderPreviewCard extends StatelessWidget {
           const SizedBox(height: 14),
           Text(
             ready
-                ? 'Tu proyecto ya tiene una vista ejecutable.'
-                : 'Nada qe hacer por ahora',
+                ? 'Ya puedes ver tu proyecto.'
+                : 'Nada que hacer por ahora',
             style: TextStyle(
               fontSize: 13,
               height: 1.35,
@@ -201,7 +206,10 @@ class _CoderPreviewScreenState extends State<CoderPreviewScreen> {
     final uri = Uri.tryParse(widget.previewUrl);
     if (uri == null) return;
 
-    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    final opened = await launchUrl(
+      uri,
+      mode: LaunchMode.externalApplication,
+    );
 
     if (!opened && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -235,7 +243,10 @@ class _CoderPreviewScreenState extends State<CoderPreviewScreen> {
               widget.projectName,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+              ),
             ),
             const Text(
               'Preview · Vite + React',

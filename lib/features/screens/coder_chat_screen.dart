@@ -13,6 +13,36 @@ import '../../core/models.dart';
 import '../../core/theme_controller.dart';
 import '../widgets/coder_preview_screen.dart';
 
+class CoderPreviewState {
+  final bool ready;
+  final String? url;
+
+  const CoderPreviewState({
+    this.ready = false,
+    this.url,
+  });
+}
+
+class CoderPreviewNotifier
+    extends FamilyNotifier<CoderPreviewState, String> {
+  @override
+  CoderPreviewState build(String projectId) =>
+      const CoderPreviewState();
+
+  void setPreview({required bool ready, String? url}) {
+    state = CoderPreviewState(ready: ready, url: url);
+  }
+
+  void clear() {
+    state = const CoderPreviewState();
+  }
+}
+
+final coderPreviewProvider = NotifierProvider.family<
+    CoderPreviewNotifier, CoderPreviewState, String>(
+  CoderPreviewNotifier.new,
+);
+
 class CoderChatScreen extends ConsumerStatefulWidget {
   const CoderChatScreen({
     super.key,
@@ -61,12 +91,14 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
 
   final List<_CoderMessage> _messages = [];
   final List<_CoderAttachment> _pendingAttachments = [];
+  final Set<String> _expandedFolders = <String>{};
+
+  String _textBeforeListening = '';
 
   List<FileItem> _files = [];
   String? _chatId;
   String? _errorText;
   String? _savedZipPath;
-  String? _previewUrl;
 
   bool _loadingFiles = true;
   bool _isSending = false;
@@ -75,7 +107,6 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
   bool _showFiles = false;
   bool _overthink = false;
   bool _hasChanges = false;
-  bool _previewReady = false;
 
   ApiCancelToken? _generationToken;
 
@@ -133,6 +164,8 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
       return;
     }
 
+    _textBeforeListening = _messageController.text;
+
     setState(() => _isListening = true);
 
     await _speech.listen(
@@ -142,8 +175,15 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
       onResult: (result) {
         if (!mounted) return;
 
+        final recognized = result.recognizedWords.trim();
+        final prefix = _textBeforeListening.trim();
+
+        final combined = prefix.isEmpty
+            ? recognized
+            : (recognized.isEmpty ? prefix : '$prefix $recognized');
+
         setState(() {
-          _messageController.text = result.recognizedWords;
+          _messageController.text = combined;
           _messageController.selection = TextSelection.fromPosition(
             TextPosition(
               offset: _messageController.text.length,
@@ -437,14 +477,18 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
       final previewReady = data['previewReady'] == true;
       final previewUrl = data['previewUrl']?.toString().trim();
 
-      setState(() {
-        _previewReady = previewReady;
-        _previewUrl = previewReady &&
-                previewUrl != null &&
-                previewUrl.isNotEmpty
-            ? previewUrl
-            : null;
+      ref
+          .read(coderPreviewProvider(widget.projectId).notifier)
+          .setPreview(
+            ready: previewReady,
+            url: previewReady &&
+                    previewUrl != null &&
+                    previewUrl.isNotEmpty
+                ? previewUrl
+                : null,
+          );
 
+      setState(() {
         if (userIndex < _messages.length) {
           final old = _messages[userIndex];
 
@@ -468,7 +512,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
 
       await _loadFiles();
     } on ApiRequestCancelled {
-      // No se añade una respuesta inventada al cancelar.
+      return;
     } on ApiException catch (e) {
       if (!mounted || token.isCancelled) return;
 
@@ -517,10 +561,10 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
 
       if (!mounted) return;
 
+      ref.read(coderPreviewProvider(widget.projectId).notifier).clear();
+
       setState(() {
         _hasChanges = false;
-        _previewReady = false;
-        _previewUrl = null;
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -587,7 +631,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Proyecto guardado en: ${file.path}',
+            'Se guardo el proyecto en ${file.path}',
           ),
           duration: const Duration(seconds: 6),
         ),
@@ -647,7 +691,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
                         ),
                       ),
                       IconButton(
-                        tooltip: 'Copiar archivo',
+                        tooltip: 'Copiar contenido',
                         onPressed: () {
                           Clipboard.setData(
                             ClipboardData(
@@ -761,7 +805,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Feedback enviado'),
+          content: Text('Se envio tu mensaje'),
         ),
       );
     } catch (e) {
@@ -770,7 +814,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'No se pudo enviar feedback: $e',
+            'No se pudo enviar: $e',
           ),
         ),
       );
@@ -804,9 +848,10 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
   }
 
   void _openPreview() {
-    final url = _previewUrl;
+    final state = ref.read(coderPreviewProvider(widget.projectId));
+    final url = state.url;
 
-    if (!_previewReady || url == null || url.isEmpty) {
+    if (!state.ready || url == null || url.isEmpty) {
       return;
     }
 
@@ -832,9 +877,107 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
     });
   }
 
+  List<Widget> _buildFileTree() {
+    final widgets = <Widget>[];
+
+    final rootFiles = <FileItem>[];
+    final folders = <String, List<FileItem>>{};
+
+    for (final file in _files) {
+      if (file.isDirectory) continue;
+
+      final parts = file.path.split('/');
+
+      if (parts.length > 1) {
+        folders
+            .putIfAbsent(parts.first, () => <FileItem>[])
+            .add(file);
+      } else {
+        rootFiles.add(file);
+      }
+    }
+
+    for (final file in rootFiles) {
+      widgets.add(
+        ListTile(
+          leading: const Icon(LucideIcons.fileCode2, size: 20),
+          title: Text(file.path),
+          onTap: () {
+            Navigator.pop(context);
+            _previewFile(file);
+          },
+        ),
+      );
+    }
+
+    for (final entry in folders.entries) {
+      final folderName = entry.key;
+      final folderFiles = entry.value;
+      final isExpanded = _expandedFolders.contains(folderName);
+
+      widgets.add(
+        ListTile(
+          leading: const Icon(LucideIcons.folder, size: 20),
+          title: Text(folderName),
+          trailing: Icon(
+            isExpanded
+                ? LucideIcons.chevronUp
+                : LucideIcons.chevronDown,
+            size: 18,
+          ),
+          onTap: () {
+            setState(() {
+              if (isExpanded) {
+                _expandedFolders.remove(folderName);
+              } else {
+                _expandedFolders.add(folderName);
+              }
+            });
+          },
+        ),
+      );
+
+      if (isExpanded) {
+        for (final file in folderFiles) {
+          final relative =
+              file.path.substring(folderName.length + 1);
+
+          widgets.add(
+            Padding(
+              padding: const EdgeInsets.only(left: 22),
+              child: ListTile(
+                dense: true,
+                leading:
+                    const Icon(LucideIcons.fileCode2, size: 18),
+                title: Text(relative),
+                onTap: () {
+                  Navigator.pop(context);
+                  _previewFile(file);
+                },
+              ),
+            ),
+          );
+        }
+      }
+    }
+
+    if (widgets.isEmpty) {
+      widgets.add(
+        const Padding(
+          padding: EdgeInsets.all(16),
+          child: Text('Este proyecto aún no tiene archivos.'),
+        ),
+      );
+    }
+
+    return widgets;
+  }
+
   @override
   Widget build(BuildContext context) {
     final palette = ref.watch(appPaletteProvider);
+    final previewState =
+        ref.watch(coderPreviewProvider(widget.projectId));
 
     return Scaffold(
       key: _scaffoldKey,
@@ -865,20 +1008,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
                   ),
                 ),
               ),
-              ..._files.map(
-                (file) => ListTile(
-                  leading: Icon(
-                    file.isDirectory
-                        ? LucideIcons.folder
-                        : LucideIcons.fileCode2,
-                  ),
-                  title: Text(file.path),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _previewFile(file);
-                  },
-                ),
-              ),
+              ..._buildFileTree(),
             ],
           ),
         ),
@@ -1008,7 +1138,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
                   if (!_isSending &&
                       index == _messages.length) {
                     return CoderPreviewCard(
-                      ready: _previewReady,
+                      ready: previewState.ready,
                       onOpen: _openPreview,
                     );
                   }

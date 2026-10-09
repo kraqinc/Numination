@@ -1171,9 +1171,12 @@ class _MessageBubble extends ConsumerWidget {
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 5),
+        margin: EdgeInsets.symmetric(
+          vertical: 5,
+          horizontal: isUser ? 0 : 12,
+        ),
         constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.88,
+          maxWidth: MediaQuery.of(context).size.width * (isUser ? 0.88 : 0.94),
         ),
         child: Column(
           crossAxisAlignment: isUser
@@ -1185,21 +1188,29 @@ class _MessageBubble extends ConsumerWidget {
                 title: message.memoryTitle,
                 content: message.memoryContent,
               ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: isUser
-                    ? palette.accent.withValues(alpha: 0.14)
-                    : palette.surface,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(
-                  color: isUser
-                      ? palette.accent.withValues(alpha: 0.25)
-                      : palette.border.withValues(alpha: 0.6),
+            if (isUser)
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
                 ),
+                decoration: BoxDecoration(
+                  color: palette.accent.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: palette.accent.withValues(alpha: 0.25),
+                  ),
+                ),
+                child: AiResponse(text: message.text),
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 4,
+                  vertical: 6,
+                ),
+                child: AiResponse(text: message.text),
               ),
-              child: AiResponse(text: message.text),
-            ),
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
