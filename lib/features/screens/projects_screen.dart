@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_flutter/lucide_flutter.dart';
 
 import '../../core/api.dart';
+import '../../core/error_messages.dart';
 import 'coder_chat_screen.dart';
 import '../../core/i18n.dart';
 import '../../core/models.dart';
@@ -74,7 +75,7 @@ class _ProjectsScreenState extends ConsumerState<ProjectsScreen> {
 
       setState(() {
         _isLoading = false;
-        _errorText = 'No se pudieron cargar tus proyectos';
+        _errorText = AppErrorMessages.projectsLoadFailed;
       });
     }
   }
@@ -141,7 +142,7 @@ class _ProjectsScreenState extends ConsumerState<ProjectsScreen> {
       setState(() => _errorText = e.message);
     } catch (_) {
       if (!mounted) return;
-      setState(() => _errorText = 'No se pudo crear el proyecto');
+      setState(() => _errorText = AppErrorMessages.projectCreateFailed);
     }
   }
 
@@ -219,14 +220,21 @@ class _ProjectsScreenState extends ConsumerState<ProjectsScreen> {
                     onToggle: () => _toggleProject(project.id),
                     onOpenChat: widget.onOpenChat,
                     onOpenCoder: () {
+                      final coderChats = chats
+                          .where((chat) => chat.mode.toLowerCase() == 'coder')
+                          .toList();
+                      final latestChat = coderChats.isEmpty ? null : coderChats.first;
                       Navigator.of(context).push(
                         MaterialPageRoute<void>(
                           builder: (_) => CoderChatScreen(
                             projectId: project.id,
                             projectName: project.name,
+                            chatId: latestChat?.id,
                           ),
                         ),
-                      );
+                      ).then((_) {
+                        if (mounted) _load();
+                      });
                     },
                   );
                 },

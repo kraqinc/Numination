@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/api.dart';
+import '../../core/error_messages.dart';
 import '../../core/auth_controller.dart';
 
 import 'home_screen.dart';
@@ -104,10 +105,12 @@ class _ConfirmAgeScreenState extends ConsumerState<ConfirmAgeScreen> {
     } on ApiException catch (e) {
       if (mounted) setState(() => _errorText = e.message);
     } on AuthException catch (e) {
-      if (mounted) setState(() => _errorText = e.message);
+      if (mounted) {
+        setState(() => _errorText = AppErrorMessages.fromAuthError(e.message, fallback: AppErrorMessages.ageConfirmationFailed));
+      }
     } catch (_) {
       if (mounted) {
-        setState(() => _errorText = 'No se pudo guardar la confirmación');
+        setState(() => _errorText = AppErrorMessages.ageConfirmationFailed);
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

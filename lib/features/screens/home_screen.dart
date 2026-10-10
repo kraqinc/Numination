@@ -1,15 +1,19 @@
+
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_flutter/lucide_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 import '../../core/ai_modes_controller.dart';
 import '../../core/api.dart';
 import '../../core/auth_controller.dart';
+import '../../core/error_messages.dart';
 import '../../core/l10n_extensions.dart';
 import '../../core/models.dart';
 import '../../core/theme_controller.dart';
@@ -18,7 +22,8 @@ import '../widgets/ai_response.dart';
 import '../widgets/hamburger.dart';
 import '../widgets/search_chats.dart';
 import '../widgets/voice_input_button.dart';
-import 'coder_screen.dart';
+import 'coder_chat_screen.dart' as coder_chat;
+import 'coder_screen.dart' as coder;
 import 'ghost_chat.dart';
 
 class ChatMessage {
@@ -26,8 +31,8 @@ class ChatMessage {
   final bool fromUser;
   final String? id;
   final String? chatId;
-
   final bool memorySaved;
+  final String? imageUrl;
   final String? memoryId;
   final String? memoryTitle;
   final String? memoryContent;
@@ -38,6 +43,7 @@ class ChatMessage {
     this.id,
     this.chatId,
     this.memorySaved = false,
+    this.imageUrl,
     this.memoryId,
     this.memoryTitle,
     this.memoryContent,
@@ -56,6 +62,22 @@ class PendingAttachment {
   });
 }
 
+class _PromptStarter {
+  const _PromptStarter({
+    required this.label,
+    required this.icon,
+    required this.prompt,
+    this.webSearch = false,
+    this.imageGeneration = false,
+  });
+
+  final String label;
+  final IconData icon;
+  final String prompt;
+  final bool webSearch;
+  final bool imageGeneration;
+}
+
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -67,9 +89,71 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     with WidgetsBindingObserver {
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
+  final FocusNode _messageFocusNode = FocusNode();
   final stt.SpeechToText _speech = stt.SpeechToText();
+
+  String _composerHint = '¿Qué quieres resolver hoy?';
+  bool _webSearchForNextMessage = false;
+  bool _imageGenerationForNextMessage = false;
+
+  static const _hintPreferenceKey = 'numination.lastComposerHintIndex';
+
+  static const _composerHintsEs = <String>[
+    '¿Qué quieres resolver hoy?',
+    'Explícame una idea con un ejemplo.',
+    'Ayúdame a escribir algo con claridad.',
+    'Resume este tema sin perder lo importante.',
+    'Enséñame paso a paso.',
+    'Revisa este código y detecta errores.',
+    'Ayúdame a entender este mensaje de error.',
+    'Dame ideas para iniciar un proyecto.',
+    'Compara estas opciones con pros y contras.',
+    'Organiza estas tareas por prioridad.',
+    'Convierte estas notas en un plan.',
+    'Prepárame preguntas para practicar.',
+    'Explícame este concepto desde cero.',
+    'Ayúdame a encontrar una solución práctica.',
+    'Mejora la claridad de este texto.',
+    'Extrae las ideas principales.',
+    'Ayúdame a preparar una presentación.',
+    'Diseña un esquema antes de empezar.',
+    'Simplifica este fragmento de código.',
+    'Revisa la lógica de esta propuesta.',
+    'Ayúdame a aprender algo nuevo.',
+    'Divide esta meta en pasos concretos.',
+    'Sugiere mejoras para mi proyecto.',
+    'Guíame para depurar este problema.',
+    '¿Por dónde empezamos?',
+  ];
+
+  static const _composerHintsEn = <String>[
+    'What would you like to solve today?',
+    'Explain an idea with a simple example.',
+    'Help me write this more clearly.',
+    'Summarize this without losing key details.',
+    'Teach me step by step.',
+    'Review this code and find errors.',
+    'Help me understand this error message.',
+    'Give me ideas for a new project.',
+    'Compare these options and their trade-offs.',
+    'Help me prioritize these tasks.',
+    'Turn these notes into a plan.',
+    'Create practice questions for me.',
+    'Explain this concept from scratch.',
+    'Help me find a practical solution.',
+    'Make this text clearer.',
+    'Extract the main ideas.',
+    'Help me prepare a presentation.',
+    'Create an outline before we begin.',
+    'Simplify this code snippet.',
+    'Check the logic of this idea.',
+    'Help me learn something new.',
+    'Break this goal into concrete steps.',
+    'Suggest improvements for my project.',
+    'Guide me through debugging this issue.',
+    'Where should we start?',
+  ];
 
   bool _isSending = false;
   bool _isListening = false;
@@ -87,6 +171,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   final List<ChatMessage> _messages = [];
 
   String? _activeChatId;
+  bool _isLoadingHistory = false;
+  int _chatLoadRevision = 0;
+  String? _animatedAssistantMessageId;
 
   AppUser? _profile;
   int _chatRevision = 0;
@@ -94,6 +181,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   @override
   void initState() {
     super.initState();
+    _rotateComposerHint();
 
     WidgetsBinding.instance.addObserver(this);
 
@@ -112,94 +200,171 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     }
   }
 
- Future<void> _initSpeech() async {
-   _speechAvailable = await _speech.initialize(
-     onStatus: (status) async {
-       if (!_isListening) return;
+  Future<void> _rotateComposerHint() async {
+    final hints =
+        AppErrorMessages.isEnglish ? _composerHintsEn : _composerHintsEs;
 
-       if (status == 'done' || status == 'notListening') {
-         await _restartSpeechListening();
-       }
-     },
-     onError: (_) async {
-       if (!_isListening) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final previous = prefs.getInt(_hintPreferenceKey) ?? -1;
 
-       await _restartSpeechListening();
-     },
-   );
+      final choices = List<int>.generate(hints.length, (index) => index)
+          .where((index) => index != previous)
+          .toList();
 
-   if (_speechAvailable) {
-     try {
-       final locales = await _speech.locales();
+      final next = choices.isEmpty
+          ? math.Random().nextInt(hints.length)
+          : choices[math.Random().nextInt(choices.length)];
 
-       const preferred = <String>[
-         'es_CO',
-         'es_ES',
-         'es_MX',
-         'es_US',
-       ];
+      await prefs.setInt(_hintPreferenceKey, next);
 
-       for (final wanted in preferred) {
-         if (locales.any((locale) => locale.localeId == wanted)) {
-           _speechLocaleId = wanted;
-           break;
-         }
-       }
-     } catch (_) {}
-   }
+      if (!mounted) return;
+      setState(() => _composerHint = hints[next]);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _composerHint = hints[math.Random().nextInt(hints.length)];
+      });
+    }
+  }
 
-   if (mounted) {
-     setState(() {});
-   }
- }
+  List<_PromptStarter> get _promptStarters {
+    final english = AppErrorMessages.isEnglish;
 
- Future<void> _restartSpeechListening() async {
-   if (!_isListening || !_speechAvailable) return;
+    return [
+      _PromptStarter(
+        label: english ? 'Create an image' : 'Crear una imagen',
+        icon: LucideIcons.image,
+        imageGeneration: true,
+        prompt: english
+            ? 'Generate an image of [describe the idea], with a clear composition, coherent lighting, and polished details.'
+            : 'Genera una imagen de [describe la idea], con una composición clara, iluminación coherente y detalles cuidados.',
+      ),
+      _PromptStarter(
+        label: english ? 'Help me solve' : 'Ayúdame a resolver',
+        icon: LucideIcons.messageCircle,
+        prompt: english
+            ? 'Help me solve [describe the problem] step by step. Explain the solution clearly and verify the result.'
+            : 'Ayúdame a resolver [describe el problema] paso a paso. Explica la solución con claridad y comprueba el resultado.',
+      ),
+      _PromptStarter(
+        label: english ? 'Search the web' : 'Busca en la web',
+        icon: LucideIcons.globe,
+        webSearch: true,
+        prompt: english
+            ? 'Search the web for current information about [topic]. Compare reliable sources and summarize the findings with links.'
+            : 'Busca en la web información actualizada sobre [tema]. Contrasta fuentes fiables y resume los resultados con enlaces.',
+      ),
+    ];
+  }
 
-   try {
-     await _speech.listen(
-       listenOptions: stt.SpeechListenOptions(
-         localeId: _speechLocaleId,
-         partialResults: true,
-         listenFor: const Duration(minutes: 5),
-         pauseFor: const Duration(seconds: 3),
-       ),
-       onResult: (result) {
-         if (!mounted || !_isListening) return;
+  void _selectPromptStarter(_PromptStarter starter) {
+    final prompt = starter.prompt;
+    final placeholder = RegExp(r'\[[^\]]+\]').firstMatch(prompt);
 
-         final spoken = result.recognizedWords.trim();
+    setState(() {
+      _webSearchForNextMessage = starter.webSearch && !starter.imageGeneration;
+      _imageGenerationForNextMessage = starter.imageGeneration;
 
-         if (spoken.isEmpty) return;
+      _messageController.value = TextEditingValue(
+        text: prompt,
+        selection: placeholder == null
+            ? TextSelection.collapsed(offset: prompt.length)
+            : TextSelection(
+                baseOffset: placeholder.start,
+                extentOffset: placeholder.end,
+              ),
+      );
+    });
 
-         final merged = [
-           if (_speechBaseText.isNotEmpty) _speechBaseText,
-           spoken,
-         ].join(_speechBaseText.isNotEmpty ? ' ' : '');
+    _messageFocusNode.requestFocus();
+  }
 
-         setState(() {
-           _messageController.text = merged;
-           _messageController.selection = TextSelection.fromPosition(
-             TextPosition(offset: merged.length),
-           );
-         });
-       },
-     );
-   } catch (_) {
-     if (!mounted || !_isListening) return;
+  Future<void> _initSpeech() async {
+    _speechAvailable = await _speech.initialize(
+      onStatus: (status) async {
+        if (!_isListening) return;
 
-     await Future<void>.delayed(const Duration(milliseconds: 250));
+        if (status == 'done' || status == 'notListening') {
+          await _restartSpeechListening();
+        }
+      },
+      onError: (_) async {
+        if (!_isListening) return;
 
-     if (_isListening) {
-       await _restartSpeechListening();
-     }
-   }
- }
+        await _restartSpeechListening();
+      },
+    );
 
+    if (_speechAvailable) {
+      try {
+        final locales = await _speech.locales();
+
+        const preferred = <String>[
+          'es_CO',
+          'es_ES',
+          'es_MX',
+          'es_US',
+        ];
+
+        for (final wanted in preferred) {
+          if (locales.any((locale) => locale.localeId == wanted)) {
+            _speechLocaleId = wanted;
+            break;
+          }
+        }
+      } catch (_) {}
+    }
+
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  Future<void> _restartSpeechListening() async {
+    if (!_isListening || !_speechAvailable) return;
+
+    try {
+      await _speech.listen(
+        listenOptions: stt.SpeechListenOptions(
+          localeId: _speechLocaleId,
+          partialResults: true,
+          listenFor: const Duration(minutes: 5),
+          pauseFor: const Duration(seconds: 3),
+        ),
+        onResult: (result) {
+          if (!mounted || !_isListening) return;
+
+          final spoken = result.recognizedWords.trim();
+          if (spoken.isEmpty) return;
+
+          final merged = [
+            if (_speechBaseText.isNotEmpty) _speechBaseText,
+            spoken,
+          ].join(_speechBaseText.isNotEmpty ? ' ' : '');
+
+          setState(() {
+            _messageController.text = merged;
+            _messageController.selection = TextSelection.fromPosition(
+              TextPosition(offset: merged.length),
+            );
+          });
+        },
+      );
+    } catch (_) {
+      if (!mounted || !_isListening) return;
+
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+
+      if (_isListening) {
+        await _restartSpeechListening();
+      }
+    }
+  }
 
   Future<void> _loadProfile() async {
     try {
       final response = await ApiClient.get('/auth/me');
-
       final data = ApiClient.decode(response) as Map<String, dynamic>;
 
       if (!mounted) return;
@@ -217,34 +382,70 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     WidgetsBinding.instance.removeObserver(this);
     _messageController.dispose();
     _scrollController.dispose();
+    _messageFocusNode.dispose();
     _speech.stop();
     super.dispose();
   }
 
   void _toggleMode(String modeId) {
-    if (modeId == _modeId) return;
-
     if (modeId == 'coder') {
+      _generationToken?.cancel();
+      _chatLoadRevision++;
+
+      if (mounted) {
+        setState(() {
+          _isSending = false;
+          _isLoadingHistory = false;
+          _generationToken = null;
+        });
+      }
+
       if (_scaffoldKey.currentState?.isDrawerOpen == true) {
         Navigator.of(context).pop();
       }
 
-      Navigator.of(
-        context,
-      ).push(MaterialPageRoute(builder: (_) => const CoderScreen()));
+      Navigator.of(context)
+          .push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => const coder.CoderScreen(),
+        ),
+      )
+          .then((_) {
+        if (mounted) setState(() => _chatRevision++);
+      });
 
       return;
     }
 
-    setState(() => _modeId = modeId);
+    if (modeId == _modeId) return;
+
+    _generationToken?.cancel();
+    _chatLoadRevision++;
+
+    setState(() {
+      _modeId = modeId;
+      _activeChatId = null;
+      _messages.clear();
+      _isSending = false;
+      _isLoadingHistory = false;
+      _generationToken = null;
+      _animatedAssistantMessageId = null;
+    });
   }
 
   void _startNewChat() {
+    _generationToken?.cancel();
+    _chatLoadRevision++;
+
     setState(() {
       _activeChatId = null;
       _messages.clear();
       _messageController.clear();
       _pendingAttachments.clear();
+      _isSending = false;
+      _isLoadingHistory = false;
+      _generationToken = null;
+      _animatedAssistantMessageId = null;
     });
 
     _scrollToBottom();
@@ -253,58 +454,160 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   void _onChatDeleted(ChatSession chat) {
     if (_activeChatId != chat.id) return;
 
+    _generationToken?.cancel();
+    _chatLoadRevision++;
+
     setState(() {
       _activeChatId = null;
       _messages.clear();
+      _isSending = false;
+      _isLoadingHistory = false;
+      _generationToken = null;
+      _animatedAssistantMessageId = null;
     });
   }
 
   Future<void> _openChat(ChatSession chat) async {
+    _generationToken?.cancel();
+    _generationToken = null;
+    final loadRevision = ++_chatLoadRevision;
+
+    if (chat.mode.toLowerCase() == 'coder') {
+      final projectId = chat.projectId;
+
+      if (projectId == null || projectId.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Esta conversación Coder no tiene un proyecto asociado.',
+              ),
+            ),
+          );
+        }
+        return;
+      }
+
+      if (mounted) {
+        setState(() {
+          _isSending = false;
+          _isLoadingHistory = false;
+          _animatedAssistantMessageId = null;
+        });
+      }
+
+      var projectName = 'Proyecto';
+
+      try {
+        final response = await ApiClient.get('/projects');
+        final data = ApiClient.decode(response) as Map<String, dynamic>;
+
+        final projects = (data['projects'] as List? ?? [])
+            .whereType<Map>()
+            .map(
+              (row) => Project.fromJson(
+                Map<String, dynamic>.from(row),
+              ),
+            );
+
+        for (final project in projects) {
+          if (project.id == projectId) {
+            projectName = project.name;
+            break;
+          }
+        }
+      } catch (_) {
+        // Abrir el historial no debe depender del nombre del proyecto.
+      }
+
+      if (!mounted || loadRevision != _chatLoadRevision) return;
+
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => coder_chat.CoderChatScreen(
+            projectId: projectId,
+            projectName: projectName,
+            chatId: chat.id,
+          ),
+        ),
+      );
+
+      if (mounted) setState(() => _chatRevision++);
+      return;
+    }
+
     setState(() {
       _activeChatId = chat.id;
       _modeId = chat.mode;
       _messages.clear();
+      _isLoadingHistory = true;
+      _isSending = false;
+      _animatedAssistantMessageId = null;
     });
 
     try {
       final encodedChatId = Uri.encodeComponent(chat.id);
-
-      final response = await ApiClient.get('/chats/$encodedChatId/messages');
-
+      final response =
+          await ApiClient.get('/chats/$encodedChatId/messages');
       final data = ApiClient.decode(response) as Map<String, dynamic>;
 
       final list = (data['messages'] as List? ?? [])
           .map(
-            (e) => ChatMessageDto.fromJson(Map<String, dynamic>.from(e as Map)),
+            (row) => ChatMessageDto.fromJson(
+              Map<String, dynamic>.from(row as Map),
+            ),
           )
           .toList();
 
-      if (!mounted) return;
+      if (!mounted ||
+          loadRevision != _chatLoadRevision ||
+          _activeChatId != chat.id) {
+        return;
+      }
 
       setState(() {
-        _messages.addAll(
-          list.map(
-            (m) => ChatMessage(
-              text: m.content,
-              fromUser: m.role == 'user',
-              id: m.id,
-              chatId: m.chatId,
-            ),
-          ),
-        );
+        _isLoadingHistory = false;
+        _messages
+          ..clear()
+          ..addAll(
+            list.map((message) {
+              const imageMarker = '[[NUMINATION_IMAGE]]\n';
+              final isGeneratedImage = message.role != 'user' &&
+                  message.content.startsWith(imageMarker);
+              final imageUrl = isGeneratedImage
+                  ? message.content.substring(imageMarker.length).trim()
+                  : null;
+
+              return ChatMessage(
+                text: isGeneratedImage ? '' : message.content,
+                fromUser: message.role == 'user',
+                id: message.id,
+                chatId: message.chatId,
+                imageUrl: imageUrl != null && imageUrl.isNotEmpty ? imageUrl : null,
+              );
+            }),
+          );
       });
 
       _scrollToBottom();
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted ||
+          loadRevision != _chatLoadRevision ||
+          _activeChatId != chat.id) {
+        return;
+      }
 
       setState(() {
-        _messages.add(
-          const ChatMessage(
-            text: 'No pudimos cargar este chat. Inténtalo de nuevo.',
-            fromUser: false,
-          ),
-        );
+        _isLoadingHistory = false;
+        _messages
+          ..clear()
+          ..add(
+            const ChatMessage(
+              text:
+                  'No pudimos cargar este chat. Comprueba la conexión e inténtalo de nuevo.',
+              fromUser: false,
+            ),
+          );
       });
     }
   }
@@ -318,9 +621,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   void _openGhostChat() {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const GhostChatScreen()));
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const GhostChatScreen(),
+      ),
+    );
   }
 
   Future<void> _toggleListening() async {
@@ -376,7 +681,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
           setState(() {
             _messageController.text = merged;
-
             _messageController.selection = TextSelection.fromPosition(
               TextPosition(offset: merged.length),
             );
@@ -427,12 +731,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                           : LucideIcons.code2,
                     ),
                     title: Text(
-                      _modeId == 'coder' ? 'Cambiar a chat' : 'Cambiar a coder',
+                      _modeId == 'coder'
+                          ? 'Cambiar a chat'
+                          : 'Cambiar a coder',
                     ),
                     trailing: const Icon(LucideIcons.chevronRight),
                     onTap: () {
                       Navigator.pop(sheetContext);
-
                       _toggleMode(_modeId == 'coder' ? 'chat' : 'coder');
                     },
                   ),
@@ -463,9 +768,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
     final picked = await FilePicker.pickFile();
 
-    if (picked == null || picked.path == null) {
-      return;
-    }
+    if (picked == null || picked.path == null) return;
 
     setState(() => _isAttaching = true);
 
@@ -543,7 +846,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     } catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$e')),
+      );
     } finally {
       if (mounted) {
         setState(() => _isAttaching = false);
@@ -557,19 +862,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   Future<void> _sendMessage() async {
     final text = _messageController.text.trim();
-
     final attachments = List<PendingAttachment>.from(_pendingAttachments);
 
-    if ((text.isEmpty && attachments.isEmpty) || _isSending) {
+    if ((text.isEmpty && attachments.isEmpty) || _isSending) return;
+
+    final useImageGeneration = _imageGenerationForNextMessage;
+    final useWebSearch = _webSearchForNextMessage && !useImageGeneration;
+    final visibleText =
+        text.isEmpty ? 'Revisa los archivos adjuntos.' : text;
+
+    if (useImageGeneration && visibleText.length > 1800) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            AppErrorMessages.isEnglish
+                ? 'Image prompts must be 1800 characters or fewer.'
+                : 'El prompt de imagen debe tener máximo 1800 caracteres.',
+          ),
+        ),
+      );
       return;
     }
 
-    final visibleText = text.isEmpty ? 'Revisa los archivos adjuntos.' : text;
-
     final attachmentContext = attachments
-        .map((file) {
-          return '--- ${file.name} ---\n${file.content}';
-        })
+        .map((file) => '--- ${file.name} ---\n${file.content}')
         .join('\n\n');
 
     var effectivePrompt = visibleText;
@@ -595,19 +911,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           fromUser: true,
         ),
       );
-
       _isSending = true;
       _generationToken = token;
       _messageController.clear();
       _pendingAttachments.clear();
+      _animatedAssistantMessageId = null;
+      _webSearchForNextMessage = false;
+      _imageGenerationForNextMessage = false;
     });
 
     _scrollToBottom();
 
-    try {
-      var chatId = _activeChatId;
+    String? requestChatId = _activeChatId;
+    var createdChat = false;
+    var assistantIndex = -1;
+    var responseText = '';
+    var streamCompleted = false;
 
-      if (chatId == null) {
+    try {
+      if (requestChatId == null) {
         final createRes = await ApiClient.post('/chats', {
           'title': visibleText.length > 40
               ? '${visibleText.substring(0, 40)}...'
@@ -615,98 +937,312 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           'mode': _modeId,
         });
 
-        final createData = ApiClient.decode(createRes) as Map<String, dynamic>;
-
+        final createData =
+            ApiClient.decode(createRes) as Map<String, dynamic>;
         final chat = Map<String, dynamic>.from(createData['chat'] as Map);
 
-        chatId = '${chat['id']}';
+        requestChatId = '${chat['id']}';
+        createdChat = true;
 
-        if (mounted) {
-          setState(() {
-            _activeChatId = chatId;
-            _chatRevision++;
-          });
+        if (token.isCancelled ||
+            !mounted ||
+            !identical(_generationToken, token)) {
+          if (responseText.isEmpty) {
+            await _discardEmptyChat(requestChatId);
+          }
+          throw const ApiRequestCancelled();
         }
+
+        setState(() {
+          _activeChatId = requestChatId;
+          _chatRevision++;
+        });
       }
 
-      if (token.isCancelled) {
+      final chatId = requestChatId;
+
+      if (chatId == null ||
+          token.isCancelled ||
+          !mounted ||
+          !identical(_generationToken, token) ||
+          _activeChatId != chatId) {
         throw const ApiRequestCancelled();
       }
 
-      final response = await ApiClient.postCancelable('/ai/chat', {
-        'prompt': effectivePrompt,
-        'mode': _modeId,
-        'chatId': chatId,
-        'overthink': _overthink,
-      }, token);
+      if (useImageGeneration) {
+        final imageResponse = await ApiClient.postCancelable(
+          '/ai/images/generate',
+          {
+            'prompt': visibleText,
+            'chatId': chatId,
+          },
+          token,
+          timeout: const Duration(seconds: 110),
+        );
 
-      final data = ApiClient.decode(response) as Map<String, dynamic>;
+        final imageData = Map<String, dynamic>.from(
+          ApiClient.decode(imageResponse) as Map,
+        );
+        final generatedImageUrl = imageData['imageUrl']?.toString().trim();
 
-      final chatResponse = ChatResponse.fromJson(data);
-
-      if (!mounted || token.isCancelled) return;
-
-      setState(() {
-        if (userMessageIndex < _messages.length) {
-          final old = _messages[userMessageIndex];
-
-          _messages[userMessageIndex] = ChatMessage(
-            text: old.text,
-            fromUser: true,
-            id: data['userMessageId']?.toString(),
-            chatId: chatId,
+        if (imageData['success'] != true ||
+            generatedImageUrl == null ||
+            generatedImageUrl.isEmpty) {
+          throw const ApiException(
+            502,
+            'El servidor no devolvió una imagen válida. Inténtalo de nuevo.',
           );
         }
 
+        if (token.isCancelled ||
+            !mounted ||
+            !identical(_generationToken, token) ||
+            _activeChatId != chatId) {
+          throw const ApiRequestCancelled();
+        }
+
+        final userMessageId = imageData['userMessageId']?.toString();
+        final assistantMessageId = imageData['assistantMessageId']?.toString();
+        responseText = AppErrorMessages.isEnglish
+            ? 'Image generated successfully.'
+            : 'Imagen generada correctamente.';
+        streamCompleted = true;
+
+        setState(() {
+          if (userMessageIndex >= 0 && userMessageIndex < _messages.length) {
+            final old = _messages[userMessageIndex];
+            _messages[userMessageIndex] = ChatMessage(
+              text: old.text,
+              fromUser: true,
+              id: userMessageId,
+              chatId: chatId,
+            );
+          }
+
+          _messages.add(
+            ChatMessage(
+              text: responseText,
+              fromUser: false,
+              id: assistantMessageId,
+              chatId: chatId,
+              imageUrl: generatedImageUrl,
+            ),
+          );
+          _animatedAssistantMessageId = assistantMessageId;
+          _chatRevision++;
+        });
+
+        _scrollToBottom();
+        return;
+      }
+
+      assistantIndex = _messages.length;
+
+      setState(() {
         _messages.add(
           ChatMessage(
-            text: chatResponse.response,
+            text: '',
             fromUser: false,
-            id: data['assistantMessageId']?.toString(),
             chatId: chatId,
-            memorySaved: data['memorySaved'] == true,
-            memoryId: data['memoryId']?.toString(),
-            memoryTitle: data['memoryTitle']?.toString(),
-            memoryContent: data['memoryContent']?.toString(),
           ),
         );
+      });
 
-        if (chatResponse.chatTitle?.trim().isNotEmpty == true) {
-          _chatRevision++;
+      _scrollToBottom();
+
+      await for (final event in ApiClient.postSse(
+        '/ai/chat/stream',
+        {
+          'prompt': effectivePrompt,
+          'mode': _modeId,
+          'chatId': chatId,
+          'overthink': _overthink,
+          'webSearch': useWebSearch,
+        },
+        token,
+      )) {
+        if (token.isCancelled) throw const ApiRequestCancelled();
+
+        final eventName = event['event']?.toString() ?? 'message';
+        final rawPayload = event['data'];
+
+        final payload = rawPayload is Map
+            ? Map<String, dynamic>.from(rawPayload)
+            : <String, dynamic>{};
+
+        if (eventName == 'token') {
+          final delta = payload['delta']?.toString() ?? '';
+          if (delta.isEmpty) continue;
+
+          responseText += delta;
+
+          if (mounted &&
+              !token.isCancelled &&
+              identical(_generationToken, token) &&
+              _activeChatId == chatId) {
+            setState(() {
+              if (assistantIndex >= 0 &&
+                  assistantIndex < _messages.length) {
+                _messages[assistantIndex] = ChatMessage(
+                  text: responseText,
+                  fromUser: false,
+                  chatId: chatId,
+                );
+              }
+            });
+
+            _scrollToBottom();
+          }
+        } else if (eventName == 'done') {
+          streamCompleted = true;
+
+          final completeText = payload['response']?.toString();
+          if (completeText != null && completeText.isNotEmpty) {
+            responseText = completeText;
+          }
+
+          final userId = payload['userMessageId']?.toString();
+          final assistantId = payload['assistantMessageId']?.toString();
+
+          if (mounted &&
+              !token.isCancelled &&
+              identical(_generationToken, token) &&
+              _activeChatId == chatId) {
+            setState(() {
+              if (userMessageIndex >= 0 &&
+                  userMessageIndex < _messages.length) {
+                final old = _messages[userMessageIndex];
+
+                _messages[userMessageIndex] = ChatMessage(
+                  text: old.text,
+                  fromUser: true,
+                  id: userId,
+                  chatId: chatId,
+                );
+              }
+
+              if (assistantIndex >= 0 &&
+                  assistantIndex < _messages.length) {
+                _messages[assistantIndex] = ChatMessage(
+                  text: responseText,
+                  fromUser: false,
+                  id: assistantId,
+                  chatId: chatId,
+                  memorySaved: payload['memorySaved'] == true,
+                  memoryId: payload['memoryId']?.toString(),
+                  memoryTitle: payload['memoryTitle']?.toString(),
+                  memoryContent: payload['memoryContent']?.toString(),
+                );
+              }
+
+              _animatedAssistantMessageId = assistantId;
+
+              if (payload['chatTitle']?.toString().trim().isNotEmpty == true) {
+                _chatRevision++;
+              }
+            });
+          }
+        } else if (eventName == 'error') {
+          throw ApiException(
+            503,
+            ApiClient.friendlyMessage(
+              503,
+              payload['error']?.toString(),
+              code: payload['code']?.toString(),
+            ),
+          );
+        }
+      }
+
+      if (!streamCompleted) {
+        throw const ApiException(
+          502,
+          'La respuesta se interrumpió antes de terminar. Inténtalo de nuevo.',
+        );
+      }
+
+      if (responseText.trim().isEmpty) {
+        throw const ApiException(
+          502,
+          'La IA devolvió una respuesta vacía. Inténtalo de nuevo.',
+        );
+      }
+    } on ApiRequestCancelled {
+      if (createdChat &&
+          requestChatId != null &&
+          !streamCompleted &&
+          _activeChatId != requestChatId) {
+        await _discardEmptyChat(requestChatId);
+      }
+
+      if (mounted &&
+          _activeChatId == requestChatId &&
+          assistantIndex >= 0 &&
+          assistantIndex < _messages.length &&
+          _messages[assistantIndex].text.isEmpty) {
+        setState(() => _messages.removeAt(assistantIndex));
+      }
+    } on ApiException catch (e) {
+      if (createdChat &&
+          requestChatId != null &&
+          !streamCompleted &&
+          _activeChatId != requestChatId) {
+        await _discardEmptyChat(requestChatId);
+      }
+
+      if (!mounted || token.isCancelled || _activeChatId != requestChatId) {
+        return;
+      }
+
+      final failureText = responseText.isEmpty
+          ? 'Numi no pudo responder en este momento. ${e.message}'
+          : '$responseText\n\n${AppErrorMessages.streamInterrupted}';
+
+      setState(() {
+        final failure = ChatMessage(
+          text: failureText,
+          fromUser: false,
+          chatId: requestChatId,
+        );
+
+        if (assistantIndex >= 0 && assistantIndex < _messages.length) {
+          _messages[assistantIndex] = failure;
+        } else {
+          _messages.add(failure);
         }
       });
-    } on ApiRequestCancelled {
-      // Cancelar no agrega una respuesta falsa.
-    } on ApiException catch (_) {
-      if (!mounted || token.isCancelled) return;
-
-      setState(() {
-        _messages.add(
-          ChatMessage(
-            text: 'Numi no pudo responder en este momento. Inténtalo de nuevo.',
-            fromUser: false,
-          ),
-        );
-      });
     } catch (_) {
-      if (!mounted || token.isCancelled) return;
+      if (createdChat &&
+          requestChatId != null &&
+          !streamCompleted &&
+          _activeChatId != requestChatId) {
+        await _discardEmptyChat(requestChatId);
+      }
+
+      if (!mounted || token.isCancelled || _activeChatId != requestChatId) {
+        return;
+      }
 
       setState(() {
-        _messages.add(
-          const ChatMessage(
-            text: 'Numi no pudo responder en este momento. Inténtalo de nuevo.',
-            fromUser: false,
-          ),
+        final failure = ChatMessage(
+          text: responseText.isEmpty
+              ? AppErrorMessages.aiUnavailable
+              : '$responseText\n\n${AppErrorMessages.streamInterrupted}',
+          fromUser: false,
+          chatId: requestChatId,
         );
+
+        if (assistantIndex >= 0 && assistantIndex < _messages.length) {
+          _messages[assistantIndex] = failure;
+        } else {
+          _messages.add(failure);
+        }
       });
     } finally {
-      if (mounted) {
+      if (mounted && identical(_generationToken, token)) {
         setState(() {
           _isSending = false;
-
-          if (identical(_generationToken, token)) {
-            _generationToken = null;
-          }
+          _generationToken = null;
         });
       }
 
@@ -714,12 +1250,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     }
   }
 
+  Future<void> _discardEmptyChat(String chatId) async {
+    try {
+      await ApiClient.delete('/chats/${Uri.encodeComponent(chatId)}');
+    } catch (_) {
+      // La limpieza no debe ocultar el error original.
+    }
+  }
+
   void _copyMessage(ChatMessage message) {
     Clipboard.setData(ClipboardData(text: message.text));
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Mensaje copiado')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Mensaje copiado')),
+    );
   }
 
   void _editMessage(ChatMessage message) {
@@ -730,6 +1274,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         TextPosition(offset: _messageController.text.length),
       );
     });
+
+    _messageFocusNode.requestFocus();
   }
 
   Future<void> _sendFeedback(ChatMessage message, String kind) async {
@@ -781,9 +1327,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
       noteController.dispose();
 
-      if (note == null) {
-        return;
-      }
+      if (note == null) return;
     }
 
     try {
@@ -824,9 +1368,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authControllerProvider);
-
     final palette = ref.watch(appPaletteProvider);
-
     final email = auth is AuthAuthenticated ? auth.email : '';
 
     final availableModes =
@@ -837,7 +1379,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
       if (list != null &&
           list.isNotEmpty &&
-          !list.any((m) => m.id == _modeId)) {
+          !list.any((mode) => mode.id == _modeId)) {
         setState(() => _modeId = list.first.id);
       }
     });
@@ -867,30 +1409,37 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               onGhostTap: _openGhostChat,
             ),
             Expanded(
-              child: _messages.isEmpty
-                  ? const _EmptyState()
-                  : ListView.builder(
-                      controller: _scrollController,
-                      padding: const EdgeInsets.fromLTRB(0, 8, 0, 18),
-                      itemCount: _messages.length + (_isSending ? 1 : 0),
-                      itemBuilder: (context, index) {
-                        if (_isSending && index == _messages.length) {
-                          return const _ThinkingMessage();
-                        }
+              child: _isLoadingHistory
+                  ? const Center(child: CircularProgressIndicator())
+                  : _messages.isEmpty
+                      ? const _EmptyState()
+                      : ListView.builder(
+                          controller: _scrollController,
+                          padding: const EdgeInsets.fromLTRB(0, 8, 0, 18),
+                          itemCount: _messages.length + (_isSending ? 1 : 0),
+                          itemBuilder: (context, index) {
+                            if (_isSending && index == _messages.length) {
+                              return const _ThinkingMessage();
+                            }
 
-                        final message = _messages[index];
+                            final message = _messages[index];
 
-                        return _MessageBubble(
-                          message: message,
-                          onCopy: _copyMessage,
-                          onEdit: _editMessage,
-                          onFeedback: _sendFeedback,
-                        );
-                      },
-                    ),
+                            return _MessageBubble(
+                              message: message,
+                              animateCharacters: !message.fromUser &&
+                                  (message.id == null ||
+                                      message.id ==
+                                          _animatedAssistantMessageId),
+                              onCopy: _copyMessage,
+                              onEdit: _editMessage,
+                              onFeedback: _sendFeedback,
+                            );
+                          },
+                        ),
             ),
             _BottomInputBar(
               controller: _messageController,
+              focusNode: _messageFocusNode,
               modeId: _modeId,
               availableModes: availableModes,
               isSending: _isSending,
@@ -898,6 +1447,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               isAttaching: _isAttaching,
               overthink: _overthink,
               pendingAttachments: _pendingAttachments,
+              hintText: _composerHint,
+              webSearchEnabled: _webSearchForNextMessage,
+              imageGenerationEnabled: _imageGenerationForNextMessage,
+              showPromptStarters: !_isLoadingHistory && _messages.isEmpty,
+              promptStarters: _promptStarters,
               onRemoveAttachment: (file) {
                 setState(() {
                   _pendingAttachments.remove(file);
@@ -908,6 +1462,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   _overthink = !_overthink;
                 });
               },
+              onToggleWebSearch: () {
+                setState(() {
+                  _webSearchForNextMessage = !_webSearchForNextMessage;
+                  if (_webSearchForNextMessage) {
+                    _imageGenerationForNextMessage = false;
+                  }
+                });
+              },
+              onToggleImageGeneration: () {
+                setState(() {
+                  _imageGenerationForNextMessage = !_imageGenerationForNextMessage;
+                  if (_imageGenerationForNextMessage) {
+                    _webSearchForNextMessage = false;
+                  }
+                });
+              },
+              onPromptSelected: _selectPromptStarter,
               onCancel: _cancelGeneration,
               onModeChange: _toggleMode,
               onSend: _sendMessage,
@@ -1080,7 +1651,10 @@ class _MemorySavedWidget extends StatelessWidget {
           opacity: value,
           child: Transform.translate(
             offset: Offset(0, 8 * (1 - value)),
-            child: Transform.scale(scale: 0.98 + (value * 0.02), child: child),
+            child: Transform.scale(
+              scale: 0.98 + (value * 0.02),
+              child: child,
+            ),
           ),
         );
       },
@@ -1089,14 +1663,16 @@ class _MemorySavedWidget extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
         decoration: BoxDecoration(
-          color: Theme.of(
-            context,
-          ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.42),
+          color: Theme.of(context)
+              .colorScheme
+              .surfaceContainerHighest
+              .withValues(alpha: 0.42),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: Theme.of(
-              context,
-            ).colorScheme.outline.withValues(alpha: 0.18),
+            color: Theme.of(context)
+                .colorScheme
+                .outline
+                .withValues(alpha: 0.18),
           ),
         ),
         child: Row(
@@ -1106,9 +1682,10 @@ class _MemorySavedWidget extends StatelessWidget {
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                color: Theme.of(
-                  context,
-                ).colorScheme.primary.withValues(alpha: 0.12),
+                color: Theme.of(context)
+                    .colorScheme
+                    .primary
+                    .withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(9),
               ),
               child: Icon(
@@ -1153,12 +1730,14 @@ class _MemorySavedWidget extends StatelessWidget {
 class _MessageBubble extends ConsumerWidget {
   const _MessageBubble({
     required this.message,
+    this.animateCharacters = false,
     required this.onCopy,
     required this.onEdit,
     required this.onFeedback,
   });
 
   final ChatMessage message;
+  final bool animateCharacters;
   final ValueChanged<ChatMessage> onCopy;
   final ValueChanged<ChatMessage> onEdit;
   final void Function(ChatMessage, String) onFeedback;
@@ -1179,16 +1758,58 @@ class _MessageBubble extends ConsumerWidget {
           maxWidth: MediaQuery.of(context).size.width * (isUser ? 0.88 : 0.94),
         ),
         child: Column(
-          crossAxisAlignment: isUser
-              ? CrossAxisAlignment.end
-              : CrossAxisAlignment.start,
+          crossAxisAlignment:
+              isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
             if (!isUser && message.memorySaved)
               _MemorySavedWidget(
                 title: message.memoryTitle,
                 content: message.memoryContent,
               ),
-            if (isUser)
+            if (message.imageUrl?.isNotEmpty == true) ...[
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  color: palette.surface,
+                  child: Image.network(
+                    message.imageUrl!,
+                    width: MediaQuery.of(context).size.width * 0.82,
+                    fit: BoxFit.contain,
+                    loadingBuilder: (context, child, progress) {
+                      if (progress == null) return child;
+                      final total = progress.expectedTotalBytes;
+                      return SizedBox(
+                        height: 220,
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            value: total == null
+                                ? null
+                                : progress.cumulativeBytesLoaded / total,
+                          ),
+                        ),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        width: MediaQuery.of(context).size.width * 0.82,
+                        padding: const EdgeInsets.all(20),
+                        child: Text(
+                          AppErrorMessages.isEnglish
+                              ? 'This image could not be loaded. Try generating it again.'
+                              : 'No pudimos cargar esta imagen. Intenta generarla de nuevo.',
+                          style: TextStyle(color: palette.textSecondary),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+              if (message.text.trim().isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                  child: AiResponse(text: message.text),
+                ),
+            ] else if (isUser)
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
@@ -1209,7 +1830,10 @@ class _MessageBubble extends ConsumerWidget {
                   horizontal: 4,
                   vertical: 6,
                 ),
-                child: AiResponse(text: message.text),
+                child: AiResponse(
+                  text: message.text,
+                  animateCharacters: animateCharacters,
+                ),
               ),
             Row(
               mainAxisSize: MainAxisSize.min,
@@ -1253,6 +1877,7 @@ class _MessageBubble extends ConsumerWidget {
 class _BottomInputBar extends ConsumerWidget {
   const _BottomInputBar({
     required this.controller,
+    required this.focusNode,
     required this.modeId,
     required this.availableModes,
     required this.isSending,
@@ -1260,8 +1885,16 @@ class _BottomInputBar extends ConsumerWidget {
     required this.isAttaching,
     required this.overthink,
     required this.pendingAttachments,
+    required this.hintText,
+    required this.webSearchEnabled,
+    required this.imageGenerationEnabled,
+    required this.showPromptStarters,
+    required this.promptStarters,
     required this.onRemoveAttachment,
     required this.onToggleOverthink,
+    required this.onToggleWebSearch,
+    required this.onToggleImageGeneration,
+    required this.onPromptSelected,
     required this.onCancel,
     required this.onModeChange,
     required this.onSend,
@@ -1270,6 +1903,7 @@ class _BottomInputBar extends ConsumerWidget {
   });
 
   final TextEditingController controller;
+  final FocusNode focusNode;
   final String modeId;
   final List<AiModeConfig> availableModes;
   final bool isSending;
@@ -1277,8 +1911,16 @@ class _BottomInputBar extends ConsumerWidget {
   final bool isAttaching;
   final bool overthink;
   final List<PendingAttachment> pendingAttachments;
+  final String hintText;
+  final bool webSearchEnabled;
+  final bool imageGenerationEnabled;
+  final bool showPromptStarters;
+  final List<_PromptStarter> promptStarters;
   final ValueChanged<PendingAttachment> onRemoveAttachment;
   final VoidCallback onToggleOverthink;
+  final VoidCallback onToggleWebSearch;
+  final VoidCallback onToggleImageGeneration;
+  final ValueChanged<_PromptStarter> onPromptSelected;
   final VoidCallback onCancel;
   final ValueChanged<String> onModeChange;
   final VoidCallback onSend;
@@ -1288,12 +1930,34 @@ class _BottomInputBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = ref.watch(appPaletteProvider);
+    final english = AppErrorMessages.isEnglish;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (showPromptStarters)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: SizedBox(
+                height: 40,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: promptStarters.length,
+                  separatorBuilder: (_, index) => const SizedBox(width: 7),
+                  itemBuilder: (context, index) {
+                    final starter = promptStarters[index];
+
+                    return ActionChip(
+                      avatar: Icon(starter.icon, size: 16),
+                      label: Text(starter.label),
+                      onPressed: () => onPromptSelected(starter),
+                    );
+                  },
+                ),
+              ),
+            ),
           if (pendingAttachments.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
@@ -1305,22 +1969,51 @@ class _BottomInputBar extends ConsumerWidget {
                   children: pendingAttachments.map((file) {
                     return InputChip(
                       avatar: const Icon(LucideIcons.fileText, size: 16),
-                      label: Text(file.name, overflow: TextOverflow.ellipsis),
+                      label: Text(
+                        file.name,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                       onDeleted: () => onRemoveAttachment(file),
                     );
                   }).toList(),
                 ),
               ),
             ),
-          if (overthink)
+          if (overthink || webSearchEnabled || imageGenerationEnabled)
             Padding(
-              padding: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.only(bottom: 7),
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: ActionChip(
-                  avatar: const Icon(LucideIcons.brain, size: 16),
-                  label: const Text('Sobrepensar activado'),
-                  onPressed: onToggleOverthink,
+                child: Wrap(
+                  spacing: 6,
+                  children: [
+                    if (overthink)
+                      ActionChip(
+                        avatar: const Icon(LucideIcons.brain, size: 16),
+                        label: Text(
+                          english
+                              ? 'Deep analysis on'
+                              : 'Análisis profundo activo',
+                        ),
+                        onPressed: onToggleOverthink,
+                      ),
+                    if (webSearchEnabled)
+                      ActionChip(
+                        avatar: const Icon(LucideIcons.globe, size: 16),
+                        label: Text(
+                          english ? 'Web search on' : 'Búsqueda web activada',
+                        ),
+                        onPressed: onToggleWebSearch,
+                      ),
+                    if (imageGenerationEnabled)
+                      ActionChip(
+                        avatar: const Icon(LucideIcons.image, size: 16),
+                        label: Text(
+                          english ? 'Image generation on' : 'Generación de imagen activa',
+                        ),
+                        onPressed: onToggleImageGeneration,
+                      ),
+                  ],
                 ),
               ),
             ),
@@ -1350,6 +2043,11 @@ class _BottomInputBar extends ConsumerWidget {
             decoration: BoxDecoration(
               color: palette.surface,
               borderRadius: BorderRadius.circular(30),
+              border: Border.all(
+                color: (webSearchEnabled || imageGenerationEnabled)
+                    ? palette.accent.withValues(alpha: 0.55)
+                    : palette.textSecondary.withValues(alpha: 0.12),
+              ),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(
@@ -1361,12 +2059,12 @@ class _BottomInputBar extends ConsumerWidget {
               ],
             ),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Padding(
-                  padding: const EdgeInsets.only(left: 2, bottom: 1),
+                  padding: const EdgeInsets.only(left: 2),
                   child: IconButton(
-                    tooltip: 'Más herramientas',
+                    tooltip: english ? 'More tools' : 'Más herramientas',
                     onPressed: isAttaching ? null : onAttachTap,
                     icon: AnimatedSwitcher(
                       duration: const Duration(milliseconds: 180),
@@ -1377,26 +2075,59 @@ class _BottomInputBar extends ConsumerWidget {
                               height: 19,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : const Icon(key: ValueKey('plus'), LucideIcons.plus),
+                          : const Icon(
+                              key: ValueKey('plus'),
+                              LucideIcons.plus,
+                            ),
                     ),
+                  ),
+                ),
+                IconButton(
+                  tooltip: webSearchEnabled
+                      ? (english
+                          ? 'Disable web search'
+                          : 'Desactivar búsqueda web')
+                      : (english ? 'Search the web' : 'Buscar en la web'),
+                  onPressed: onToggleWebSearch,
+                  icon: Icon(
+                    LucideIcons.globe,
+                    color: webSearchEnabled
+                        ? palette.accent
+                        : palette.textSecondary,
+                  ),
+                ),
+                IconButton(
+                  tooltip: imageGenerationEnabled
+                      ? (english ? 'Disable image generation' : 'Desactivar generación de imagen')
+                      : (english ? 'Generate an image' : 'Generar una imagen'),
+                  onPressed: onToggleImageGeneration,
+                  icon: Icon(
+                    LucideIcons.image,
+                    color: imageGenerationEnabled
+                        ? palette.accent
+                        : palette.textSecondary,
                   ),
                 ),
                 Expanded(
                   child: TextField(
                     controller: controller,
+                    focusNode: focusNode,
                     enabled: !isSending,
                     minLines: 1,
-                    maxLines: 6,
-                    keyboardType: TextInputType.multiline,
-                    textInputAction: TextInputAction.newline,
+                    maxLines: 1,
+                    keyboardType: TextInputType.text,
+                    textInputAction: TextInputAction.send,
+                    onSubmitted: (_) {
+                      if (!isSending) onSend();
+                    },
                     cursorColor: palette.accent,
                     style: TextStyle(
                       color: palette.textPrimary,
-                      fontSize: 16,
-                      height: 1.4,
+                      fontSize: 15,
+                      height: 1.2,
                     ),
                     decoration: InputDecoration(
-                      hintText: context.l10n.askSomething,
+                      hintText: hintText,
                       hintStyle: TextStyle(
                         color: palette.textSecondary.withValues(alpha: 0.72),
                       ),
@@ -1408,7 +2139,7 @@ class _BottomInputBar extends ConsumerWidget {
                       focusedErrorBorder: InputBorder.none,
                       isCollapsed: true,
                       contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 8,
+                        horizontal: 5,
                         vertical: 14,
                       ),
                     ),
@@ -1421,11 +2152,13 @@ class _BottomInputBar extends ConsumerWidget {
                   onTap: onMicTap,
                 ),
                 Padding(
-                  padding: const EdgeInsets.only(right: 2, bottom: 1),
+                  padding: const EdgeInsets.only(right: 3),
                   child: IconButton.filled(
                     tooltip: isSending
-                        ? 'Detener generación'
-                        : 'Enviar mensaje',
+                        ? (english
+                            ? 'Stop generation'
+                            : 'Detener generación')
+                        : (english ? 'Send message' : 'Enviar mensaje'),
                     onPressed: isSending ? onCancel : onSend,
                     icon: AnimatedSwitcher(
                       duration: const Duration(milliseconds: 180),
@@ -1490,7 +2223,8 @@ class _ThinkingMessageState extends State<_ThinkingMessage>
               final opacity =
                   0.35 + (0.65 * (1 - (phase - 1).abs().clamp(0.0, 1.0)));
 
-              final offsetY = -3 * (1 - (phase - 1).abs().clamp(0.0, 1.0));
+              final offsetY =
+                  -3 * (1 - (phase - 1).abs().clamp(0.0, 1.0));
 
               return Transform.translate(
                 offset: Offset(0, offsetY),

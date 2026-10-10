@@ -4,6 +4,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/auth_controller.dart';
+import '../../core/error_messages.dart';
 import '../../core/env.dart';
 import '../../core/numi_icons.dart';
 import 'confirm_mail.dart';
@@ -137,19 +138,19 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       }
 
       setState(() {
-        _errorText = e.description ?? 'No se pudo iniciar sesión con Google';
+        _errorText = AppErrorMessages.fromAuthError(e.description ?? '', fallback: AppErrorMessages.googleSignInFailed);
       });
     } on AuthException catch (e) {
       if (!mounted) return;
 
       setState(() {
-        _errorText = e.message;
+        _errorText = AppErrorMessages.fromAuthError(e.message);
       });
     } catch (e) {
       if (!mounted) return;
 
       setState(() {
-        _errorText = e.toString().replaceFirst('Bad state: ', '');
+        _errorText = AppErrorMessages.fromAuthError(e.toString());
       });
     } finally {
       if (mounted) {
@@ -177,13 +178,13 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       if (!mounted) return;
 
       setState(() {
-        _errorText = e.message;
+        _errorText = AppErrorMessages.fromAuthError(e.message);
       });
     } catch (_) {
       if (!mounted) return;
 
       setState(() {
-        _errorText = 'No se pudo iniciar sesión con GitHub';
+        _errorText = AppErrorMessages.githubSignInFailed;
       });
     } finally {
       if (mounted) {

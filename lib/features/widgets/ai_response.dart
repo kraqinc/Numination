@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:lucide_flutter/lucide_flutter.dart';
@@ -10,9 +13,10 @@ import '../../core/theme_controller.dart';
 import 'package:numination/core/numi_icons.dart';
 
 class AiResponse extends ConsumerWidget {
-  const AiResponse({super.key, required this.text});
+  const AiResponse({super.key, required this.text, this.animateCharacters = false});
 
   final String text;
+  final bool animateCharacters;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -27,6 +31,7 @@ class AiResponse extends ConsumerWidget {
             part: parts[i],
             palette: palette,
             onCopy: (code) => _copyCode(context, code),
+            animateCharacters: animateCharacters,
           ),
           if (i != parts.length - 1) const SizedBox(height: 8),
         ],
@@ -185,17 +190,19 @@ class _ResponsePartView extends StatelessWidget {
     required this.part,
     required this.palette,
     required this.onCopy,
+    required this.animateCharacters,
   });
 
   final _ResponsePart part;
   final AppPalette palette;
   final ValueChanged<String> onCopy;
+  final bool animateCharacters;
 
   @override
   Widget build(BuildContext context) {
     switch (part.type) {
       case _ResponsePartType.text:
-        return _TextResponse(text: part.content, palette: palette);
+        return _TextResponse(text: part.content, palette: palette, animateCharacters: animateCharacters);
 
       case _ResponsePartType.math:
         return _MathResponse(expression: part.content, palette: palette);
@@ -212,10 +219,11 @@ class _ResponsePartView extends StatelessWidget {
 }
 
 class _TextResponse extends StatelessWidget {
-  const _TextResponse({required this.text, required this.palette});
+  const _TextResponse({required this.text, required this.palette, required this.animateCharacters});
 
   final String text;
   final AppPalette palette;
+  final bool animateCharacters;
 
   @override
   Widget build(BuildContext context) {
@@ -228,10 +236,74 @@ class _TextResponse extends StatelessWidget {
           if (line.trim().isNotEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 2),
-              child: _FormattedLine(line: line, palette: palette),
+              child: animateCharacters
+                  ? _CharacterRevealLine(line: line, palette: palette)
+                  : _FormattedLine(line: line, palette: palette),
             ),
       ],
     );
+  }
+}
+
+class _CharacterRevealLine extends StatefulWidget {
+  const _CharacterRevealLine({required this.line, required this.palette});
+
+  final String line;
+  final AppPalette palette;
+
+  @override
+  State<_CharacterRevealLine> createState() => _CharacterRevealLineState();
+}
+
+class _CharacterRevealLineState extends State<_CharacterRevealLine> {
+  Timer? _timer;
+  int _visibleRunes = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _startTimer();
+  }
+
+  @override
+  void didUpdateWidget(covariant _CharacterRevealLine oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.line != widget.line) {
+      final target = widget.line.runes.length;
+      if (_visibleRunes > target) _visibleRunes = target;
+      _startTimer();
+    }
+  }
+
+  void _startTimer() {
+    if (_timer != null || _visibleRunes >= widget.line.runes.length) return;
+    _timer = Timer.periodic(const Duration(milliseconds: 16), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        _timer = null;
+        return;
+      }
+      final target = widget.line.runes.length;
+      setState(() {
+        _visibleRunes = (_visibleRunes + 3).clamp(0, target).toInt();
+      });
+      if (_visibleRunes >= target) {
+        timer.cancel();
+        _timer = null;
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final visible = String.fromCharCodes(widget.line.runes.take(_visibleRunes));
+    return _FormattedLine(line: visible, palette: widget.palette);
   }
 }
 
@@ -286,9 +358,7 @@ class _FormattedLine extends StatelessWidget {
 
   List<InlineSpan> _spans(String value) {
     final result = <InlineSpan>[];
-
-    final regex = RegExp(r'(\*\*[^*]+\*\*|`[^`]+`)');
-
+    final regex = RegExp(r'(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\(https?://[^)\s]+\))');
     var cursor = 0;
 
     for (final match in regex.allMatches(value)) {
@@ -305,6 +375,29 @@ class _FormattedLine extends StatelessWidget {
             style: const TextStyle(fontWeight: FontWeight.w700),
           ),
         );
+      } else if (token.startsWith('[')) {
+        final link = RegExp(r'^\[([^\]]+)\]\((https?://[^)]+)\)$').firstMatch(token);
+        final uri = link == null ? null : Uri.tryParse(link.group(2)!);
+
+        if (link != null && uri != null) {
+          result.add(
+            WidgetSpan(
+              alignment: PlaceholderAlignment.middle,
+              child: InkWell(
+                onTap: () => launchUrl(uri, mode: LaunchMode.externalApplication),
+                child: Text(
+                  link.group(1)!,
+                  style: TextStyle(
+                    color: palette.accent,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
+            ),
+          );
+        } else {
+          result.add(TextSpan(text: token));
+        }
       } else {
         result.add(
           WidgetSpan(

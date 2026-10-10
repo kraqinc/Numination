@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/api.dart';
+import '../../core/error_messages.dart';
 import '../../core/l10n_extensions.dart';
 import '../../core/models.dart';
 import '../../core/theme.dart';
@@ -49,7 +50,7 @@ class _ArtifactsScreenState extends ConsumerState<ArtifactsScreen> {
     } catch (e) {
       setState(() {
         _isLoading = false;
-        _errorText = 'No se pudieron cargar tus artifacts';
+        _errorText = AppErrorMessages.artifactsLoadFailed;
       });
     }
   }
@@ -95,7 +96,7 @@ class _ArtifactsScreenState extends ConsumerState<ArtifactsScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo eliminar el artifact')),
+        SnackBar(content: Text(AppErrorMessages.artifactDeleteFailed)),
       );
     }
   }
@@ -119,14 +120,14 @@ class _ArtifactsScreenState extends ConsumerState<ArtifactsScreen> {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No se pudo abrir el archivo')),
+          SnackBar(content: Text(AppErrorMessages.artifactOpenFailed)),
         );
       }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No se pudo generar el enlace del archivo'),
+        SnackBar(
+          content: Text(AppErrorMessages.artifactLinkFailed),
         ),
       );
     }

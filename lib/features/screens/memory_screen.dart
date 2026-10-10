@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api.dart';
+import '../../core/error_messages.dart';
 import '../../core/l10n_extensions.dart';
 import '../../core/models.dart';
 import '../../core/theme.dart';
@@ -37,8 +38,12 @@ class _MemoryScreenState extends ConsumerState<MemoryScreen> {
         _memories = list;
         _isLoading = false;
       });
-    } catch (e) {
+    } catch (_) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppErrorMessages.memoriesLoadFailed)),
+      );
     }
   }
 
@@ -139,7 +144,7 @@ class _MemoryScreenState extends ConsumerState<MemoryScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo guardar la memoria')),
+        SnackBar(content: Text(AppErrorMessages.memorySaveFailed)),
       );
     }
   }

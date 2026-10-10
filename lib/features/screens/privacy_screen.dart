@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api.dart';
+import '../../core/error_messages.dart';
 import '../../core/i18n.dart';
 import '../../core/theme_controller.dart';
 import 'package:numination/core/numi_icons.dart';
@@ -75,7 +76,7 @@ class _PrivacyScreenState extends ConsumerState<PrivacyScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudieron eliminar los chats.')),
+        SnackBar(content: Text(AppErrorMessages.chatsDeleteFailed)),
       );
     } finally {
       if (mounted) setState(() => _isDeleting = false);

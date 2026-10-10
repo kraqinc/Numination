@@ -9,8 +9,11 @@ import 'package:path_provider/path_provider.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 import '../../core/api.dart';
+import '../../core/env.dart';
+import '../../core/error_messages.dart';
 import '../../core/models.dart';
 import '../../core/theme_controller.dart';
+import '../widgets/ai_response.dart';
 import '../widgets/coder_preview_screen.dart';
 
 class CoderPreviewState {
@@ -65,11 +68,13 @@ class _CoderMessage {
   final String text;
   final bool fromUser;
   final String? id;
+  final bool animateCharacters;
 
-  const _CoderMessage({
+  _CoderMessage({
     required this.text,
     required this.fromUser,
     this.id,
+    this.animateCharacters = false,
   });
 }
 
@@ -103,6 +108,8 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
   String? _savedZipPath;
 
   bool _loadingFiles = true;
+  bool _loadingMessages = false;
+  int _messageLoadRevision = 0;
   bool _isSending = false;
   bool _isListening = false;
   bool _speechAvailable = false;
@@ -116,7 +123,10 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
   void initState() {
     super.initState();
     _chatId = widget.chatId;
+    _loadingMessages = _chatId != null && _chatId!.isNotEmpty;
     _loadFiles();
+    _loadMessages();
+    _loadPreviewLink();
     _initSpeech();
   }
 
@@ -171,9 +181,6 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
     setState(() => _isListening = true);
 
     await _speech.listen(
-      listenOptions: stt.SpeechListenOptions(
-        localeId: 'es_ES',
-      ),
       onResult: (result) {
         if (!mounted) return;
 
@@ -194,6 +201,118 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
         });
       },
     );
+  }
+
+  Future<void> _loadMessages() async {
+    final requestedChatId = _chatId;
+    if (requestedChatId == null || requestedChatId.isEmpty) return;
+
+    final loadRevision = ++_messageLoadRevision;
+
+    try {
+      final response = await ApiClient.get(
+        '/chats/${Uri.encodeComponent(requestedChatId)}/messages',
+      );
+
+      final data = ApiClient.decode(response) as Map<String, dynamic>;
+
+      final loadedMessages = (data['messages'] as List? ?? [])
+          .whereType<Map>()
+          .map((row) => Map<String, dynamic>.from(row))
+          .map(
+            (row) => _CoderMessage(
+              text: '${row['content'] ?? ''}',
+              fromUser: row['role'] == 'user',
+              id: row['id']?.toString(),
+            ),
+          )
+          .where((message) => message.text.isNotEmpty)
+          .toList();
+
+      if (!mounted ||
+          loadRevision != _messageLoadRevision ||
+          _chatId != requestedChatId) {
+        return;
+      }
+
+      setState(() {
+        _messages
+          ..clear()
+          ..addAll(loadedMessages);
+        _loadingMessages = false;
+      });
+
+      _scrollToBottom();
+    } catch (_) {
+      if (!mounted ||
+          loadRevision != _messageLoadRevision ||
+          _chatId != requestedChatId) {
+        return;
+      }
+
+      setState(() {
+        _loadingMessages = false;
+        _messages.add(
+          _CoderMessage(
+            text: AppErrorMessages.historyLoadFailed,
+            fromUser: false,
+          ),
+        );
+      });
+    }
+  }
+
+  String _canonicalPreviewUrl(String value) {
+    final incoming = Uri.tryParse(value.trim());
+    if (incoming == null) return value;
+
+    final token = incoming.queryParameters['t'];
+    if (token == null || token.isEmpty) return value;
+
+    final projectId =
+        incoming.queryParameters['projectId'] ?? widget.projectId;
+    final base = Uri.tryParse(Env.supabaseUrl);
+
+    if (base == null || base.host.isEmpty) return value;
+
+    return base
+        .replace(
+          path: '/functions/v1/api',
+          queryParameters: {
+            '__preview': '1',
+            'projectId': projectId,
+            't': token,
+          },
+        )
+        .toString();
+  }
+
+  Future<void> _loadPreviewLink() async {
+    try {
+      final response = await ApiClient.get(
+        '/projects/${Uri.encodeComponent(widget.projectId)}/preview-link',
+      );
+
+      final data = ApiClient.decode(response) as Map<String, dynamic>;
+      final ready = data['previewReady'] == true;
+      final rawUrl = data['previewUrl']?.toString().trim();
+
+      if (!mounted) return;
+
+      ref.read(coderPreviewProvider(widget.projectId).notifier).setPreview(
+            ready: ready,
+            url: ready && rawUrl != null && rawUrl.isNotEmpty
+                ? _canonicalPreviewUrl(rawUrl)
+                : null,
+          );
+    } catch (_) {
+      if (!mounted) return;
+
+      ref.read(coderPreviewProvider(widget.projectId).notifier).setPreview(
+            ready: false,
+            url: null,
+          );
+    }
   }
 
   Future<void> _loadFiles() async {
@@ -226,12 +345,12 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
         _files = files;
         _loadingFiles = false;
       });
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
 
       setState(() {
         _loadingFiles = false;
-        _errorText = 'No se pudieron cargar los archivos: $e';
+        _errorText = AppErrorMessages.filesLoadFailed;
       });
     }
   }
@@ -274,9 +393,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
         'php',
       };
 
-      if (!extensions.contains(
-        (picked.extension ?? '').toLowerCase(),
-      )) {
+      if (!extensions.contains((picked.extension ?? '').toLowerCase())) {
         throw Exception(
           'Por ahora Coder admite archivos de texto y código en la vista previa.',
         );
@@ -315,7 +432,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('$e'),
+          content: Text(AppErrorMessages.fromException(e)),
         ),
       );
     }
@@ -333,9 +450,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   ListTile(
-                    leading: const Icon(
-                      LucideIcons.paperclip,
-                    ),
+                    leading: const Icon(LucideIcons.paperclip),
                     title: const Text('Añadir archivos'),
                     subtitle: const Text(
                       'Se mantienen como vista previa hasta enviar',
@@ -346,22 +461,16 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
                     },
                   ),
                   ListTile(
-                    leading: const Icon(
-                      LucideIcons.messageCircle,
-                    ),
+                    leading: const Icon(LucideIcons.messageCircle),
                     title: const Text('Cambiar a chat'),
-                    trailing: const Icon(
-                      LucideIcons.chevronRight,
-                    ),
+                    trailing: const Icon(LucideIcons.chevronRight),
                     onTap: () {
                       Navigator.pop(sheetContext);
                       Navigator.of(context).maybePop();
                     },
                   ),
                   SwitchListTile(
-                    secondary: const Icon(
-                      LucideIcons.brain,
-                    ),
+                    secondary: const Icon(LucideIcons.brain),
                     title: const Text('Sobrepensar'),
                     subtitle: const Text(
                       'Revisión más profunda antes de aplicar cambios',
@@ -388,9 +497,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
 
   Future<void> _sendMessage() async {
     final text = _messageController.text.trim();
-    final attachments = List<_CoderAttachment>.from(
-      _pendingAttachments,
-    );
+    final attachments = List<_CoderAttachment>.from(_pendingAttachments);
 
     if ((text.isEmpty && attachments.isEmpty) || _isSending) {
       return;
@@ -435,12 +542,9 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
           },
         );
 
-        final data =
-            ApiClient.decode(response) as Map<String, dynamic>;
+        final data = ApiClient.decode(response) as Map<String, dynamic>;
 
-        final chat = Map<String, dynamic>.from(
-          data['chat'] as Map,
-        );
+        final chat = Map<String, dynamic>.from(data['chat'] as Map);
 
         _chatId = '${chat['id']}';
       }
@@ -468,8 +572,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
         token,
       );
 
-      final data =
-          ApiClient.decode(response) as Map<String, dynamic>;
+      final data = ApiClient.decode(response) as Map<String, dynamic>;
 
       if (!mounted || token.isCancelled) return;
 
@@ -479,14 +582,10 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
       final previewReady = data['previewReady'] == true;
       final previewUrl = data['previewUrl']?.toString().trim();
 
-      ref
-          .read(coderPreviewProvider(widget.projectId).notifier)
-          .setPreview(
+      ref.read(coderPreviewProvider(widget.projectId).notifier).setPreview(
             ready: previewReady,
-            url: previewReady &&
-                    previewUrl != null &&
-                    previewUrl.isNotEmpty
-                ? previewUrl
+            url: previewReady && previewUrl != null && previewUrl.isNotEmpty
+                ? _canonicalPreviewUrl(previewUrl)
                 : null,
           );
 
@@ -506,6 +605,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
             text: '${data['response'] ?? ''}',
             fromUser: false,
             id: data['assistantMessageId']?.toString(),
+            animateCharacters: true,
           ),
         );
 
@@ -521,7 +621,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
       setState(() {
         _messages.add(
           _CoderMessage(
-            text: 'Error: ${e.message}',
+            text: e.message,
             fromUser: false,
           ),
         );
@@ -531,8 +631,8 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
 
       setState(() {
         _messages.add(
-          const _CoderMessage(
-            text: 'No se pudo contactar con Coder.',
+          _CoderMessage(
+            text: AppErrorMessages.aiUnavailable,
             fromUser: false,
           ),
         );
@@ -570,7 +670,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('Cambios revertidos'),
         ),
       );
@@ -588,10 +688,8 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'No se pudieron revertir los cambios',
-          ),
+        SnackBar(
+          content: Text(AppErrorMessages.undoFailed),
         ),
       );
     }
@@ -603,23 +701,19 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
         '/projects/${Uri.encodeComponent(widget.projectId)}/download',
       );
 
-      if (response.statusCode < 200 ||
-          response.statusCode >= 300) {
+      if (response.statusCode < 200 || response.statusCode >= 300) {
         ApiClient.decode(response);
         return;
       }
 
-      final directory =
-          await getApplicationDocumentsDirectory();
+      final directory = await getApplicationDocumentsDirectory();
 
       final safeName = widget.projectName.replaceAll(
         RegExp(r'[^A-Za-z0-9._-]'),
         '-',
       );
 
-      final file = File(
-        '${directory.path}/$safeName.zip',
-      );
+      final file = File('${directory.path}/$safeName.zip');
 
       await file.writeAsBytes(
         response.bodyBytes,
@@ -632,9 +726,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            'Se guardo el proyecto en ${file.path}',
-          ),
+          content: Text('Se guardo el proyecto en ${file.path}'),
           duration: const Duration(seconds: 6),
         ),
       );
@@ -650,10 +742,8 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'No se pudo descargar el proyecto',
-          ),
+        SnackBar(
+          content: Text(AppErrorMessages.downloadFailed),
         ),
       );
     }
@@ -678,9 +768,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
                   padding: const EdgeInsets.all(16),
                   child: Row(
                     children: [
-                      const Icon(
-                        LucideIcons.fileCode2,
-                      ),
+                      const Icon(LucideIcons.fileCode2),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
@@ -696,14 +784,10 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
                         tooltip: 'Copiar contenido',
                         onPressed: () {
                           Clipboard.setData(
-                            ClipboardData(
-                              text: file.content,
-                            ),
+                            ClipboardData(text: file.content),
                           );
                         },
-                        icon: const Icon(
-                          LucideIcons.copy,
-                        ),
+                        icon: const Icon(LucideIcons.copy),
                       ),
                     ],
                   ),
@@ -713,9 +797,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.all(16),
                     child: SelectableText(
-                      file.isDirectory
-                          ? 'Directorio'
-                          : file.content,
+                      file.isDirectory ? 'Directorio' : file.content,
                       style: const TextStyle(
                         fontFamily: 'monospace',
                         fontSize: 13,
@@ -738,10 +820,8 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
   ) async {
     if (message.id == null || message.id!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Este mensaje todavía no tiene un ID guardado.',
-          ),
+        SnackBar(
+          content: Text('Este mensaje todavía no tiene un ID guardado.'),
         ),
       );
 
@@ -755,9 +835,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
       note = await showDialog<String>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          title: const Text(
-            '¿Qué falló en esta respuesta?',
-          ),
+          title: const Text('¿Qué falló en esta respuesta?'),
           content: TextField(
             controller: controller,
             minLines: 2,
@@ -768,9 +846,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(
-                dialogContext,
-              ),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Cancelar'),
             ),
             FilledButton(
@@ -798,15 +874,14 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
         {
           'messageId': message.id,
           'kind': kind,
-          if (note != null && note.isNotEmpty)
-            'note': note,
+          if (note != null && note.isNotEmpty) 'note': note,
         },
       );
 
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('Se envio tu mensaje'),
         ),
       );
@@ -815,9 +890,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            'No se pudo enviar: $e',
-          ),
+          content: Text('No se pudo enviar: $e'),
         ),
       );
     }
@@ -826,8 +899,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
   void _editMessage(_CoderMessage message) {
     setState(() {
       _messageController.text = message.text;
-      _messageController.selection =
-          TextSelection.fromPosition(
+      _messageController.selection = TextSelection.fromPosition(
         TextPosition(
           offset: _messageController.text.length,
         ),
@@ -837,34 +909,72 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
 
   void _copyMessage(_CoderMessage message) {
     Clipboard.setData(
-      ClipboardData(
-        text: message.text,
-      ),
+      ClipboardData(text: message.text),
     );
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
+      SnackBar(
         content: Text('Mensaje copiado'),
       ),
     );
   }
 
-  void _openPreview() {
-    final state = ref.read(coderPreviewProvider(widget.projectId));
-    final url = state.url;
+  Future<void> _openPreview() async {
+    try {
+      final response = await ApiClient.get(
+        '/projects/${Uri.encodeComponent(widget.projectId)}/preview-link',
+      );
 
-    if (!state.ready || url == null || url.isEmpty) {
-      return;
-    }
+      final data = ApiClient.decode(response) as Map<String, dynamic>;
+      final ready = data['previewReady'] == true;
+      final rawUrl = data['previewUrl']?.toString().trim();
 
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => CoderPreviewScreen(
-          previewUrl: url,
-          projectName: widget.projectName,
+      if (!ready || rawUrl == null || rawUrl.isEmpty) {
+        ref
+            .read(coderPreviewProvider(widget.projectId).notifier)
+            .setPreview(ready: false, url: null);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(AppErrorMessages.previewNotReady),
+            ),
+          );
+        }
+
+        return;
+      }
+
+      final url = _canonicalPreviewUrl(rawUrl);
+
+      ref
+          .read(coderPreviewProvider(widget.projectId).notifier)
+          .setPreview(ready: true, url: url);
+
+      if (!mounted) return;
+
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => CoderPreviewScreen(
+            previewUrl: url,
+            projectName: widget.projectName,
+          ),
         ),
-      ),
-    );
+      );
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            AppErrorMessages.fromException(
+              error,
+              fallback: AppErrorMessages.previewLoadFailed,
+            ),
+          ),
+        ),
+      );
+    }
   }
 
   void _scrollToBottom() {
@@ -891,9 +1001,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
       final parts = file.path.split('/');
 
       if (parts.length > 1) {
-        folders
-            .putIfAbsent(parts.first, () => <FileItem>[])
-            .add(file);
+        folders.putIfAbsent(parts.first, () => <FileItem>[]).add(file);
       } else {
         rootFiles.add(file);
       }
@@ -941,16 +1049,14 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
 
       if (isExpanded) {
         for (final file in folderFiles) {
-          final relative =
-              file.path.substring(folderName.length + 1);
+          final relative = file.path.substring(folderName.length + 1);
 
           widgets.add(
             Padding(
               padding: const EdgeInsets.only(left: 22),
               child: ListTile(
                 dense: true,
-                leading:
-                    const Icon(LucideIcons.fileCode2, size: 18),
+                leading: const Icon(LucideIcons.fileCode2, size: 18),
                 title: Text(relative),
                 onTap: () {
                   Navigator.pop(context);
@@ -978,8 +1084,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = ref.watch(appPaletteProvider);
-    final previewState =
-        ref.watch(coderPreviewProvider(widget.projectId));
+    final previewState = ref.watch(coderPreviewProvider(widget.projectId));
 
     return Scaffold(
       key: _scaffoldKey,
@@ -990,12 +1095,8 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
           child: ListView(
             children: [
               ListTile(
-                leading: const Icon(
-                  LucideIcons.arrowLeft,
-                ),
-                title: const Text(
-                  'Volver a tus chats',
-                ),
+                leading: const Icon(LucideIcons.arrowLeft),
+                title: const Text('Volver a tus chats'),
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.of(context).maybePop();
@@ -1005,9 +1106,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
               const ListTile(
                 title: Text(
                   'Archivos del proyecto',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.w700),
                 ),
               ),
               ..._buildFileTree(),
@@ -1019,11 +1118,8 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
         backgroundColor: palette.background,
         leading: IconButton(
           tooltip: 'Menú',
-          onPressed: () =>
-              _scaffoldKey.currentState?.openDrawer(),
-          icon: const Icon(
-            LucideIcons.menu,
-          ),
+          onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+          icon: const Icon(LucideIcons.menu),
         ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1032,48 +1128,35 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
               widget.projectName,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 16,
-              ),
+              style: const TextStyle(fontSize: 16),
             ),
             const Text(
               'Mistral · Sandbox',
-              style: TextStyle(
-                fontSize: 11,
-              ),
+              style: TextStyle(fontSize: 11),
             ),
           ],
         ),
         actions: [
           IconButton(
             tooltip: 'Deshacer cambios',
-            onPressed:
-                _hasChanges ? _undoChanges : null,
-            icon: const Icon(
-              LucideIcons.undo2,
-            ),
+            onPressed: _hasChanges ? _undoChanges : null,
+            icon: const Icon(LucideIcons.undo2),
           ),
           TextButton.icon(
             onPressed: () {
-              setState(
-                () => _showFiles = !_showFiles,
-              );
+              setState(() => _showFiles = !_showFiles);
             },
             icon: Icon(
               _showFiles
                   ? LucideIcons.chevronUp
                   : LucideIcons.chevronDown,
             ),
-            label: const Text(
-              'Ver archivos',
-            ),
+            label: const Text('Ver archivos'),
           ),
           IconButton(
             tooltip: 'Descargar proyecto ZIP',
             onPressed: _downloadProject,
-            icon: const Icon(
-              LucideIcons.download,
-            ),
+            icon: const Icon(LucideIcons.download),
           ),
         ],
       ),
@@ -1086,15 +1169,12 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
                 decoration: BoxDecoration(
                   color: palette.surface,
                   border: Border(
-                    bottom: BorderSide(
-                      color: palette.border,
-                    ),
+                    bottom: BorderSide(color: palette.border),
                   ),
                 ),
                 child: _loadingFiles
                     ? const Center(
-                        child:
-                            CircularProgressIndicator(),
+                        child: CircularProgressIndicator(),
                       )
                     : _files.isEmpty
                         ? Center(
@@ -1119,11 +1199,9 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
                                 title: Text(
                                   file.path,
                                   maxLines: 1,
-                                  overflow:
-                                      TextOverflow.ellipsis,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                                onTap: () =>
-                                    _previewFile(file),
+                                onTap: () => _previewFile(file),
                               );
                             },
                           ),
@@ -1132,22 +1210,19 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
               child: ListView.builder(
                 controller: _scrollController,
                 padding: const EdgeInsets.all(14),
-                itemCount:
-                    _messages.length +
-                    (_isSending ? 1 : 0) +
-                    (!_isSending ? 1 : 0),
+                itemCount: _messages.length +
+                    ((_isSending || _loadingMessages) ? 1 : 0) +
+                    ((!_isSending && !_loadingMessages) ? 1 : 0),
                 itemBuilder: (context, index) {
-                  if (!_isSending &&
-                      index == _messages.length) {
+                  if (index == _messages.length) {
+                    if (_isSending || _loadingMessages) {
+                      return const _CoderThinking();
+                    }
+
                     return CoderPreviewCard(
                       ready: previewState.ready,
                       onOpen: _openPreview,
                     );
-                  }
-
-                  if (_isSending &&
-                      index == _messages.length) {
-                    return const _CoderThinking();
                   }
 
                   final message = _messages[index];
@@ -1163,27 +1238,17 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
             ),
             if (_pendingAttachments.isNotEmpty)
               Padding(
-                padding:
-                    const EdgeInsets.symmetric(
-                  horizontal: 12,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: Wrap(
                     spacing: 6,
-                    children:
-                        _pendingAttachments.map((file) {
+                    children: _pendingAttachments.map((file) {
                       return InputChip(
-                        avatar: const Icon(
-                          LucideIcons.fileText,
-                          size: 16,
-                        ),
+                        avatar: const Icon(LucideIcons.fileText, size: 16),
                         label: Text(file.name),
                         onDeleted: () {
-                          setState(
-                            () => _pendingAttachments
-                                .remove(file),
-                          );
+                          setState(() => _pendingAttachments.remove(file));
                         },
                       );
                     }).toList(),
@@ -1196,58 +1261,37 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: Padding(
-                    padding:
-                        EdgeInsets.symmetric(
-                      horizontal: 16,
-                    ),
+                    padding: EdgeInsets.symmetric(horizontal: 16),
                     child: Chip(
-                      avatar: Icon(
-                        LucideIcons.brain,
-                        size: 16,
-                      ),
-                      label: Text(
-                        'Sobrepensar activado',
-                      ),
+                      avatar: Icon(LucideIcons.brain, size: 16),
+                      label: Text('Sobrepensar activado'),
                     ),
                   ),
                 ),
               ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(
-                10,
-                6,
-                10,
-                12,
-              ),
+              padding: const EdgeInsets.fromLTRB(10, 6, 10, 12),
               child: Container(
                 decoration: BoxDecoration(
                   color: palette.surface,
-                  borderRadius:
-                      BorderRadius.circular(26),
-                  border: Border.all(
-                    color: palette.border,
-                  ),
+                  borderRadius: BorderRadius.circular(26),
+                  border: Border.all(color: palette.border),
                 ),
                 child: Row(
                   children: [
                     IconButton(
                       tooltip: 'Más herramientas',
                       onPressed: _openAddMenu,
-                      icon: const Icon(
-                        LucideIcons.plus,
-                      ),
+                      icon: const Icon(LucideIcons.plus),
                     ),
                     Expanded(
                       child: TextField(
-                        controller:
-                            _messageController,
+                        controller: _messageController,
                         enabled: !_isSending,
                         minLines: 1,
                         maxLines: 5,
-                        decoration:
-                            const InputDecoration(
-                          hintText:
-                              'Describe qué quieres construir...',
+                        decoration: const InputDecoration(
+                          hintText: 'Describe qué quieres construir...',
                           border: InputBorder.none,
                         ),
                         onSubmitted: (_) {
@@ -1261,8 +1305,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
                       tooltip: _isListening
                           ? 'Detener dictado'
                           : 'Dictar mensaje',
-                      onPressed:
-                          _toggleListening,
+                      onPressed: _toggleListening,
                       icon: Icon(
                         _isListening
                             ? LucideIcons.micOff
@@ -1270,14 +1313,9 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
                       ),
                     ),
                     Padding(
-                      padding:
-                          const EdgeInsets.only(
-                        right: 5,
-                      ),
+                      padding: const EdgeInsets.only(right: 5),
                       child: IconButton.filled(
-                        tooltip: _isSending
-                            ? 'Detener'
-                            : 'Enviar',
+                        tooltip: _isSending ? 'Detener' : 'Enviar',
                         onPressed: _isSending
                             ? _cancelGeneration
                             : _sendMessage,
@@ -1294,13 +1332,11 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
             ),
             if (_savedZipPath != null)
               Padding(
-                padding:
-                    const EdgeInsets.only(bottom: 6),
+                padding: const EdgeInsets.only(bottom: 6),
                 child: Text(
                   'ZIP guardado: $_savedZipPath',
                   maxLines: 2,
-                  overflow:
-                      TextOverflow.ellipsis,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: palette.textSecondary,
                     fontSize: 11,
@@ -1325,10 +1361,7 @@ class _CoderMessageBubble extends StatelessWidget {
   final _CoderMessage message;
   final ValueChanged<_CoderMessage> onCopy;
   final ValueChanged<_CoderMessage> onEdit;
-  final void Function(
-    _CoderMessage,
-    String,
-  ) onFeedback;
+  final void Function(_CoderMessage, String) onFeedback;
 
   @override
   Widget build(BuildContext context) {
@@ -1337,98 +1370,64 @@ class _CoderMessageBubble extends StatelessWidget {
           ? Alignment.centerRight
           : Alignment.centerLeft,
       child: Container(
-        margin:
-            const EdgeInsets.symmetric(vertical: 5),
+        margin: const EdgeInsets.symmetric(vertical: 5),
         constraints: BoxConstraints(
-          maxWidth:
-              MediaQuery.sizeOf(context).width * .9,
+          maxWidth: MediaQuery.sizeOf(context).width * .9,
         ),
         child: Column(
-          crossAxisAlignment:
-              message.fromUser
-                  ? CrossAxisAlignment.end
-                  : CrossAxisAlignment.start,
+          crossAxisAlignment: message.fromUser
+              ? CrossAxisAlignment.end
+              : CrossAxisAlignment.start,
           children: [
             Container(
-              padding:
-                  const EdgeInsets.all(13),
+              padding: const EdgeInsets.all(13),
               decoration: BoxDecoration(
                 color: message.fromUser
                     ? Theme.of(context)
                         .colorScheme
                         .primary
                         .withValues(alpha: .12)
-                    : Theme.of(context)
-                        .colorScheme
-                        .surface,
-                borderRadius:
-                    BorderRadius.circular(16),
+                    : Theme.of(context).colorScheme.surface,
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: Theme.of(context)
-                      .dividerColor,
+                  color: Theme.of(context).dividerColor,
                 ),
               ),
-              child: SelectableText(
-                message.text,
-              ),
+              child: message.fromUser
+                  ? SelectableText(message.text)
+                  : AiResponse(
+                      text: message.text,
+                      animateCharacters: message.animateCharacters,
+                    ),
             ),
             Row(
-              mainAxisSize:
-                  MainAxisSize.min,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 if (message.fromUser)
                   IconButton(
                     tooltip: 'Editar',
-                    visualDensity:
-                        VisualDensity.compact,
-                    onPressed: () =>
-                        onEdit(message),
-                    icon: const Icon(
-                      LucideIcons.pencil,
-                      size: 17,
-                    ),
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => onEdit(message),
+                    icon: const Icon(LucideIcons.pencil, size: 17),
                   ),
                 IconButton(
                   tooltip: 'Copiar',
-                  visualDensity:
-                      VisualDensity.compact,
-                  onPressed: () =>
-                      onCopy(message),
-                  icon: const Icon(
-                    LucideIcons.copy,
-                    size: 17,
-                  ),
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => onCopy(message),
+                  icon: const Icon(LucideIcons.copy, size: 17),
                 ),
                 if (!message.fromUser) ...[
                   IconButton(
-                    tooltip:
-                        'Buena respuesta',
-                    visualDensity:
-                        VisualDensity.compact,
-                    onPressed: () =>
-                        onFeedback(
-                      message,
-                      'positive',
-                    ),
-                    icon: const Icon(
-                      LucideIcons.thumbsUp,
-                      size: 17,
-                    ),
+                    tooltip: 'Buena respuesta',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => onFeedback(message, 'positive'),
+                    icon: const Icon(LucideIcons.thumbsUp, size: 17),
                   ),
                   IconButton(
-                    tooltip:
-                        'Reportar respuesta',
-                    visualDensity:
-                        VisualDensity.compact,
-                    onPressed: () =>
-                        onFeedback(
-                      message,
-                      'negative',
-                    ),
-                    icon: const Icon(
-                      LucideIcons.thumbsDown,
-                      size: 17,
-                    ),
+                    tooltip: 'Reportar respuesta',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => onFeedback(message, 'negative'),
+                    icon: const Icon(LucideIcons.thumbsDown, size: 17),
                   ),
                 ],
               ],
@@ -1444,18 +1443,14 @@ class _CoderThinking extends StatefulWidget {
   const _CoderThinking();
 
   @override
-  State<_CoderThinking> createState() =>
-      _CoderThinkingState();
+  State<_CoderThinking> createState() => _CoderThinkingState();
 }
 
-class _CoderThinkingState
-    extends State<_CoderThinking>
+class _CoderThinkingState extends State<_CoderThinking>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _controller =
-      AnimationController(
+  late final AnimationController _controller = AnimationController(
     vsync: this,
-    duration:
-        const Duration(milliseconds: 900),
+    duration: const Duration(milliseconds: 900),
   )..repeat();
 
   @override
@@ -1470,41 +1465,23 @@ class _CoderThinkingState
       animation: _controller,
       builder: (context, _) {
         return Align(
-          alignment:
-              Alignment.centerLeft,
+          alignment: Alignment.centerLeft,
           child: Padding(
-            padding:
-                const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(14),
             child: Row(
-              mainAxisSize:
-                  MainAxisSize.min,
-              children:
-                  List.generate(3, (index) {
-                final phase =
-                    (_controller.value *
-                            3 -
-                        index)
-                        .abs();
+              mainAxisSize: MainAxisSize.min,
+              children: List.generate(3, (index) {
+                final phase = (_controller.value * 3 - index).abs();
 
                 return Opacity(
-                  opacity: (1 - phase)
-                      .clamp(.25, 1.0),
+                  opacity: (1 - phase).clamp(.25, 1.0),
                   child: Container(
                     width: 7,
                     height: 7,
-                    margin:
-                        const EdgeInsets
-                            .symmetric(
-                      horizontal: 3,
-                    ),
-                    decoration:
-                        BoxDecoration(
-                      color:
-                          Theme.of(context)
-                              .colorScheme
-                              .onSurface,
-                      shape:
-                          BoxShape.circle,
+                    margin: const EdgeInsets.symmetric(horizontal: 3),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.onSurface,
+                      shape: BoxShape.circle,
                     ),
                   ),
                 );
