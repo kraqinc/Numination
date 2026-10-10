@@ -1,4 +1,3 @@
-
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -201,16 +200,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   Future<void> _rotateComposerHint() async {
-    final hints =
-        AppErrorMessages.isEnglish ? _composerHintsEn : _composerHintsEs;
+    final hints = AppErrorMessages.isEnglish
+        ? _composerHintsEn
+        : _composerHintsEs;
 
     try {
       final prefs = await SharedPreferences.getInstance();
       final previous = prefs.getInt(_hintPreferenceKey) ?? -1;
 
-      final choices = List<int>.generate(hints.length, (index) => index)
-          .where((index) => index != previous)
-          .toList();
+      final choices = List<int>.generate(
+        hints.length,
+        (index) => index,
+      ).where((index) => index != previous).toList();
 
       final next = choices.isEmpty
           ? math.Random().nextInt(hints.length)
@@ -300,12 +301,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       try {
         final locales = await _speech.locales();
 
-        const preferred = <String>[
-          'es_CO',
-          'es_ES',
-          'es_MX',
-          'es_US',
-        ];
+        const preferred = <String>['es_CO', 'es_ES', 'es_MX', 'es_US'];
 
         for (final wanted in preferred) {
           if (locales.any((locale) => locale.localeId == wanted)) {
@@ -406,13 +402,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
       Navigator.of(context)
           .push<void>(
-        MaterialPageRoute<void>(
-          builder: (_) => const coder.CoderScreen(),
-        ),
-      )
+            MaterialPageRoute<void>(builder: (_) => const coder.CoderScreen()),
+          )
           .then((_) {
-        if (mounted) setState(() => _chatRevision++);
-      });
+            if (mounted) setState(() => _chatRevision++);
+          });
 
       return;
     }
@@ -502,13 +496,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         final response = await ApiClient.get('/projects');
         final data = ApiClient.decode(response) as Map<String, dynamic>;
 
-        final projects = (data['projects'] as List? ?? [])
-            .whereType<Map>()
-            .map(
-              (row) => Project.fromJson(
-                Map<String, dynamic>.from(row),
-              ),
-            );
+        final projects = (data['projects'] as List? ?? []).whereType<Map>().map(
+          (row) => Project.fromJson(Map<String, dynamic>.from(row)),
+        );
 
         for (final project in projects) {
           if (project.id == projectId) {
@@ -547,15 +537,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
     try {
       final encodedChatId = Uri.encodeComponent(chat.id);
-      final response =
-          await ApiClient.get('/chats/$encodedChatId/messages');
+      final response = await ApiClient.get('/chats/$encodedChatId/messages');
       final data = ApiClient.decode(response) as Map<String, dynamic>;
 
       final list = (data['messages'] as List? ?? [])
           .map(
-            (row) => ChatMessageDto.fromJson(
-              Map<String, dynamic>.from(row as Map),
-            ),
+            (row) =>
+                ChatMessageDto.fromJson(Map<String, dynamic>.from(row as Map)),
           )
           .toList();
 
@@ -572,7 +560,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           ..addAll(
             list.map((message) {
               const imageMarker = '[[NUMINATION_IMAGE]]\n';
-              final isGeneratedImage = message.role != 'user' &&
+              final isGeneratedImage =
+                  message.role != 'user' &&
                   message.content.startsWith(imageMarker);
               final imageUrl = isGeneratedImage
                   ? message.content.substring(imageMarker.length).trim()
@@ -583,7 +572,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 fromUser: message.role == 'user',
                 id: message.id,
                 chatId: message.chatId,
-                imageUrl: imageUrl != null && imageUrl.isNotEmpty ? imageUrl : null,
+                imageUrl: imageUrl != null && imageUrl.isNotEmpty
+                    ? imageUrl
+                    : null,
               );
             }),
           );
@@ -621,11 +612,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   void _openGhostChat() {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => const GhostChatScreen(),
-      ),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => const GhostChatScreen()));
   }
 
   Future<void> _toggleListening() async {
@@ -731,9 +720,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                           : LucideIcons.code2,
                     ),
                     title: Text(
-                      _modeId == 'coder'
-                          ? 'Cambiar a chat'
-                          : 'Cambiar a coder',
+                      _modeId == 'coder' ? 'Cambiar a chat' : 'Cambiar a coder',
                     ),
                     trailing: const Icon(LucideIcons.chevronRight),
                     onTap: () {
@@ -846,9 +833,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     } catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$e')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
     } finally {
       if (mounted) {
         setState(() => _isAttaching = false);
@@ -868,8 +853,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
     final useImageGeneration = _imageGenerationForNextMessage;
     final useWebSearch = _webSearchForNextMessage && !useImageGeneration;
-    final visibleText =
-        text.isEmpty ? 'Revisa los archivos adjuntos.' : text;
+    final visibleText = text.isEmpty ? 'Revisa los archivos adjuntos.' : text;
 
     if (useImageGeneration && visibleText.length > 1800) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -937,8 +921,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           'mode': _modeId,
         });
 
-        final createData =
-            ApiClient.decode(createRes) as Map<String, dynamic>;
+        final createData = ApiClient.decode(createRes) as Map<String, dynamic>;
         final chat = Map<String, dynamic>.from(createData['chat'] as Map);
 
         requestChatId = '${chat['id']}';
@@ -961,8 +944,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
       final chatId = requestChatId;
 
-      if (chatId == null ||
-          token.isCancelled ||
+      if (token.isCancelled ||
           !mounted ||
           !identical(_generationToken, token) ||
           _activeChatId != chatId) {
@@ -972,10 +954,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       if (useImageGeneration) {
         final imageResponse = await ApiClient.postCancelable(
           '/ai/images/generate',
-          {
-            'prompt': visibleText,
-            'chatId': chatId,
-          },
+          {'prompt': visibleText, 'chatId': chatId},
           token,
           timeout: const Duration(seconds: 110),
         );
@@ -1039,28 +1018,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       assistantIndex = _messages.length;
 
       setState(() {
-        _messages.add(
-          ChatMessage(
-            text: '',
-            fromUser: false,
-            chatId: chatId,
-          ),
-        );
+        _messages.add(ChatMessage(text: '', fromUser: false, chatId: chatId));
       });
 
       _scrollToBottom();
 
-      await for (final event in ApiClient.postSse(
-        '/ai/chat/stream',
-        {
-          'prompt': effectivePrompt,
-          'mode': _modeId,
-          'chatId': chatId,
-          'overthink': _overthink,
-          'webSearch': useWebSearch,
-        },
-        token,
-      )) {
+      await for (final event in ApiClient.postSse('/ai/chat/stream', {
+        'prompt': effectivePrompt,
+        'mode': _modeId,
+        'chatId': chatId,
+        'overthink': _overthink,
+        'webSearch': useWebSearch,
+      }, token)) {
         if (token.isCancelled) throw const ApiRequestCancelled();
 
         final eventName = event['event']?.toString() ?? 'message';
@@ -1081,8 +1050,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               identical(_generationToken, token) &&
               _activeChatId == chatId) {
             setState(() {
-              if (assistantIndex >= 0 &&
-                  assistantIndex < _messages.length) {
+              if (assistantIndex >= 0 && assistantIndex < _messages.length) {
                 _messages[assistantIndex] = ChatMessage(
                   text: responseText,
                   fromUser: false,
@@ -1121,8 +1089,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 );
               }
 
-              if (assistantIndex >= 0 &&
-                  assistantIndex < _messages.length) {
+              if (assistantIndex >= 0 && assistantIndex < _messages.length) {
                 _messages[assistantIndex] = ChatMessage(
                   text: responseText,
                   fromUser: false,
@@ -1261,9 +1228,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   void _copyMessage(ChatMessage message) {
     Clipboard.setData(ClipboardData(text: message.text));
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Mensaje copiado')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Mensaje copiado')));
   }
 
   void _editMessage(ChatMessage message) {
@@ -1412,30 +1379,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               child: _isLoadingHistory
                   ? const Center(child: CircularProgressIndicator())
                   : _messages.isEmpty
-                      ? const _EmptyState()
-                      : ListView.builder(
-                          controller: _scrollController,
-                          padding: const EdgeInsets.fromLTRB(0, 8, 0, 18),
-                          itemCount: _messages.length + (_isSending ? 1 : 0),
-                          itemBuilder: (context, index) {
-                            if (_isSending && index == _messages.length) {
-                              return const _ThinkingMessage();
-                            }
+                  ? const _EmptyState()
+                  : ListView.builder(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.fromLTRB(0, 8, 0, 18),
+                      itemCount: _messages.length + (_isSending ? 1 : 0),
+                      itemBuilder: (context, index) {
+                        if (_isSending && index == _messages.length) {
+                          return const _ThinkingMessage();
+                        }
 
-                            final message = _messages[index];
+                        final message = _messages[index];
 
-                            return _MessageBubble(
-                              message: message,
-                              animateCharacters: !message.fromUser &&
-                                  (message.id == null ||
-                                      message.id ==
-                                          _animatedAssistantMessageId),
-                              onCopy: _copyMessage,
-                              onEdit: _editMessage,
-                              onFeedback: _sendFeedback,
-                            );
-                          },
-                        ),
+                        return _MessageBubble(
+                          message: message,
+                          animateCharacters:
+                              !message.fromUser &&
+                              (message.id == null ||
+                                  message.id == _animatedAssistantMessageId),
+                          onCopy: _copyMessage,
+                          onEdit: _editMessage,
+                          onFeedback: _sendFeedback,
+                        );
+                      },
+                    ),
             ),
             _BottomInputBar(
               controller: _messageController,
@@ -1472,7 +1439,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               },
               onToggleImageGeneration: () {
                 setState(() {
-                  _imageGenerationForNextMessage = !_imageGenerationForNextMessage;
+                  _imageGenerationForNextMessage =
+                      !_imageGenerationForNextMessage;
                   if (_imageGenerationForNextMessage) {
                     _webSearchForNextMessage = false;
                   }
@@ -1651,10 +1619,7 @@ class _MemorySavedWidget extends StatelessWidget {
           opacity: value,
           child: Transform.translate(
             offset: Offset(0, 8 * (1 - value)),
-            child: Transform.scale(
-              scale: 0.98 + (value * 0.02),
-              child: child,
-            ),
+            child: Transform.scale(scale: 0.98 + (value * 0.02), child: child),
           ),
         );
       },
@@ -1663,16 +1628,14 @@ class _MemorySavedWidget extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
         decoration: BoxDecoration(
-          color: Theme.of(context)
-              .colorScheme
-              .surfaceContainerHighest
-              .withValues(alpha: 0.42),
+          color: Theme.of(
+            context,
+          ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.42),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: Theme.of(context)
-                .colorScheme
-                .outline
-                .withValues(alpha: 0.18),
+            color: Theme.of(
+              context,
+            ).colorScheme.outline.withValues(alpha: 0.18),
           ),
         ),
         child: Row(
@@ -1682,10 +1645,9 @@ class _MemorySavedWidget extends StatelessWidget {
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                color: Theme.of(context)
-                    .colorScheme
-                    .primary
-                    .withValues(alpha: 0.12),
+                color: Theme.of(
+                  context,
+                ).colorScheme.primary.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(9),
               ),
               child: Icon(
@@ -1750,16 +1712,14 @@ class _MessageBubble extends ConsumerWidget {
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        margin: EdgeInsets.symmetric(
-          vertical: 5,
-          horizontal: isUser ? 0 : 12,
-        ),
+        margin: EdgeInsets.symmetric(vertical: 5, horizontal: isUser ? 0 : 12),
         constraints: BoxConstraints(
           maxWidth: MediaQuery.of(context).size.width * (isUser ? 0.88 : 0.94),
         ),
         child: Column(
-          crossAxisAlignment:
-              isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          crossAxisAlignment: isUser
+              ? CrossAxisAlignment.end
+              : CrossAxisAlignment.start,
           children: [
             if (!isUser && message.memorySaved)
               _MemorySavedWidget(
@@ -1806,7 +1766,10 @@ class _MessageBubble extends ConsumerWidget {
               ),
               if (message.text.trim().isNotEmpty)
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 6,
+                  ),
                   child: AiResponse(text: message.text),
                 ),
             ] else if (isUser)
@@ -1826,10 +1789,7 @@ class _MessageBubble extends ConsumerWidget {
               )
             else
               Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 4,
-                  vertical: 6,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
                 child: AiResponse(
                   text: message.text,
                   animateCharacters: animateCharacters,
@@ -1969,10 +1929,7 @@ class _BottomInputBar extends ConsumerWidget {
                   children: pendingAttachments.map((file) {
                     return InputChip(
                       avatar: const Icon(LucideIcons.fileText, size: 16),
-                      label: Text(
-                        file.name,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                      label: Text(file.name, overflow: TextOverflow.ellipsis),
                       onDeleted: () => onRemoveAttachment(file),
                     );
                   }).toList(),
@@ -2009,7 +1966,9 @@ class _BottomInputBar extends ConsumerWidget {
                       ActionChip(
                         avatar: const Icon(LucideIcons.image, size: 16),
                         label: Text(
-                          english ? 'Image generation on' : 'Generación de imagen activa',
+                          english
+                              ? 'Image generation on'
+                              : 'Generación de imagen activa',
                         ),
                         onPressed: onToggleImageGeneration,
                       ),
@@ -2075,18 +2034,15 @@ class _BottomInputBar extends ConsumerWidget {
                               height: 19,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : const Icon(
-                              key: ValueKey('plus'),
-                              LucideIcons.plus,
-                            ),
+                          : const Icon(key: ValueKey('plus'), LucideIcons.plus),
                     ),
                   ),
                 ),
                 IconButton(
                   tooltip: webSearchEnabled
                       ? (english
-                          ? 'Disable web search'
-                          : 'Desactivar búsqueda web')
+                            ? 'Disable web search'
+                            : 'Desactivar búsqueda web')
                       : (english ? 'Search the web' : 'Buscar en la web'),
                   onPressed: onToggleWebSearch,
                   icon: Icon(
@@ -2098,7 +2054,9 @@ class _BottomInputBar extends ConsumerWidget {
                 ),
                 IconButton(
                   tooltip: imageGenerationEnabled
-                      ? (english ? 'Disable image generation' : 'Desactivar generación de imagen')
+                      ? (english
+                            ? 'Disable image generation'
+                            : 'Desactivar generación de imagen')
                       : (english ? 'Generate an image' : 'Generar una imagen'),
                   onPressed: onToggleImageGeneration,
                   icon: Icon(
@@ -2155,9 +2113,7 @@ class _BottomInputBar extends ConsumerWidget {
                   padding: const EdgeInsets.only(right: 3),
                   child: IconButton.filled(
                     tooltip: isSending
-                        ? (english
-                            ? 'Stop generation'
-                            : 'Detener generación')
+                        ? (english ? 'Stop generation' : 'Detener generación')
                         : (english ? 'Send message' : 'Enviar mensaje'),
                     onPressed: isSending ? onCancel : onSend,
                     icon: AnimatedSwitcher(
@@ -2223,8 +2179,7 @@ class _ThinkingMessageState extends State<_ThinkingMessage>
               final opacity =
                   0.35 + (0.65 * (1 - (phase - 1).abs().clamp(0.0, 1.0)));
 
-              final offsetY =
-                  -3 * (1 - (phase - 1).abs().clamp(0.0, 1.0));
+              final offsetY = -3 * (1 - (phase - 1).abs().clamp(0.0, 1.0));
 
               return Transform.translate(
                 offset: Offset(0, offsetY),
