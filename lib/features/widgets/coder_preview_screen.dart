@@ -36,7 +36,9 @@ class CoderPreviewCard extends StatelessWidget {
             scheme.surface.withValues(alpha: .96),
           ],
         ),
-        border: Border.all(color: scheme.outline.withValues(alpha: .22)),
+        border: Border.all(
+          color: scheme.outline.withValues(alpha: .22),
+        ),
         boxShadow: [
           BoxShadow(
             blurRadius: 28,
@@ -61,7 +63,10 @@ class CoderPreviewCard extends StatelessWidget {
                     color: scheme.primary.withValues(alpha: .22),
                   ),
                 ),
-                child: Icon(LucideIcons.monitorPlay, color: scheme.primary),
+                child: Icon(
+                  LucideIcons.monitorPlay,
+                  color: scheme.primary,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -74,7 +79,10 @@ class CoderPreviewCard extends StatelessWidget {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 9,
+                  vertical: 5,
+                ),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(999),
                   color: ready
@@ -89,7 +97,9 @@ class CoderPreviewCard extends StatelessWidget {
                     fontSize: 10,
                     fontWeight: FontWeight.w800,
                     letterSpacing: .6,
-                    color: ready ? scheme.primary : scheme.onSurfaceVariant,
+                    color: ready
+                        ? scheme.primary
+                        : scheme.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -99,8 +109,8 @@ class CoderPreviewCard extends StatelessWidget {
           Text(
             ready
                 ? (english
-                      ? 'Open the current version of your project.'
-                      : 'Abre la versión actual de tu proyecto.')
+                    ? 'Open the current version of your project.'
+                    : 'Abre la versión actual de tu proyecto.')
                 : AppErrorMessages.previewNotReady,
             style: TextStyle(
               fontSize: 13,
@@ -113,12 +123,19 @@ class CoderPreviewCard extends StatelessWidget {
             height: 52,
             child: FilledButton.icon(
               onPressed: onOpen,
-              icon: const Icon(LucideIcons.play, size: 19),
+              icon: const Icon(
+                LucideIcons.play,
+                size: 19,
+              ),
               label: Text(
                 ready
                     ? (english ? 'Open preview' : 'Abrir vista previa')
-                    : (english ? 'Check preview' : 'Comprobar vista previa'),
-                style: const TextStyle(fontWeight: FontWeight.w800),
+                    : (english
+                        ? 'Check preview'
+                        : 'Comprobar vista previa'),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                ),
               ),
               style: FilledButton.styleFrom(
                 shape: RoundedRectangleBorder(
@@ -149,15 +166,18 @@ class CoderPreviewScreen extends StatefulWidget {
 
 class _CoderPreviewScreenState extends State<CoderPreviewScreen> {
   late final WebViewController _controller;
+
   int _progress = 0;
   bool _loading = true;
   String? _error;
 
-  bool get _english => Localizations.localeOf(context).languageCode == 'en';
+  bool get _english =>
+      Localizations.localeOf(context).languageCode == 'en';
 
   @override
   void initState() {
     super.initState();
+
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(const Color(0xFF080A0C))
@@ -167,6 +187,7 @@ class _CoderPreviewScreenState extends State<CoderPreviewScreen> {
             if (!mounted) {
               return;
             }
+
             setState(() {
               _progress = progress;
               _loading = progress < 100;
@@ -176,6 +197,7 @@ class _CoderPreviewScreenState extends State<CoderPreviewScreen> {
             if (!mounted) {
               return;
             }
+
             setState(() {
               _loading = true;
               _error = null;
@@ -186,7 +208,10 @@ class _CoderPreviewScreenState extends State<CoderPreviewScreen> {
             _inspectLoadedPage();
           },
           onWebResourceError: (error) {
-            if (error.isForMainFrame == false || !mounted) return;
+            if (error.isForMainFrame == false || !mounted) {
+              return;
+            }
+
             setState(() {
               _loading = false;
               _error = AppErrorMessages.previewLoadFailed;
@@ -194,27 +219,33 @@ class _CoderPreviewScreenState extends State<CoderPreviewScreen> {
           },
         ),
       );
+
     _loadPreview();
   }
 
   Future<void> _loadPreview() async {
     final uri = Uri.tryParse(widget.previewUrl.trim());
+
     if (uri == null ||
         uri.host.isEmpty ||
         (uri.scheme != 'https' && uri.scheme != 'http')) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _loading = false;
           _error = AppErrorMessages.previewInvalidAddress;
         });
+      }
+
       return;
     }
+
     try {
       await _controller.loadRequest(uri);
     } catch (_) {
       if (!mounted) {
         return;
       }
+
       setState(() {
         _loading = false;
         _error = AppErrorMessages.previewLoadFailed;
@@ -224,17 +255,29 @@ class _CoderPreviewScreenState extends State<CoderPreviewScreen> {
 
   String _stringResult(Object? value) {
     var result = value?.toString() ?? '';
-    if (result.length >= 2 && result.startsWith('"') && result.endsWith('"')) {
+
+    if (result.length >= 2 &&
+        result.startsWith('"') &&
+        result.endsWith('"')) {
       try {
         final decoded = jsonDecode(result);
-        if (decoded is String) result = decoded;
-      } catch (_) {}
+
+        if (decoded is String) {
+          result = decoded;
+        }
+      } catch (_) {
+        // Conserva el resultado original si no es JSON válido.
+      }
     }
+
     return result;
   }
 
   Future<void> _inspectLoadedPage() async {
-    await Future<void>.delayed(const Duration(milliseconds: 800));
+    await Future<void>.delayed(
+      const Duration(milliseconds: 800),
+    );
+
     if (!mounted) {
       return;
     }
@@ -243,15 +286,17 @@ class _CoderPreviewScreenState extends State<CoderPreviewScreen> {
       final bodyValue = await _controller.runJavaScriptReturningResult(
         'document.body ? document.body.innerText : ""',
       );
+
       final body = _stringResult(bodyValue).trim();
       final lower = body.toLowerCase();
 
       String? detectedError;
+
       if (lower.contains('requested path is invalid')) {
         detectedError = AppErrorMessages.previewInvalidAddress;
       } else if (lower.contains('preview no autorizado') ||
           lower.contains('preview unauthorized') ||
-          lower.contains('token') && lower.contains('expired')) {
+          (lower.contains('token') && lower.contains('expired'))) {
         detectedError = AppErrorMessages.previewExpired;
       } else if (lower.contains('proyecto no encontrado') ||
           lower.contains('project not found')) {
@@ -270,39 +315,49 @@ class _CoderPreviewScreenState extends State<CoderPreviewScreen> {
         if (!mounted) {
           return;
         }
+
         setState(() {
           _loading = false;
           _progress = 100;
           _error = detectedError;
         });
+
         return;
       }
 
       final rootValue = await _controller.runJavaScriptReturningResult(
-        'document.getElementById("root") ? document.getElementById("root").children.length : 0',
+        'document.getElementById("root") '
+        '? document.getElementById("root").children.length : 0',
       );
+
       final rootChildren =
-          int.tryParse(_stringResult(rootValue).replaceAll('"', '').trim()) ??
+          int.tryParse(
+            _stringResult(rootValue).replaceAll('"', '').trim(),
+          ) ??
           0;
 
       if (rootChildren == 0) {
         if (!mounted) {
           return;
         }
+
         setState(() {
           _loading = false;
           _progress = 100;
           _error = AppErrorMessages.previewDidNotRender;
         });
+
         return;
       }
     } catch (_) {
-      // Some WebView engines restrict script inspection; the page can still render normally.
+      // Algunos motores WebView restringen la inspección JavaScript.
+      // La página puede seguir renderizándose normalmente.
     }
 
     if (!mounted) {
       return;
     }
+
     setState(() {
       _loading = false;
       _progress = 100;
@@ -310,23 +365,43 @@ class _CoderPreviewScreenState extends State<CoderPreviewScreen> {
   }
 
   Future<void> _openExternal() async {
-    final uri = Uri.tryParse(widget.previewUrl);
-    if (uri == null || uri.host.isEmpty) {
-      if (mounted)
-        setState(() => _error = AppErrorMessages.previewInvalidAddress);
+    final uri = Uri.tryParse(widget.previewUrl.trim());
+
+    if (uri == null ||
+        uri.host.isEmpty ||
+        (uri.scheme != 'https' && uri.scheme != 'http')) {
+      if (mounted) {
+        setState(() {
+          _error = AppErrorMessages.previewInvalidAddress;
+        });
+      }
+
       return;
     }
+
     try {
-      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      final opened = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+
       if (!opened && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppErrorMessages.previewLoadFailed)),
+          SnackBar(
+            content: Text(
+              AppErrorMessages.previewLoadFailed,
+            ),
+          ),
         );
       }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppErrorMessages.previewLoadFailed)),
+          SnackBar(
+            content: Text(
+              AppErrorMessages.previewLoadFailed,
+            ),
+          ),
         );
       }
     }
@@ -338,6 +413,7 @@ class _CoderPreviewScreenState extends State<CoderPreviewScreen> {
       _loading = true;
       _progress = 0;
     });
+
     _loadPreview();
   }
 
@@ -356,13 +432,18 @@ class _CoderPreviewScreenState extends State<CoderPreviewScreen> {
               widget.projectName,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+              ),
             ),
             Text(
               _english
                   ? 'Preview · Vite + React'
                   : 'Vista previa · Vite + React',
-              style: const TextStyle(fontSize: 11),
+              style: const TextStyle(
+                fontSize: 11,
+              ),
             ),
           ],
         ),
@@ -397,7 +478,9 @@ class _CoderPreviewScreenState extends State<CoderPreviewScreen> {
                     child: SingleChildScrollView(
                       padding: const EdgeInsets.all(24),
                       child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 440),
+                        constraints: const BoxConstraints(
+                          maxWidth: 440,
+                        ),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -430,7 +513,9 @@ class _CoderPreviewScreenState extends State<CoderPreviewScreen> {
                             const SizedBox(height: 18),
                             FilledButton.icon(
                               onPressed: _reload,
-                              icon: const Icon(LucideIcons.refreshCw),
+                              icon: const Icon(
+                                LucideIcons.refreshCw,
+                              ),
                               label: Text(
                                 _english ? 'Try again' : 'Reintentar',
                               ),
@@ -438,7 +523,9 @@ class _CoderPreviewScreenState extends State<CoderPreviewScreen> {
                             const SizedBox(height: 8),
                             TextButton.icon(
                               onPressed: _openExternal,
-                              icon: const Icon(LucideIcons.externalLink),
+                              icon: const Icon(
+                                LucideIcons.externalLink,
+                              ),
                               label: Text(
                                 _english
                                     ? 'Open in browser'
@@ -454,7 +541,9 @@ class _CoderPreviewScreenState extends State<CoderPreviewScreen> {
                     borderRadius: const BorderRadius.vertical(
                       top: Radius.circular(14),
                     ),
-                    child: WebViewWidget(controller: _controller),
+                    child: WebViewWidget(
+                      controller: _controller,
+                    ),
                   ),
           ),
         ],
