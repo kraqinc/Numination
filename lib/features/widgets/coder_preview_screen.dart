@@ -350,8 +350,6 @@ class _CoderPreviewScreenState extends State<CoderPreviewScreen> {
         return;
       }
     } catch (_) {
-      // Algunos motores WebView restringen la inspección JavaScript.
-      // La página puede seguir renderizándose normalmente.
     }
 
     if (!mounted) {
