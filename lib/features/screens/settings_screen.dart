@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/auth_controller.dart';
 import '../../core/i18n.dart';
@@ -67,6 +68,28 @@ class SettingsScreen extends ConsumerWidget {
             onTap: () => Navigator.of(
               context,
             ).push(MaterialPageRoute(builder: (_) => const PrivacyScreen())),
+          ),
+          _SettingsTile(
+            icon: NumiIcons.info_outline,
+            label: 'Términos de uso',
+            subtitle: 'Condiciones para usar Numination',
+            onTap: () async {
+              await launchUrl(
+                Uri.parse('https://numination-swart.vercel.app/terminos'),
+                mode: LaunchMode.externalApplication,
+              );
+            },
+          ),
+          _SettingsTile(
+            icon: NumiIcons.privacy_tip_outlined,
+            label: 'Política de privacidad web',
+            subtitle: 'Cómo tratamos tus datos',
+            onTap: () async {
+              await launchUrl(
+                Uri.parse('https://numination-swart.vercel.app/privacidad'),
+                mode: LaunchMode.externalApplication,
+              );
+            },
           ),
           _SettingsSectionDivider(color: palette.border),
           _SettingsTile(

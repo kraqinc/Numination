@@ -69,7 +69,7 @@
                         android:name="android.intent.category.BROWSABLE" />
 
                 <data
-                        android:scheme="Numination"
+                        android:scheme="numination"
                         android:host="auth" />
             </intent-filter>
 

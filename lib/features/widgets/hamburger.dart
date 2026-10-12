@@ -9,6 +9,7 @@ import '../../core/models.dart' show AiModeConfig, ChatSession, Project;
 import '../../core/theme_controller.dart';
 import '../screens/artifacts_screen.dart';
 import '../screens/connectors_screen.dart';
+import '../screens/notification_screen.dart';
 import '../screens/projects_screen.dart';
 import '../screens/settings_screen.dart';
 import 'package:numination/core/numi_icons.dart';
@@ -498,6 +499,20 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                   Navigator.of(context).pop();
                   Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const ConnectorsScreen()),
+                  );
+                },
+              ),
+              const SizedBox(height: 18),
+              _DrawerItem(
+                icon: NumiIcons.notifications_outlined,
+                label: context.l10n.notifications,
+                color: palette.textPrimary,
+                onTap: () {
+                  Navigator.of(context).pop();
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const NotificationScreen(),
+                    ),
                   );
                 },
               ),

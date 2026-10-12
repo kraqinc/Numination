@@ -66,15 +66,11 @@ class _PromptStarter {
     required this.label,
     required this.icon,
     required this.prompt,
-    this.webSearch = false,
-    this.imageGeneration = false,
   });
 
   final String label;
   final IconData icon;
   final String prompt;
-  final bool webSearch;
-  final bool imageGeneration;
 }
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -94,6 +90,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   String _composerHint = '¿Qué quieres resolver hoy?';
   bool _webSearchForNextMessage = false;
+  bool _toolsExpanded = false;
   bool _imageGenerationForNextMessage = false;
 
   static const _hintPreferenceKey = 'numination.lastComposerHintIndex';
@@ -181,21 +178,34 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   void initState() {
     super.initState();
     _rotateComposerHint();
+    UpdateService.startAutomaticChecks();
 
     WidgetsBinding.instance.addObserver(this);
 
     _initSpeech();
     _loadProfile();
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      UpdateService.checkAndInstallIfEnabled();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+
+      final openedSettings = await UpdateService.promptForAutoUpdatesPermission(
+        context,
+      );
+
+      if (!mounted || openedSettings) return;
+
+      await UpdateService.checkAndInstallIfEnabled();
     });
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      UpdateService.resumeAfterInstallPermission();
+      UpdateService.resumeAfterInstallPermission().then((_) {
+        if (mounted) {
+          UpdateService.checkAndInstallIfEnabled();
+        }
+      });
     }
   }
 
@@ -234,27 +244,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
     return [
       _PromptStarter(
-        label: english ? 'Create an image' : 'Crear una imagen',
-        icon: LucideIcons.image,
-        imageGeneration: true,
+        label: english ? 'Write code' : 'Escribir código',
+        icon: LucideIcons.code2,
         prompt: english
-            ? 'Generate an image of [describe the idea], with a clear composition, coherent lighting, and polished details.'
-            : 'Genera una imagen de [describe la idea], con una composición clara, iluminación coherente y detalles cuidados.',
+            ? 'Help me write and improve a clear, maintainable code solution.'
+            : 'Ayúdame a escribir y mejorar una solución de código clara y mantenible.',
       ),
       _PromptStarter(
-        label: english ? 'Help me solve' : 'Ayúdame a resolver',
+        label: english ? 'Explain a concept' : 'Explicar un concepto',
         icon: LucideIcons.messageCircle,
         prompt: english
-            ? 'Help me solve [describe the problem] step by step. Explain the solution clearly and verify the result.'
-            : 'Ayúdame a resolver [describe el problema] paso a paso. Explica la solución con claridad y comprueba el resultado.',
+            ? 'Explain this concept step by step using a practical example.'
+            : 'Explícame este concepto paso a paso con un ejemplo práctico.',
       ),
       _PromptStarter(
-        label: english ? 'Search the web' : 'Busca en la web',
-        icon: LucideIcons.globe,
-        webSearch: true,
+        label: english ? 'Plan a project' : 'Planificar un proyecto',
+        icon: LucideIcons.lightbulb,
         prompt: english
-            ? 'Search the web for current information about [topic]. Compare reliable sources and summarize the findings with links.'
-            : 'Busca en la web información actualizada sobre [tema]. Contrasta fuentes fiables y resume los resultados con enlaces.',
+            ? 'Help me plan a project with clear steps and priorities.'
+            : 'Ayúdame a planificar un proyecto con pasos y prioridades claras.',
       ),
     ];
   }
@@ -264,8 +272,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final placeholder = RegExp(r'\[[^\]]+\]').firstMatch(prompt);
 
     setState(() {
-      _webSearchForNextMessage = starter.webSearch && !starter.imageGeneration;
-      _imageGenerationForNextMessage = starter.imageGeneration;
+      _webSearchForNextMessage = false;
+      _imageGenerationForNextMessage = false;
 
       _messageController.value = TextEditingValue(
         text: prompt,
@@ -376,6 +384,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    UpdateService.stopAutomaticChecks();
     _messageController.dispose();
     _scrollController.dispose();
     _messageFocusNode.dispose();
@@ -689,65 +698,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         );
       }
     }
-  }
-
-  Future<void> _openAddMenu() async {
-    await showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (sheetContext) {
-        return StatefulBuilder(
-          builder: (sheetContext, setSheetState) {
-            return SafeArea(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ListTile(
-                    leading: const Icon(LucideIcons.paperclip),
-                    title: const Text('Añadir archivos'),
-                    subtitle: const Text(
-                      'Vista previa local hasta enviar el mensaje',
-                    ),
-                    onTap: () {
-                      Navigator.pop(sheetContext);
-                      _attachFile();
-                    },
-                  ),
-                  ListTile(
-                    leading: Icon(
-                      _modeId == 'coder'
-                          ? LucideIcons.messageCircle
-                          : LucideIcons.code2,
-                    ),
-                    title: Text(
-                      _modeId == 'coder' ? 'Cambiar a chat' : 'Cambiar a coder',
-                    ),
-                    trailing: const Icon(LucideIcons.chevronRight),
-                    onTap: () {
-                      Navigator.pop(sheetContext);
-                      _toggleMode(_modeId == 'coder' ? 'chat' : 'coder');
-                    },
-                  ),
-                  SwitchListTile(
-                    secondary: const Icon(LucideIcons.brain),
-                    title: const Text('Sobrepensar'),
-                    subtitle: const Text(
-                      'Revisión más profunda antes de responder',
-                    ),
-                    value: _overthink,
-                    onChanged: (value) {
-                      setState(() => _overthink = value);
-                      setSheetState(() {});
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
   }
 
   Future<void> _attachFile() async {
@@ -1429,6 +1379,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   _overthink = !_overthink;
                 });
               },
+              toolsExpanded: _toolsExpanded,
+              onToggleTools: () {
+                setState(() {
+                  _toolsExpanded = !_toolsExpanded;
+                });
+              },
               onToggleWebSearch: () {
                 setState(() {
                   _webSearchForNextMessage = !_webSearchForNextMessage;
@@ -1451,7 +1407,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               onModeChange: _toggleMode,
               onSend: _sendMessage,
               onMicTap: _toggleListening,
-              onAttachTap: _openAddMenu,
+              onAttachTap: _attachFile,
             ),
           ],
         ),
@@ -1485,7 +1441,7 @@ class _TopBar extends ConsumerWidget {
             child: Padding(
               padding: const EdgeInsets.all(8),
               child: Icon(
-                Icons.menu_rounded,
+                LucideIcons.menu,
                 color: palette.textPrimary.withValues(alpha: 0.88),
                 size: 26,
               ),
@@ -1505,7 +1461,7 @@ class _TopBar extends ConsumerWidget {
                 child: Row(
                   children: [
                     Icon(
-                      Icons.search_rounded,
+                      LucideIcons.search,
                       color: palette.textSecondary,
                       size: 20,
                     ),
@@ -1566,7 +1522,7 @@ class _EmptyState extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(22),
               ),
               child: Icon(
-                Icons.auto_awesome_rounded,
+                LucideIcons.sparkles,
                 color: palette.accent,
                 size: 34,
               ),
@@ -1848,6 +1804,8 @@ class _BottomInputBar extends ConsumerWidget {
     required this.hintText,
     required this.webSearchEnabled,
     required this.imageGenerationEnabled,
+    required this.toolsExpanded,
+    required this.onToggleTools,
     required this.showPromptStarters,
     required this.promptStarters,
     required this.onRemoveAttachment,
@@ -1874,6 +1832,7 @@ class _BottomInputBar extends ConsumerWidget {
   final String hintText;
   final bool webSearchEnabled;
   final bool imageGenerationEnabled;
+  final bool toolsExpanded;
   final bool showPromptStarters;
   final List<_PromptStarter> promptStarters;
   final ValueChanged<PendingAttachment> onRemoveAttachment;
@@ -1881,6 +1840,7 @@ class _BottomInputBar extends ConsumerWidget {
   final VoidCallback onToggleWebSearch;
   final VoidCallback onToggleImageGeneration;
   final ValueChanged<_PromptStarter> onPromptSelected;
+  final VoidCallback onToggleTools;
   final VoidCallback onCancel;
   final ValueChanged<String> onModeChange;
   final VoidCallback onSend;
@@ -1892,6 +1852,51 @@ class _BottomInputBar extends ConsumerWidget {
     final palette = ref.watch(appPaletteProvider);
     final english = AppErrorMessages.isEnglish;
 
+    final activeToolLabels = <String>[
+      if (webSearchEnabled) english ? 'WEB SEARCH' : 'BUSCAR EN LA WEB',
+      if (imageGenerationEnabled)
+        english ? 'IMAGE GENERATION' : 'GENERAR IMÁGENES',
+      if (overthink) english ? 'DEEP ANALYSIS' : 'ANÁLISIS PROFUNDO',
+    ];
+    final toolHeading = activeToolLabels.isNotEmpty
+        ? activeToolLabels.join(' · ')
+        : (english ? 'TOOLS' : 'HERRAMIENTAS');
+
+    ActionChip toolChip({
+      required IconData icon,
+      required String label,
+      required VoidCallback onPressed,
+      bool selected = false,
+    }) {
+      return ActionChip(
+        avatar: Icon(
+          icon,
+          size: 16,
+          color: selected ? palette.accent : palette.textSecondary,
+        ),
+        label: Text(label),
+        labelStyle: TextStyle(
+          color: selected ? palette.textPrimary : palette.textSecondary,
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+        ),
+        backgroundColor: selected
+            ? palette.accent.withValues(alpha: 0.12)
+            : palette.surfaceAlt,
+        side: BorderSide(
+          color: selected
+              ? palette.accent.withValues(alpha: 0.38)
+              : palette.textSecondary.withValues(alpha: 0.14),
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        onPressed: onPressed,
+      );
+    }
+
+    void closeTools() {
+      if (toolsExpanded) onToggleTools();
+    }
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
       child: Column(
@@ -1899,7 +1904,7 @@ class _BottomInputBar extends ConsumerWidget {
         children: [
           if (showPromptStarters)
             Padding(
-              padding: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.only(bottom: 10),
               child: SizedBox(
                 height: 40,
                 child: ListView.separated(
@@ -1908,7 +1913,6 @@ class _BottomInputBar extends ConsumerWidget {
                   separatorBuilder: (_, index) => const SizedBox(width: 7),
                   itemBuilder: (context, index) {
                     final starter = promptStarters[index];
-
                     return ActionChip(
                       avatar: Icon(starter.icon, size: 16),
                       label: Text(starter.label),
@@ -1918,222 +1922,296 @@ class _BottomInputBar extends ConsumerWidget {
                 ),
               ),
             ),
-          if (pendingAttachments.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Wrap(
-                  spacing: 7,
-                  runSpacing: 7,
-                  children: pendingAttachments.map((file) {
-                    return InputChip(
-                      avatar: const Icon(LucideIcons.fileText, size: 16),
-                      label: Text(file.name, overflow: TextOverflow.ellipsis),
-                      onDeleted: () => onRemoveAttachment(file),
-                    );
-                  }).toList(),
-                ),
-              ),
-            ),
-          if (overthink || webSearchEnabled || imageGenerationEnabled)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 7),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Wrap(
-                  spacing: 6,
-                  children: [
-                    if (overthink)
-                      ActionChip(
-                        avatar: const Icon(LucideIcons.brain, size: 16),
-                        label: Text(
-                          english
-                              ? 'Deep analysis on'
-                              : 'Análisis profundo activo',
-                        ),
-                        onPressed: onToggleOverthink,
-                      ),
-                    if (webSearchEnabled)
-                      ActionChip(
-                        avatar: const Icon(LucideIcons.globe, size: 16),
-                        label: Text(
-                          english ? 'Web search on' : 'Búsqueda web activada',
-                        ),
-                        onPressed: onToggleWebSearch,
-                      ),
-                    if (imageGenerationEnabled)
-                      ActionChip(
-                        avatar: const Icon(LucideIcons.image, size: 16),
-                        label: Text(
-                          english
-                              ? 'Image generation on'
-                              : 'Generación de imagen activa',
-                        ),
-                        onPressed: onToggleImageGeneration,
-                      ),
-                  ],
-                ),
-              ),
-            ),
-          if (availableModes.length > 1)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: availableModes.map((mode) {
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 6),
-                      child: _ModeChip(
-                        label: mode.label,
-                        selected: modeId == mode.id,
-                        onTap: () => onModeChange(mode.id),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-            ),
           AnimatedContainer(
             duration: const Duration(milliseconds: 220),
             curve: Curves.easeOutCubic,
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+            padding: const EdgeInsets.fromLTRB(8, 5, 5, 5),
             decoration: BoxDecoration(
               color: palette.surface,
-              borderRadius: BorderRadius.circular(30),
+              borderRadius: BorderRadius.circular(24),
               border: Border.all(
-                color: (webSearchEnabled || imageGenerationEnabled)
-                    ? palette.accent.withValues(alpha: 0.55)
-                    : palette.textSecondary.withValues(alpha: 0.12),
+                color: toolsExpanded || activeToolLabels.isNotEmpty
+                    ? palette.accent.withValues(alpha: 0.38)
+                    : palette.textSecondary.withValues(alpha: 0.16),
               ),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(
-                    alpha: isListening ? 0.10 : 0.05,
+                    alpha: isListening ? 0.10 : 0.045,
                   ),
-                  blurRadius: isListening ? 22 : 12,
+                  blurRadius: isListening ? 20 : 12,
                   offset: const Offset(0, 4),
                 ),
               ],
             ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Padding(
-                  padding: const EdgeInsets.only(left: 2),
-                  child: IconButton(
-                    tooltip: english ? 'More tools' : 'Más herramientas',
-                    onPressed: isAttaching ? null : onAttachTap,
-                    icon: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 180),
-                      child: isAttaching
-                          ? const SizedBox(
-                              key: ValueKey('loading'),
-                              width: 19,
-                              height: 19,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(key: ValueKey('plus'), LucideIcons.plus),
-                    ),
-                  ),
-                ),
-                IconButton(
-                  tooltip: webSearchEnabled
-                      ? (english
-                            ? 'Disable web search'
-                            : 'Desactivar búsqueda web')
-                      : (english ? 'Search the web' : 'Buscar en la web'),
-                  onPressed: onToggleWebSearch,
-                  icon: Icon(
-                    LucideIcons.globe,
-                    color: webSearchEnabled
-                        ? palette.accent
-                        : palette.textSecondary,
-                  ),
-                ),
-                IconButton(
-                  tooltip: imageGenerationEnabled
-                      ? (english
-                            ? 'Disable image generation'
-                            : 'Desactivar generación de imagen')
-                      : (english ? 'Generate an image' : 'Generar una imagen'),
-                  onPressed: onToggleImageGeneration,
-                  icon: Icon(
-                    LucideIcons.image,
-                    color: imageGenerationEnabled
-                        ? palette.accent
-                        : palette.textSecondary,
-                  ),
-                ),
-                Expanded(
-                  child: TextField(
-                    controller: controller,
-                    focusNode: focusNode,
-                    enabled: !isSending,
-                    minLines: 1,
-                    maxLines: 1,
-                    keyboardType: TextInputType.text,
-                    textInputAction: TextInputAction.send,
-                    onSubmitted: (_) {
-                      if (!isSending) onSend();
-                    },
-                    cursorColor: palette.accent,
-                    style: TextStyle(
-                      color: palette.textPrimary,
-                      fontSize: 15,
-                      height: 1.2,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: hintText,
-                      hintStyle: TextStyle(
-                        color: palette.textSecondary.withValues(alpha: 0.72),
-                      ),
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      disabledBorder: InputBorder.none,
-                      errorBorder: InputBorder.none,
-                      focusedErrorBorder: InputBorder.none,
-                      isCollapsed: true,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 5,
-                        vertical: 14,
-                      ),
-                    ),
-                  ),
-                ),
-                VoiceInputButton(
-                  isListening: isListening,
-                  enabled: !isSending,
-                  color: palette.accent,
-                  onTap: onMicTap,
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(right: 3),
-                  child: IconButton.filled(
-                    tooltip: isSending
-                        ? (english ? 'Stop generation' : 'Detener generación')
-                        : (english ? 'Send message' : 'Enviar mensaje'),
-                    onPressed: isSending ? onCancel : onSend,
-                    icon: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 180),
-                      transitionBuilder: (child, animation) {
-                        return ScaleTransition(
-                          scale: animation,
-                          child: FadeTransition(
-                            opacity: animation,
-                            child: child,
+                if (pendingAttachments.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(5, 6, 5, 8),
+                    child: Wrap(
+                      spacing: 7,
+                      runSpacing: 6,
+                      children: pendingAttachments.map((file) {
+                        return InputChip(
+                          avatar: const Icon(LucideIcons.fileText, size: 16),
+                          label: Text(
+                            file.name,
+                            overflow: TextOverflow.ellipsis,
                           ),
+                          onDeleted: () => onRemoveAttachment(file),
                         );
-                      },
-                      child: Icon(
-                        isSending ? LucideIcons.square : LucideIcons.arrowUp,
-                        key: ValueKey(isSending),
-                        size: 20,
-                      ),
+                      }).toList(),
                     ),
                   ),
+                if (toolsExpanded || activeToolLabels.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(7, 5, 5, 8),
+                    child: Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            toolHeading,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: palette.accent,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Container(
+                            height: 1,
+                            color: palette.textSecondary.withValues(
+                              alpha: 0.22,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOutCubic,
+                  alignment: Alignment.topCenter,
+                  child: toolsExpanded
+                      ? Padding(
+                          padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Wrap(
+                                spacing: 7,
+                                runSpacing: 0,
+                                children: [
+                                  toolChip(
+                                    icon: LucideIcons.globe,
+                                    label: english
+                                        ? 'Search the web'
+                                        : 'Buscar en la web',
+                                    selected: webSearchEnabled,
+                                    onPressed: () {
+                                      onToggleWebSearch();
+                                      closeTools();
+                                    },
+                                  ),
+                                  toolChip(
+                                    icon: LucideIcons.image,
+                                    label: english
+                                        ? 'Generate images'
+                                        : 'Generar imágenes',
+                                    selected: imageGenerationEnabled,
+                                    onPressed: () {
+                                      onToggleImageGeneration();
+                                      closeTools();
+                                    },
+                                  ),
+                                  toolChip(
+                                    icon: LucideIcons.paperclip,
+                                    label: english
+                                        ? 'Attach files'
+                                        : 'Añadir archivos',
+                                    onPressed: () {
+                                      closeTools();
+                                      onAttachTap();
+                                    },
+                                  ),
+                                  toolChip(
+                                    icon: LucideIcons.brain,
+                                    label: english
+                                        ? 'Deep analysis'
+                                        : 'Análisis profundo',
+                                    selected: overthink,
+                                    onPressed: () {
+                                      onToggleOverthink();
+                                      closeTools();
+                                    },
+                                  ),
+                                ],
+                              ),
+                              if (availableModes.length > 1) ...[
+                                const SizedBox(height: 12),
+                                Text(
+                                  english ? 'MODE' : 'MODO',
+                                  style: TextStyle(
+                                    color: palette.textSecondary,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.8,
+                                  ),
+                                ),
+                                const SizedBox(height: 7),
+                                Wrap(
+                                  spacing: 6,
+                                  runSpacing: 6,
+                                  children: availableModes.map((mode) {
+                                    return _ModeChip(
+                                      label: mode.label,
+                                      selected: modeId == mode.id,
+                                      onTap: () {
+                                        onModeChange(mode.id);
+                                        closeTools();
+                                      },
+                                    );
+                                  }).toList(),
+                                ),
+                              ],
+                            ],
+                          ),
+                        )
+                      : const SizedBox.shrink(),
+                ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    SizedBox(
+                      width: 42,
+                      height: 44,
+                      child: IconButton(
+                        tooltip: toolsExpanded
+                            ? (english ? 'Close tools' : 'Cerrar herramientas')
+                            : (english ? 'More tools' : 'Más herramientas'),
+                        onPressed: isAttaching ? null : onToggleTools,
+                        padding: EdgeInsets.zero,
+                        icon: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 180),
+                          child: isAttaching
+                              ? const SizedBox(
+                                  key: ValueKey('loading'),
+                                  width: 19,
+                                  height: 19,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : Icon(
+                                  toolsExpanded
+                                      ? LucideIcons.x
+                                      : LucideIcons.plus,
+                                  key: ValueKey(toolsExpanded),
+                                  color: toolsExpanded
+                                      ? palette.accent
+                                      : palette.textSecondary,
+                                ),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(3, 9, 3, 11),
+                        child: TextField(
+                          controller: controller,
+                          focusNode: focusNode,
+                          enabled: !isSending,
+                          minLines: 1,
+                          maxLines: 5,
+                          keyboardType: TextInputType.multiline,
+                          textInputAction: TextInputAction.send,
+                          onSubmitted: (_) {
+                            if (!isSending) onSend();
+                          },
+                          cursorColor: palette.accent,
+                          style: TextStyle(
+                            color: palette.textPrimary,
+                            fontSize: 15,
+                            height: 1.35,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: hintText,
+                            hintMaxLines: 2,
+                            hintStyle: TextStyle(
+                              color: palette.textSecondary.withValues(
+                                alpha: 0.76,
+                              ),
+                            ),
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            disabledBorder: InputBorder.none,
+                            errorBorder: InputBorder.none,
+                            focusedErrorBorder: InputBorder.none,
+                            isCollapsed: true,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 2),
+                      child: VoiceInputButton(
+                        isListening: isListening,
+                        enabled: !isSending,
+                        color: palette.accent,
+                        onTap: onMicTap,
+                      ),
+                    ),
+                    const SizedBox(width: 3),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 2),
+                      child: IconButton.filled(
+                        tooltip: isSending
+                            ? (english
+                                  ? 'Stop generation'
+                                  : 'Detener generación')
+                            : (english ? 'Send message' : 'Enviar mensaje'),
+                        style: IconButton.styleFrom(
+                          minimumSize: const Size(44, 44),
+                          fixedSize: const Size(44, 44),
+                          padding: EdgeInsets.zero,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(13),
+                          ),
+                        ),
+                        onPressed: isSending ? onCancel : onSend,
+                        icon: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 180),
+                          transitionBuilder: (child, animation) {
+                            return ScaleTransition(
+                              scale: animation,
+                              child: FadeTransition(
+                                opacity: animation,
+                                child: child,
+                              ),
+                            );
+                          },
+                          child: Icon(
+                            isSending
+                                ? LucideIcons.square
+                                : LucideIcons.arrowUp,
+                            key: ValueKey(isSending),
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
