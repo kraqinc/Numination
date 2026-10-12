@@ -21,7 +21,8 @@ void main() {
           name: 'target.dart',
           path: 'lib/target.dart',
           isDirectory: false,
-          content: 'class Target { void renderTarget() {} }',
+          // Method on its own line so _functionNames (line-anchored regex) picks it up.
+          content: 'class Target {\n  void renderTarget() {}\n}',
         ),
       ];
 
