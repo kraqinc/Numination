@@ -64,10 +64,18 @@ class ApiClient {
 
   static String? _token;
 
-  static void setLanguageCode(String languageCode) => AppErrorMessages.setLanguageCode(languageCode);
+  static void setLanguageCode(String languageCode) =>
+      AppErrorMessages.setLanguageCode(languageCode);
 
-  static String friendlyMessage(int statusCode, String? message, {String? code}) =>
-      AppErrorMessages.fromServer(statusCode: statusCode, rawMessage: message, code: code);
+  static String friendlyMessage(
+    int statusCode,
+    String? message, {
+    String? code,
+  }) => AppErrorMessages.fromServer(
+    statusCode: statusCode,
+    rawMessage: message,
+    code: code,
+  );
 
   static void setToken(String? token) {
     final normalized = token?.trim();
@@ -146,7 +154,9 @@ class ApiClient {
     final timedOut = lastError is TimeoutException;
     throw ApiException(
       timedOut ? 504 : -1,
-      timedOut ? AppErrorMessages.requestTimedOut : AppErrorMessages.connectionFailure,
+      timedOut
+          ? AppErrorMessages.requestTimedOut
+          : AppErrorMessages.connectionFailure,
     );
   }
 
@@ -202,13 +212,17 @@ class ApiClient {
         ..headers['Accept'] = 'text/event-stream'
         ..body = jsonEncode(body);
 
-      final response = await client.send(request).timeout(const Duration(seconds: 35));
+      final response = await client
+          .send(request)
+          .timeout(const Duration(seconds: 35));
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
         final bodyText = await response.stream.bytesToString();
         dynamic decoded;
         try {
-          decoded = bodyText.isEmpty ? <String, dynamic>{} : jsonDecode(bodyText);
+          decoded = bodyText.isEmpty
+              ? <String, dynamic>{}
+              : jsonDecode(bodyText);
         } catch (_) {
           decoded = <String, dynamic>{};
         }
@@ -245,10 +259,11 @@ class ApiClient {
       var eventName = 'message';
       final dataLines = <String>[];
 
-      await for (final line in response.stream
-          .timeout(const Duration(seconds: 45))
-          .transform(utf8.decoder)
-          .transform(const LineSplitter())) {
+      await for (final line
+          in response.stream
+              .timeout(const Duration(seconds: 45))
+              .transform(utf8.decoder)
+              .transform(const LineSplitter())) {
         if (token.isCancelled) throw const ApiRequestCancelled();
 
         if (line.isEmpty) {
@@ -262,7 +277,9 @@ class ApiClient {
             }
             yield {
               'event': eventName,
-              'data': payload is Map ? Map<String, dynamic>.from(payload) : <String, dynamic>{'value': payload},
+              'data': payload is Map
+                  ? Map<String, dynamic>.from(payload)
+                  : <String, dynamic>{'value': payload},
             };
           }
           eventName = 'message';
@@ -287,7 +304,9 @@ class ApiClient {
         }
         yield {
           'event': eventName,
-          'data': payload is Map ? Map<String, dynamic>.from(payload) : <String, dynamic>{'value': payload},
+          'data': payload is Map
+              ? Map<String, dynamic>.from(payload)
+              : <String, dynamic>{'value': payload},
         };
       }
     } on ApiRequestCancelled {

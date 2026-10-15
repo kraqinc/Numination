@@ -1,7 +1,8 @@
 import 'dart:ui' as ui;
 
 class AppErrorMessages {
-  static String _languageCode = ui.PlatformDispatcher.instance.locale.languageCode;
+  static String _languageCode =
+      ui.PlatformDispatcher.instance.locale.languageCode;
 
   static String get languageCode => _languageCode;
   static bool get isEnglish => _languageCode.toLowerCase().startsWith('en');
@@ -125,15 +126,21 @@ class AppErrorMessages {
   static String get previewNotReady => isEnglish
       ? 'Preview will be available when the project contains a supported web app.'
       : 'La vista previa estará disponible cuando el proyecto tenga una aplicación web compatible.';
-  static String fromServer({required int statusCode, String? code, String? rawMessage}) {
+  static String fromServer({
+    required int statusCode,
+    String? code,
+    String? rawMessage,
+  }) {
     final detail = '${code ?? ''} ${rawMessage ?? ''}'.toLowerCase();
 
-
-
-    if (detail.contains('requested path is invalid') || detail.contains('preview_invalid_path')) {
+    if (detail.contains('requested path is invalid') ||
+        detail.contains('preview_invalid_path')) {
       return previewInvalidAddress;
     }
-    if (detail.contains('preview') && (detail.contains('expired') || detail.contains('vencido') || detail.contains('no autorizado'))) {
+    if (detail.contains('preview') &&
+        (detail.contains('expired') ||
+            detail.contains('vencido') ||
+            detail.contains('no autorizado'))) {
       return previewExpired;
     }
     if (detail.contains('insufficient_credits') ||
@@ -159,17 +166,22 @@ class AppErrorMessages {
         detail.contains('codestral')) {
       return aiUnavailable;
     }
-    if (detail.contains('cuenta bloqueada') || detail.contains('banned for age') || detail.contains('edad mínima')) {
+    if (detail.contains('cuenta bloqueada') ||
+        detail.contains('banned for age') ||
+        detail.contains('edad mínima')) {
       return isEnglish
           ? 'This account cannot use Numination because it does not meet the minimum age requirement.'
           : 'Esta cuenta no puede usar Numination porque no cumple el requisito de edad mínima.';
     }
-    if (detail.contains('edad') || detail.contains('age verification') || statusCode == 428) {
+    if (detail.contains('edad') ||
+        detail.contains('age verification') ||
+        statusCode == 428) {
       return isEnglish
           ? 'Please finish the age confirmation in your account to continue.'
           : 'Completa la confirmación de edad en tu cuenta para continuar.';
     }
-    if (detail.contains('pro') && (detail.contains('require') || detail.contains('requiere'))) {
+    if (detail.contains('pro') &&
+        (detail.contains('require') || detail.contains('requiere'))) {
       return isEnglish
           ? 'This feature requires a Numination Pro plan.'
           : 'Esta función requiere un plan Numination Pro.';
@@ -216,41 +228,62 @@ class AppErrorMessages {
   static String fromException(Object error, {String? fallback}) {
     final raw = error.toString().trim();
     final lower = raw.toLowerCase();
-    if (lower.contains('timeoutexception') || lower.contains('timed out') || lower.contains('timeout')) {
+    if (lower.contains('timeoutexception') ||
+        lower.contains('timed out') ||
+        lower.contains('timeout')) {
       return requestTimedOut;
     }
-    if (lower.contains('socketexception') || lower.contains('failed host lookup') ||
-        lower.contains('connection reset') || lower.contains('network is unreachable') ||
+    if (lower.contains('socketexception') ||
+        lower.contains('failed host lookup') ||
+        lower.contains('connection reset') ||
+        lower.contains('network is unreachable') ||
         lower.contains('clientexception')) {
       return connectionFailure;
     }
-    if (lower.contains('por ahora coder admite') || lower.contains('not supported') || lower.contains('tipo de archivo')) {
+    if (lower.contains('por ahora coder admite') ||
+        lower.contains('not supported') ||
+        lower.contains('tipo de archivo')) {
       return attachmentUnsupported;
     }
-    if (lower.contains('debe pesar entre') || lower.contains('1 mb') || lower.contains('demasiado grande') || lower.contains('too large')) {
+    if (lower.contains('debe pesar entre') ||
+        lower.contains('1 mb') ||
+        lower.contains('demasiado grande') ||
+        lower.contains('too large')) {
       return attachmentTooLarge;
     }
-    if (lower.contains('archivo está vacío') || lower.contains('file is empty')) return attachmentEmpty;
+    if (lower.contains('archivo está vacío') ||
+        lower.contains('file is empty')) {
+      return attachmentEmpty;
+    }
     if (lower.contains('permission denied')) {
-      return isEnglish ? 'You do not have permission to perform this action.' : 'No tienes permiso para realizar esta acción.';
+      return isEnglish
+          ? 'You do not have permission to perform this action.'
+          : 'No tienes permiso para realizar esta acción.';
     }
     return fallback ?? genericFailure;
   }
 
   static String fromAuthError(String raw, {String? fallback}) {
     final value = raw.toLowerCase();
-    if (value.contains('invalid login credentials') || value.contains('invalid credentials') ||
-        value.contains('email or password') || value.contains('wrong password')) {
+    if (value.contains('invalid login credentials') ||
+        value.contains('invalid credentials') ||
+        value.contains('email or password') ||
+        value.contains('wrong password')) {
       return invalidCredentials;
     }
-    if (value.contains('email not confirmed') || value.contains('email_not_confirmed') ||
+    if (value.contains('email not confirmed') ||
+        value.contains('email_not_confirmed') ||
         value.contains('confirm your email')) {
       return verifyEmail;
     }
-    if (value.contains('too many requests') || value.contains('rate limit') || value.contains('over_request_rate_limit')) {
+    if (value.contains('too many requests') ||
+        value.contains('rate limit') ||
+        value.contains('over_request_rate_limit')) {
       return authRateLimited;
     }
-    if (value.contains('network') || value.contains('socketexception') || value.contains('timeout')) {
+    if (value.contains('network') ||
+        value.contains('socketexception') ||
+        value.contains('timeout')) {
       return connectionFailure;
     }
     return fallback ?? signInFailed;
@@ -258,9 +291,16 @@ class AppErrorMessages {
 
   static String fromPreviewRuntime(String raw) {
     final value = raw.toLowerCase();
-    if (value.contains('requested path is invalid')) return previewInvalidAddress;
-    if (value.contains('preview no autorizado') || value.contains('expired')) return previewExpired;
-    if (value.contains('proyecto no encontrado') || value.contains('project not found')) return previewProjectMissing;
+    if (value.contains('requested path is invalid')) {
+      return previewInvalidAddress;
+    }
+    if (value.contains('preview no autorizado') || value.contains('expired')) {
+      return previewExpired;
+    }
+    if (value.contains('proyecto no encontrado') ||
+        value.contains('project not found')) {
+      return previewProjectMissing;
+    }
     return previewRuntimeFailed;
   }
 }

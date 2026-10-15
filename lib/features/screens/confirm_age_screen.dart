@@ -106,7 +106,12 @@ class _ConfirmAgeScreenState extends ConsumerState<ConfirmAgeScreen> {
       if (mounted) setState(() => _errorText = e.message);
     } on AuthException catch (e) {
       if (mounted) {
-        setState(() => _errorText = AppErrorMessages.fromAuthError(e.message, fallback: AppErrorMessages.ageConfirmationFailed));
+        setState(
+          () => _errorText = AppErrorMessages.fromAuthError(
+            e.message,
+            fallback: AppErrorMessages.ageConfirmationFailed,
+          ),
+        );
       }
     } catch (_) {
       if (mounted) {

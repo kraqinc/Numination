@@ -138,7 +138,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       }
 
       setState(() {
-        _errorText = AppErrorMessages.fromAuthError(e.description ?? '', fallback: AppErrorMessages.googleSignInFailed);
+        _errorText = AppErrorMessages.fromAuthError(
+          e.description ?? '',
+          fallback: AppErrorMessages.googleSignInFailed,
+        );
       });
     } on AuthException catch (e) {
       if (!mounted) return;

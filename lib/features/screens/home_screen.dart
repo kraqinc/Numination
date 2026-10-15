@@ -19,11 +19,13 @@ import '../../core/theme_controller.dart';
 import '../../core/update_service.dart';
 import '../widgets/ai_response.dart';
 import '../widgets/hamburger.dart';
+import '../widgets/no_credits_widget.dart';
 import '../widgets/search_chats.dart';
 import '../widgets/voice_input_button.dart';
 import 'coder_chat_screen.dart' as coder_chat;
 import 'coder_screen.dart' as coder;
 import 'ghost_chat.dart';
+import 'plans_screen.dart';
 
 class ChatMessage {
   final String text;
@@ -174,16 +176,55 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   AppUser? _profile;
   int _chatRevision = 0;
 
+  // Créditos
+  int? _creditsBalance;
+  DateTime? _creditsResetAt;
+  bool _loadingCredits = false;
+
+  bool get _hasNoCredits => _creditsBalance != null && _creditsBalance! <= 0;
+
+  Future<void> _loadCredits() async {
+    if (_loadingCredits) return;
+
+    _loadingCredits = true;
+
+    try {
+      final response = await ApiClient.get('/credits');
+      final data = ApiClient.decode(response) as Map<String, dynamic>;
+      final rawResetAt = data['creditsResetAt'];
+
+      if (!mounted) return;
+
+      setState(() {
+        _creditsBalance = (data['balance'] as num?)?.toInt() ?? 0;
+        _creditsResetAt = rawResetAt is String
+            ? DateTime.tryParse(rawResetAt)?.toLocal()
+            : null;
+      });
+    } catch (_) {
+      // Si falla la consulta, no asumir que el saldo es cero.
+    } finally {
+      _loadingCredits = false;
+    }
+  }
+
+  void _openPlans() {
+    Navigator.of(
+      context,
+    ).push<void>(MaterialPageRoute<void>(builder: (_) => const PlansScreen()));
+  }
+
   @override
   void initState() {
     super.initState();
+
     _rotateComposerHint();
     UpdateService.startAutomaticChecks();
-
     WidgetsBinding.instance.addObserver(this);
 
     _initSpeech();
     _loadProfile();
+    _loadCredits();
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
@@ -206,6 +247,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           UpdateService.checkAndInstallIfEnabled();
         }
       });
+
+      _loadCredits();
     }
   }
 
@@ -230,9 +273,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       await prefs.setInt(_hintPreferenceKey, next);
 
       if (!mounted) return;
+
       setState(() => _composerHint = hints[next]);
     } catch (_) {
       if (!mounted) return;
+
       setState(() {
         _composerHint = hints[math.Random().nextInt(hints.length)];
       });
@@ -308,7 +353,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     if (_speechAvailable) {
       try {
         final locales = await _speech.locales();
-
         const preferred = <String>['es_CO', 'es_ES', 'es_MX', 'es_US'];
 
         for (final wanted in preferred) {
@@ -320,9 +364,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       } catch (_) {}
     }
 
-    if (mounted) {
-      setState(() {});
-    }
+    if (mounted) setState(() {});
   }
 
   Future<void> _restartSpeechListening() async {
@@ -645,19 +687,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     }
 
     if (_isListening) {
-      if (mounted) {
-        setState(() => _isListening = false);
-      }
-
+      if (mounted) setState(() => _isListening = false);
       await _speech.stop();
       return;
     }
 
     _speechBaseText = _messageController.text.trimRight();
 
-    if (mounted) {
-      setState(() => _isListening = true);
-    }
+    if (mounted) setState(() => _isListening = true);
 
     try {
       await _speech.listen(
@@ -671,7 +708,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           if (!mounted) return;
 
           final spoken = result.recognizedWords.trim();
-
           final merged = [
             if (_speechBaseText.isNotEmpty) _speechBaseText,
             if (spoken.isNotEmpty) spoken,
@@ -801,6 +837,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
     if ((text.isEmpty && attachments.isEmpty) || _isSending) return;
 
+    if (_hasNoCredits) {
+      _messageFocusNode.unfocus();
+      setState(() {});
+      return;
+    }
+
     final useImageGeneration = _imageGenerationForNextMessage;
     final useWebSearch = _webSearchForNextMessage && !useImageGeneration;
     final visibleText = text.isEmpty ? 'Revisa los archivos adjuntos.' : text;
@@ -845,6 +887,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           fromUser: true,
         ),
       );
+
       _isSending = true;
       _generationToken = token;
       _messageController.clear();
@@ -912,6 +955,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         final imageData = Map<String, dynamic>.from(
           ApiClient.decode(imageResponse) as Map,
         );
+
         final generatedImageUrl = imageData['imageUrl']?.toString().trim();
 
         if (imageData['success'] != true ||
@@ -932,14 +976,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
         final userMessageId = imageData['userMessageId']?.toString();
         final assistantMessageId = imageData['assistantMessageId']?.toString();
+
         responseText = AppErrorMessages.isEnglish
             ? 'Image generated successfully.'
             : 'Imagen generada correctamente.';
+
         streamCompleted = true;
 
         setState(() {
           if (userMessageIndex >= 0 && userMessageIndex < _messages.length) {
             final old = _messages[userMessageIndex];
+
             _messages[userMessageIndex] = ChatMessage(
               text: old.text,
               fromUser: true,
@@ -957,6 +1004,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               imageUrl: generatedImageUrl,
             ),
           );
+
           _animatedAssistantMessageId = assistantMessageId;
           _chatRevision++;
         });
@@ -1100,6 +1148,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         setState(() => _messages.removeAt(assistantIndex));
       }
     } on ApiException catch (e) {
+      // El backend puede rechazar tanto el chat como la generación de imágenes.
+      if (e.statusCode == 402) {
+        if (mounted) {
+          setState(() => _creditsBalance = 0);
+        }
+        await _loadCredits();
+      }
+
       if (createdChat &&
           requestChatId != null &&
           !streamCompleted &&
@@ -1164,6 +1220,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       }
 
       _scrollToBottom();
+      _loadCredits();
     }
   }
 
@@ -1354,69 +1411,75 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                       },
                     ),
             ),
-            _BottomInputBar(
-              controller: _messageController,
-              focusNode: _messageFocusNode,
-              modeId: _modeId,
-              availableModes: availableModes,
-              isSending: _isSending,
-              isListening: _isListening,
-              isAttaching: _isAttaching,
-              overthink: _overthink,
-              pendingAttachments: _pendingAttachments,
-              hintText: _composerHint,
-              webSearchEnabled: _webSearchForNextMessage,
-              imageGenerationEnabled: _imageGenerationForNextMessage,
-              showPromptStarters: !_isLoadingHistory && _messages.isEmpty,
-              promptStarters: _promptStarters,
-              onRemoveAttachment: (file) {
-                setState(() {
-                  _pendingAttachments.remove(file);
-                });
-              },
-              onToggleOverthink: () {
-                setState(() {
-                  final enable = !_overthink;
-                  _overthink = enable;
-                  if (enable) {
-                    _webSearchForNextMessage = false;
-                    _imageGenerationForNextMessage = false;
-                  }
-                });
-              },
-              toolsExpanded: _toolsExpanded,
-              onToggleTools: () {
-                setState(() {
-                  _toolsExpanded = !_toolsExpanded;
-                });
-              },
-              onToggleWebSearch: () {
-                setState(() {
-                  final enable = !_webSearchForNextMessage;
-                  _webSearchForNextMessage = enable;
-                  if (enable) {
-                    _imageGenerationForNextMessage = false;
-                    _overthink = false;
-                  }
-                });
-              },
-              onToggleImageGeneration: () {
-                setState(() {
-                  final enable = !_imageGenerationForNextMessage;
-                  _imageGenerationForNextMessage = enable;
-                  if (enable) {
-                    _webSearchForNextMessage = false;
-                    _overthink = false;
-                  }
-                });
-              },
-              onPromptSelected: _selectPromptStarter,
-              onCancel: _cancelGeneration,
-              onModeChange: _toggleMode,
-              onSend: _sendMessage,
-              onMicTap: _toggleListening,
-              onAttachTap: _attachFile,
-            ),
+            if (_hasNoCredits)
+              NoCreditsWidged(resetAt: _creditsResetAt, onViewPlans: _openPlans)
+            else
+              _BottomInputBar(
+                controller: _messageController,
+                focusNode: _messageFocusNode,
+                modeId: _modeId,
+                availableModes: availableModes,
+                isSending: _isSending,
+                isListening: _isListening,
+                isAttaching: _isAttaching,
+                overthink: _overthink,
+                pendingAttachments: _pendingAttachments,
+                hintText: _composerHint,
+                webSearchEnabled: _webSearchForNextMessage,
+                imageGenerationEnabled: _imageGenerationForNextMessage,
+                showPromptStarters: !_isLoadingHistory && _messages.isEmpty,
+                promptStarters: _promptStarters,
+                onRemoveAttachment: (file) {
+                  setState(() {
+                    _pendingAttachments.remove(file);
+                  });
+                },
+                onToggleOverthink: () {
+                  setState(() {
+                    final enable = !_overthink;
+                    _overthink = enable;
+
+                    if (enable) {
+                      _webSearchForNextMessage = false;
+                      _imageGenerationForNextMessage = false;
+                    }
+                  });
+                },
+                toolsExpanded: _toolsExpanded,
+                onToggleTools: () {
+                  setState(() {
+                    _toolsExpanded = !_toolsExpanded;
+                  });
+                },
+                onToggleWebSearch: () {
+                  setState(() {
+                    final enable = !_webSearchForNextMessage;
+                    _webSearchForNextMessage = enable;
+
+                    if (enable) {
+                      _imageGenerationForNextMessage = false;
+                      _overthink = false;
+                    }
+                  });
+                },
+                onToggleImageGeneration: () {
+                  setState(() {
+                    final enable = !_imageGenerationForNextMessage;
+                    _imageGenerationForNextMessage = enable;
+
+                    if (enable) {
+                      _webSearchForNextMessage = false;
+                      _overthink = false;
+                    }
+                  });
+                },
+                onPromptSelected: _selectPromptStarter,
+                onCancel: _cancelGeneration,
+                onModeChange: _toggleMode,
+                onSend: _sendMessage,
+                onMicTap: _toggleListening,
+                onAttachTap: _attachFile,
+              ),
           ],
         ),
       ),
@@ -1432,6 +1495,7 @@ class _TopBar extends ConsumerWidget {
   });
 
   final VoidCallback onMenuTap;
+
   final VoidCallback onSearchTap;
   final VoidCallback onGhostTap;
 
@@ -1573,34 +1637,27 @@ class _MemorySavedWidget extends StatelessWidget {
     final displayTitle = title?.trim().isNotEmpty == true
         ? title!.trim()
         : 'Memoria guardada';
+    final scheme = Theme.of(context).colorScheme;
 
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
       duration: const Duration(milliseconds: 320),
       curve: Curves.easeOutCubic,
-      builder: (context, value, child) {
-        return Opacity(
-          opacity: value,
-          child: Transform.translate(
-            offset: Offset(0, 8 * (1 - value)),
-            child: Transform.scale(scale: 0.98 + (value * 0.02), child: child),
-          ),
-        );
-      },
+      builder: (context, value, child) => Opacity(
+        opacity: value,
+        child: Transform.translate(
+          offset: Offset(0, 8 * (1 - value)),
+          child: Transform.scale(scale: 0.98 + (value * 0.02), child: child),
+        ),
+      ),
       child: Container(
         width: double.infinity,
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
         decoration: BoxDecoration(
-          color: Theme.of(
-            context,
-          ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.42),
+          color: scheme.surfaceContainerHighest.withValues(alpha: 0.42),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: Theme.of(
-              context,
-            ).colorScheme.outline.withValues(alpha: 0.18),
-          ),
+          border: Border.all(color: scheme.outline.withValues(alpha: 0.18)),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
@@ -1609,16 +1666,10 @@ class _MemorySavedWidget extends StatelessWidget {
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                color: Theme.of(
-                  context,
-                ).colorScheme.primary.withValues(alpha: 0.12),
+                color: scheme.primary.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(9),
               ),
-              child: Icon(
-                LucideIcons.savePen,
-                size: 17,
-                color: Theme.of(context).colorScheme.primary,
-              ),
+              child: Icon(LucideIcons.savePen, size: 17, color: scheme.primary),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -1630,7 +1681,7 @@ class _MemorySavedWidget extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      color: Theme.of(context).colorScheme.onSurface,
+                      color: scheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -1640,7 +1691,7 @@ class _MemorySavedWidget extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 12,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: scheme.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -1713,18 +1764,16 @@ class _MessageBubble extends ConsumerWidget {
                         ),
                       );
                     },
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        width: MediaQuery.of(context).size.width * 0.82,
-                        padding: const EdgeInsets.all(20),
-                        child: Text(
-                          AppErrorMessages.isEnglish
-                              ? 'This image could not be loaded. Try generating it again.'
-                              : 'No pudimos cargar esta imagen. Intenta generarla de nuevo.',
-                          style: TextStyle(color: palette.textSecondary),
-                        ),
-                      );
-                    },
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      width: MediaQuery.of(context).size.width * 0.82,
+                      padding: const EdgeInsets.all(20),
+                      child: Text(
+                        AppErrorMessages.isEnglish
+                            ? 'This image could not be loaded. Try generating it again.'
+                            : 'No pudimos cargar esta imagen. Intenta generarla de nuevo.',
+                        style: TextStyle(color: palette.textSecondary),
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -1859,7 +1908,6 @@ class _BottomInputBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = ref.watch(appPaletteProvider);
     final english = AppErrorMessages.isEnglish;
-
     final hasActiveTool =
         webSearchEnabled || imageGenerationEnabled || overthink;
 
@@ -1928,9 +1976,7 @@ class _BottomInputBar extends ConsumerWidget {
                 child: Icon(
                   icon,
                   size: 19,
-                  color: selected
-                      ? palette.accent
-                      : palette.textSecondary,
+                  color: selected ? palette.accent : palette.textSecondary,
                 ),
               ),
             ),
@@ -2042,7 +2088,9 @@ class _BottomInputBar extends ConsumerWidget {
                                 ),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: palette.accent.withValues(alpha: 0.12),
+                                    color: palette.accent.withValues(
+                                      alpha: 0.12,
+                                    ),
                                     blurRadius: 10,
                                   ),
                                 ],
@@ -2158,6 +2206,7 @@ class _BottomInputBar extends ConsumerWidget {
                         )
                       : const SizedBox.shrink(),
                 ),
+
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
@@ -2203,10 +2252,9 @@ class _BottomInputBar extends ConsumerWidget {
                           minLines: 1,
                           maxLines: 5,
                           keyboardType: TextInputType.multiline,
-                          textInputAction: TextInputAction.send,
-                          onSubmitted: (_) {
-                            if (!isSending) onSend();
-                          },
+                          textInputAction: TextInputAction.newline,
+                          textCapitalization: TextCapitalization.sentences,
+                          enableInteractiveSelection: true,
                           cursorColor: palette.accent,
                           style: TextStyle(
                             color: palette.textPrimary,
@@ -2323,10 +2371,8 @@ class _ThinkingMessageState extends State<_ThinkingMessage>
             animation: _controller,
             builder: (context, child) {
               final phase = (_controller.value * 3 - index) % 3;
-
               final opacity =
                   0.35 + (0.65 * (1 - (phase - 1).abs().clamp(0.0, 1.0)));
-
               final offsetY = -3 * (1 - (phase - 1).abs().clamp(0.0, 1.0));
 
               return Transform.translate(

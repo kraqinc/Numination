@@ -126,9 +126,7 @@ class _ArtifactsScreenState extends ConsumerState<ArtifactsScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(AppErrorMessages.artifactLinkFailed),
-        ),
+        SnackBar(content: Text(AppErrorMessages.artifactLinkFailed)),
       );
     }
   }

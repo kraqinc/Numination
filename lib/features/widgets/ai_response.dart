@@ -13,7 +13,11 @@ import '../../core/theme_controller.dart';
 import 'package:numination/core/numi_icons.dart';
 
 class AiResponse extends ConsumerWidget {
-  const AiResponse({super.key, required this.text, this.animateCharacters = false});
+  const AiResponse({
+    super.key,
+    required this.text,
+    this.animateCharacters = false,
+  });
 
   final String text;
   final bool animateCharacters;
@@ -202,7 +206,11 @@ class _ResponsePartView extends StatelessWidget {
   Widget build(BuildContext context) {
     switch (part.type) {
       case _ResponsePartType.text:
-        return _TextResponse(text: part.content, palette: palette, animateCharacters: animateCharacters);
+        return _TextResponse(
+          text: part.content,
+          palette: palette,
+          animateCharacters: animateCharacters,
+        );
 
       case _ResponsePartType.math:
         return _MathResponse(expression: part.content, palette: palette);
@@ -219,7 +227,11 @@ class _ResponsePartView extends StatelessWidget {
 }
 
 class _TextResponse extends StatelessWidget {
-  const _TextResponse({required this.text, required this.palette, required this.animateCharacters});
+  const _TextResponse({
+    required this.text,
+    required this.palette,
+    required this.animateCharacters,
+  });
 
   final String text;
   final AppPalette palette;
@@ -358,7 +370,9 @@ class _FormattedLine extends StatelessWidget {
 
   List<InlineSpan> _spans(String value) {
     final result = <InlineSpan>[];
-    final regex = RegExp(r'(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\(https?://[^)\s]+\))');
+    final regex = RegExp(
+      r'(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\(https?://[^)\s]+\))',
+    );
     var cursor = 0;
 
     for (final match in regex.allMatches(value)) {
@@ -376,7 +390,9 @@ class _FormattedLine extends StatelessWidget {
           ),
         );
       } else if (token.startsWith('[')) {
-        final link = RegExp(r'^\[([^\]]+)\]\((https?://[^)]+)\)$').firstMatch(token);
+        final link = RegExp(
+          r'^\[([^\]]+)\]\((https?://[^)]+)\)$',
+        ).firstMatch(token);
         final uri = link == null ? null : Uri.tryParse(link.group(2)!);
 
         if (link != null && uri != null) {
@@ -384,7 +400,8 @@ class _FormattedLine extends StatelessWidget {
             WidgetSpan(
               alignment: PlaceholderAlignment.middle,
               child: InkWell(
-                onTap: () => launchUrl(uri, mode: LaunchMode.externalApplication),
+                onTap: () =>
+                    launchUrl(uri, mode: LaunchMode.externalApplication),
                 child: Text(
                   link.group(1)!,
                   style: TextStyle(

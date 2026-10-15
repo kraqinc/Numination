@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_flutter/lucide_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/api.dart';
+import '../../core/error_messages.dart';
 import '../../core/auth_controller.dart';
 import '../../core/l10n_extensions.dart';
 import '../../core/models.dart' show AiModeConfig, ChatSession, Project;
 import '../../core/theme_controller.dart';
 import '../screens/artifacts_screen.dart';
 import '../screens/connectors_screen.dart';
+import '../screens/credits_hub_screen.dart';
 import '../screens/notification_screen.dart';
 import '../screens/projects_screen.dart';
 import '../screens/settings_screen.dart';
@@ -46,6 +49,8 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
   bool _isLoading = true;
   List<ChatSession> _chats = [];
   String? _resolvedAvatarUrl;
+  int? _creditBalance;
+  bool _creditsLoading = true;
 
   @override
   void initState() {
@@ -53,6 +58,37 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
     _resolvedAvatarUrl = widget.avatarUrl;
     _loadProfile();
     _loadChats();
+    _loadCredits();
+  }
+
+  Future<void> _loadCredits() async {
+    try {
+      final response = await ApiClient.get('/credits');
+      final data = ApiClient.decode(response);
+      final raw = data is Map ? data['balance'] : null;
+      if (raw is! num || !raw.isFinite || raw < 0) {
+        throw const FormatException('Invalid credits balance');
+      }
+      if (!mounted) return;
+      setState(() {
+        _creditBalance = raw.toInt();
+        _creditsLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _creditBalance = null;
+        _creditsLoading = false;
+      });
+    }
+  }
+
+  String _formatCreditBalance(int value) {
+    final separator = AppErrorMessages.isEnglish ? ',' : '.';
+    return value.toString().replaceAllMapped(
+      RegExp(r'\B(?=(\d{3})+(?!\d))'),
+      (_) => separator,
+    );
   }
 
   @override
@@ -516,6 +552,38 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                   );
                 },
               ),
+              const SizedBox(height: 18),
+              _DrawerItem(
+                icon: LucideIcons.creditCard,
+                label: AppErrorMessages.isEnglish ? 'Credits' : 'Créditos',
+                color: palette.textPrimary,
+                trailing: _creditsLoading
+                    ? SizedBox(
+                        width: 15,
+                        height: 15,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 1.6,
+                          color: palette.accent,
+                        ),
+                      )
+                    : _creditBalance == null
+                    ? null
+                    : Text(
+                        _formatCreditBalance(_creditBalance!),
+                        style: TextStyle(
+                          color: palette.accent,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                onTap: () {
+                  final navigator = Navigator.of(context);
+                  navigator.pop();
+                  navigator.push(
+                    MaterialPageRoute(builder: (_) => const CreditsHubScreen()),
+                  );
+                },
+              ),
               const SizedBox(height: 16),
               Divider(color: palette.border),
               const SizedBox(height: 8),
@@ -606,11 +674,13 @@ class _DrawerItem extends StatelessWidget {
     required this.label,
     required this.color,
     required this.onTap,
+    this.trailing,
   });
   final IconData icon;
   final String label;
   final Color color;
   final VoidCallback onTap;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -621,6 +691,7 @@ class _DrawerItem extends StatelessWidget {
           Icon(icon, color: color, size: 22),
           const SizedBox(width: 16),
           Text(label, style: TextStyle(color: color, fontSize: 17)),
+          if (trailing != null) ...[const Spacer(), trailing!],
         ],
       ),
     );

@@ -11,6 +11,8 @@ import 'memory_screen.dart';
 import 'notification_screen.dart';
 import 'privacy_screen.dart';
 import 'subscription_coder_screen.dart';
+import 'credits_hub_screen.dart';
+import 'plans_screen.dart';
 import 'theme_screen.dart';
 import 'package:numination/core/numi_icons.dart';
 
@@ -116,7 +118,23 @@ class SettingsScreen extends ConsumerWidget {
               style: TextStyle(color: palette.textSecondary, fontSize: 12),
             ),
           ),
-
+          _SettingsTile(
+            icon: Icons.bolt_rounded,
+            label: 'Créditos',
+            subtitle: 'Consulta tu saldo y consigue más créditos',
+            onTap: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const CreditsHubScreen())),
+          ),
+          _SettingsTile(
+            icon: Icons.workspace_premium_outlined,
+            label: 'Suscripciones',
+            subtitle: 'Planes, créditos semanales y beneficios',
+            onTap: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const PlansScreen())),
+          ),
+          _SettingsSectionDivider(color: palette.border),
           _SettingsSectionDivider(color: palette.border),
           _SettingsTile(
             icon: NumiIcons.workspace_premium_outlined,

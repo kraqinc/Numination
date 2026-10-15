@@ -223,18 +223,22 @@ class _ProjectsScreenState extends ConsumerState<ProjectsScreen> {
                       final coderChats = chats
                           .where((chat) => chat.mode.toLowerCase() == 'coder')
                           .toList();
-                      final latestChat = coderChats.isEmpty ? null : coderChats.first;
-                      Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => CoderChatScreen(
-                            projectId: project.id,
-                            projectName: project.name,
-                            chatId: latestChat?.id,
-                          ),
-                        ),
-                      ).then((_) {
-                        if (mounted) _load();
-                      });
+                      final latestChat = coderChats.isEmpty
+                          ? null
+                          : coderChats.first;
+                      Navigator.of(context)
+                          .push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => CoderChatScreen(
+                                projectId: project.id,
+                                projectName: project.name,
+                                chatId: latestChat?.id,
+                              ),
+                            ),
+                          )
+                          .then((_) {
+                            if (mounted) _load();
+                          });
                     },
                   );
                 },
