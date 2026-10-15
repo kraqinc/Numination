@@ -1376,7 +1376,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               },
               onToggleOverthink: () {
                 setState(() {
-                  _overthink = !_overthink;
+                  final enable = !_overthink;
+                  _overthink = enable;
+                  if (enable) {
+                    _webSearchForNextMessage = false;
+                    _imageGenerationForNextMessage = false;
+                  }
                 });
               },
               toolsExpanded: _toolsExpanded,
@@ -1387,18 +1392,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               },
               onToggleWebSearch: () {
                 setState(() {
-                  _webSearchForNextMessage = !_webSearchForNextMessage;
-                  if (_webSearchForNextMessage) {
+                  final enable = !_webSearchForNextMessage;
+                  _webSearchForNextMessage = enable;
+                  if (enable) {
                     _imageGenerationForNextMessage = false;
+                    _overthink = false;
                   }
                 });
               },
               onToggleImageGeneration: () {
                 setState(() {
-                  _imageGenerationForNextMessage =
-                      !_imageGenerationForNextMessage;
-                  if (_imageGenerationForNextMessage) {
+                  final enable = !_imageGenerationForNextMessage;
+                  _imageGenerationForNextMessage = enable;
+                  if (enable) {
                     _webSearchForNextMessage = false;
+                    _overthink = false;
                   }
                 });
               },
@@ -1852,44 +1860,82 @@ class _BottomInputBar extends ConsumerWidget {
     final palette = ref.watch(appPaletteProvider);
     final english = AppErrorMessages.isEnglish;
 
-    final activeToolLabels = <String>[
-      if (webSearchEnabled) english ? 'WEB SEARCH' : 'BUSCAR EN LA WEB',
-      if (imageGenerationEnabled)
-        english ? 'IMAGE GENERATION' : 'GENERAR IMÁGENES',
-      if (overthink) english ? 'DEEP ANALYSIS' : 'ANÁLISIS PROFUNDO',
-    ];
-    final toolHeading = activeToolLabels.isNotEmpty
-        ? activeToolLabels.join(' · ')
-        : (english ? 'TOOLS' : 'HERRAMIENTAS');
+    final hasActiveTool =
+        webSearchEnabled || imageGenerationEnabled || overthink;
 
-    ActionChip toolChip({
+    final IconData? selectedToolIcon = webSearchEnabled
+        ? LucideIcons.globe
+        : imageGenerationEnabled
+        ? LucideIcons.image
+        : overthink
+        ? LucideIcons.brain
+        : null;
+
+    final String? selectedToolName = webSearchEnabled
+        ? (english ? 'Search the web' : 'Buscar en la web')
+        : imageGenerationEnabled
+        ? (english ? 'Generate images' : 'Generar imágenes')
+        : overthink
+        ? (english ? 'Deep analysis' : 'Análisis profundo')
+        : null;
+
+    final toolHeading = english ? 'TOOLS' : 'HERRAMIENTAS';
+
+    Widget toolButton({
       required IconData icon,
       required String label,
       required VoidCallback onPressed,
       bool selected = false,
     }) {
-      return ActionChip(
-        avatar: Icon(
-          icon,
-          size: 16,
-          color: selected ? palette.accent : palette.textSecondary,
+      return Tooltip(
+        message: label,
+        child: Semantics(
+          button: true,
+          selected: selected,
+          label: label,
+          child: Material(
+            color: Colors.transparent,
+            shape: const CircleBorder(),
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: onPressed,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOutCubic,
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: selected
+                      ? palette.accent.withValues(alpha: 0.15)
+                      : palette.surfaceAlt,
+                  border: Border.all(
+                    color: selected
+                        ? palette.accent.withValues(alpha: 0.8)
+                        : palette.textSecondary.withValues(alpha: 0.18),
+                    width: selected ? 1.4 : 1,
+                  ),
+                  boxShadow: selected
+                      ? [
+                          BoxShadow(
+                            color: palette.accent.withValues(alpha: 0.17),
+                            blurRadius: 12,
+                            spreadRadius: 1,
+                          ),
+                        ]
+                      : const [],
+                ),
+                child: Icon(
+                  icon,
+                  size: 19,
+                  color: selected
+                      ? palette.accent
+                      : palette.textSecondary,
+                ),
+              ),
+            ),
+          ),
         ),
-        label: Text(label),
-        labelStyle: TextStyle(
-          color: selected ? palette.textPrimary : palette.textSecondary,
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
-        ),
-        backgroundColor: selected
-            ? palette.accent.withValues(alpha: 0.12)
-            : palette.surfaceAlt,
-        side: BorderSide(
-          color: selected
-              ? palette.accent.withValues(alpha: 0.38)
-              : palette.textSecondary.withValues(alpha: 0.14),
-        ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        onPressed: onPressed,
       );
     }
 
@@ -1930,7 +1976,7 @@ class _BottomInputBar extends ConsumerWidget {
               color: palette.surface,
               borderRadius: BorderRadius.circular(24),
               border: Border.all(
-                color: toolsExpanded || activeToolLabels.isNotEmpty
+                color: toolsExpanded || hasActiveTool
                     ? palette.accent.withValues(alpha: 0.38)
                     : palette.textSecondary.withValues(alpha: 0.16),
               ),
@@ -1966,24 +2012,48 @@ class _BottomInputBar extends ConsumerWidget {
                       }).toList(),
                     ),
                   ),
-                if (toolsExpanded || activeToolLabels.isNotEmpty)
+                if (toolsExpanded || hasActiveTool)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(7, 5, 5, 8),
                     child: Row(
                       children: [
-                        Flexible(
-                          child: Text(
+                        if (toolsExpanded)
+                          Text(
                             toolHeading,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               color: palette.accent,
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
                               letterSpacing: 0.8,
                             ),
+                          )
+                        else if (selectedToolIcon != null)
+                          Tooltip(
+                            message: selectedToolName ?? toolHeading,
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 180),
+                              width: 34,
+                              height: 34,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: palette.accent.withValues(alpha: 0.13),
+                                border: Border.all(
+                                  color: palette.accent.withValues(alpha: 0.65),
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: palette.accent.withValues(alpha: 0.12),
+                                    blurRadius: 10,
+                                  ),
+                                ],
+                              ),
+                              child: Icon(
+                                selectedToolIcon,
+                                size: 17,
+                                color: palette.accent,
+                              ),
+                            ),
                           ),
-                        ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Container(
@@ -2011,7 +2081,7 @@ class _BottomInputBar extends ConsumerWidget {
                                 spacing: 7,
                                 runSpacing: 0,
                                 children: [
-                                  toolChip(
+                                  toolButton(
                                     icon: LucideIcons.globe,
                                     label: english
                                         ? 'Search the web'
@@ -2022,7 +2092,7 @@ class _BottomInputBar extends ConsumerWidget {
                                       closeTools();
                                     },
                                   ),
-                                  toolChip(
+                                  toolButton(
                                     icon: LucideIcons.image,
                                     label: english
                                         ? 'Generate images'
@@ -2033,7 +2103,7 @@ class _BottomInputBar extends ConsumerWidget {
                                       closeTools();
                                     },
                                   ),
-                                  toolChip(
+                                  toolButton(
                                     icon: LucideIcons.paperclip,
                                     label: english
                                         ? 'Attach files'
@@ -2043,7 +2113,7 @@ class _BottomInputBar extends ConsumerWidget {
                                       onAttachTap();
                                     },
                                   ),
-                                  toolChip(
+                                  toolButton(
                                     icon: LucideIcons.brain,
                                     label: english
                                         ? 'Deep analysis'

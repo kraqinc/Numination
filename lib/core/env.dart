@@ -25,4 +25,6 @@ class Env {
       _val('SUPABASE_AUTH_REDIRECT_URL', 'numination://auth');
 
   static String get appVersion => _val('APP_VERSION', '1.0.0');
+
+  static String get paypalReloadUrl => _val('PAYPAL_RELOAD_URL', '');
 }
