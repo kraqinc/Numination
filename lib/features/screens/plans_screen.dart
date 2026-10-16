@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -68,11 +67,7 @@ class _PlansScreenState extends State<PlansScreen> {
 
       final plans = rawPlans
           .whereType<Map>()
-          .map(
-            (item) => _BillingPlan.fromJson(
-              Map<String, dynamic>.from(item),
-            ),
-          )
+          .map((item) => _BillingPlan.fromJson(Map<String, dynamic>.from(item)))
           .toList();
 
       if (!mounted) return;
@@ -109,9 +104,7 @@ class _PlansScreenState extends State<PlansScreen> {
 
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(content: Text(message)),
-      );
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _startPaypalCheckout(_BillingPlan plan) async {
@@ -125,16 +118,13 @@ class _PlansScreenState extends State<PlansScreen> {
     setState(() => _workingPlanId = plan.id);
 
     try {
-      final response = await ApiClient.post(
-        '/payments/paypal/create-order',
-        {'packageId': plan.id},
-      );
+      final response = await ApiClient.post('/payments/paypal/create-order', {
+        'packageId': plan.id,
+      });
 
       final decoded = ApiClient.decode(response);
       if (decoded is! Map) {
-        throw const FormatException(
-          'PayPal devolvió una respuesta inválida.',
-        );
+        throw const FormatException('PayPal devolvió una respuesta inválida.');
       }
 
       final data = Map<String, dynamic>.from(decoded);
@@ -142,16 +132,14 @@ class _PlansScreenState extends State<PlansScreen> {
       final approvalUrl = data['approvalUrl']?.toString() ?? '';
 
       if (paymentId.isEmpty) {
-        throw const FormatException(
-          'No se recibió el identificador del pago.',
-        );
+        throw const FormatException('No se recibió el identificador del pago.');
       }
 
       final uri = Uri.tryParse(approvalUrl);
-      final validPaypalHost = uri != null &&
+      final validPaypalHost =
+          uri != null &&
           uri.scheme == 'https' &&
-          (uri.host == 'paypal.com' ||
-              uri.host.endsWith('.paypal.com'));
+          (uri.host == 'paypal.com' || uri.host.endsWith('.paypal.com'));
 
       if (!validPaypalHost) {
         throw const FormatException(
@@ -166,10 +154,7 @@ class _PlansScreenState extends State<PlansScreen> {
         _pendingPaypalPlanTitle = plan.title;
       });
 
-      final opened = await launchUrl(
-        uri,
-        mode: LaunchMode.externalApplication,
-      );
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
 
       if (!opened) {
         _showMessage(
@@ -182,8 +167,8 @@ class _PlansScreenState extends State<PlansScreen> {
         error is ApiException
             ? error.message
             : error is FormatException
-                ? error.message
-                : 'No pudimos iniciar PayPal. Inténtalo de nuevo.',
+            ? error.message
+            : 'No pudimos iniciar PayPal. Inténtalo de nuevo.',
       );
     } finally {
       if (mounted) {
@@ -203,10 +188,9 @@ class _PlansScreenState extends State<PlansScreen> {
     try {
       // Esta ruta captura y verifica la orden con PayPal.
       // No basta con consultar el estado ni volver a la aplicación.
-      final response = await ApiClient.post(
-        '/payments/paypal/capture-order',
-        {'paymentId': paymentId},
-      );
+      final response = await ApiClient.post('/payments/paypal/capture-order', {
+        'paymentId': paymentId,
+      });
 
       final decoded = ApiClient.decode(response);
       if (decoded is! Map) {
@@ -240,9 +224,7 @@ class _PlansScreenState extends State<PlansScreen> {
           _pendingPaypalPlanTitle = null;
         });
 
-        _showMessage(
-          'El pago no se completó. Puedes iniciar otra compra.',
-        );
+        _showMessage('El pago no se completó. Puedes iniciar otra compra.');
       } else {
         _showMessage(
           'El pago todavía no está confirmado. Estado: '
@@ -283,16 +265,13 @@ class _PlansScreenState extends State<PlansScreen> {
 
     try {
       // Crea una solicitud pendiente que debe aprobarse manualmente.
-      final response = await ApiClient.post(
-        '/credits/recharge',
-        {'packageId': plan.id},
-      );
+      final response = await ApiClient.post('/credits/recharge', {
+        'packageId': plan.id,
+      });
 
       final decoded = ApiClient.decode(response);
       if (decoded is! Map) {
-        throw const FormatException(
-          'No pudimos crear la solicitud de Nequi.',
-        );
+        throw const FormatException('No pudimos crear la solicitud de Nequi.');
       }
 
       final data = Map<String, dynamic>.from(decoded);
@@ -341,9 +320,7 @@ class _PlansScreenState extends State<PlansScreen> {
                   const SizedBox(height: 4),
                   Text(
                     _formatCop(plan.priceCop),
-                    style: Theme.of(dialogContext)
-                        .textTheme
-                        .titleLarge
+                    style: Theme.of(dialogContext).textTheme.titleLarge
                         ?.copyWith(fontWeight: FontWeight.w800),
                   ),
                   const SizedBox(height: 16),
@@ -354,9 +331,7 @@ class _PlansScreenState extends State<PlansScreen> {
                   const SizedBox(height: 4),
                   SelectableText(
                     _nequiRecipient,
-                    style: Theme.of(dialogContext)
-                        .textTheme
-                        .titleMedium
+                    style: Theme.of(dialogContext).textTheme.titleMedium
                         ?.copyWith(fontWeight: FontWeight.w700),
                   ),
                   Align(
@@ -367,7 +342,7 @@ class _PlansScreenState extends State<PlansScreen> {
                           ClipboardData(text: _nequiRecipient),
                         );
                         if (dialogContext.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          ScaffoldMessenger.of(dialogContext).showSnackBar(
                             const SnackBar(
                               content: Text('Número de Nequi copiado.'),
                             ),
@@ -386,9 +361,7 @@ class _PlansScreenState extends State<PlansScreen> {
                   const SizedBox(height: 6),
                   SelectableText(
                     referenceCode,
-                    style: Theme.of(dialogContext)
-                        .textTheme
-                        .titleMedium
+                    style: Theme.of(dialogContext).textTheme.titleMedium
                         ?.copyWith(
                           color: colors.primary,
                           fontWeight: FontWeight.w800,
@@ -402,7 +375,7 @@ class _PlansScreenState extends State<PlansScreen> {
                           ClipboardData(text: referenceCode),
                         );
                         if (dialogContext.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          ScaffoldMessenger.of(dialogContext).showSnackBar(
                             const SnackBar(
                               content: Text('Referencia copiada.'),
                             ),
@@ -417,9 +390,7 @@ class _PlansScreenState extends State<PlansScreen> {
                   Text(
                     'Conserva esta referencia para identificar tu pago. '
                     'La aprobación manual es necesaria para activar el plan.',
-                    style: Theme.of(dialogContext)
-                        .textTheme
-                        .bodySmall
+                    style: Theme.of(dialogContext).textTheme.bodySmall
                         ?.copyWith(color: colors.onSurfaceVariant),
                   ),
                 ],
@@ -438,7 +409,7 @@ class _PlansScreenState extends State<PlansScreen> {
                   );
 
                   if (!opened && dialogContext.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    ScaffoldMessenger.of(dialogContext).showSnackBar(
                       const SnackBar(
                         content: Text('No pudimos abrir el sitio de Nequi.'),
                       ),
@@ -456,8 +427,8 @@ class _PlansScreenState extends State<PlansScreen> {
         error is ApiException
             ? error.message
             : error is FormatException
-                ? error.message
-                : 'No pudimos crear la solicitud de Nequi.',
+            ? error.message
+            : 'No pudimos crear la solicitud de Nequi.',
       );
     } finally {
       if (mounted) {
@@ -485,45 +456,44 @@ class _PlansScreenState extends State<PlansScreen> {
       body: _loadingPlans
           ? const Center(child: CircularProgressIndicator())
           : _loadError != null
-              ? _buildLoadError()
-              : RefreshIndicator(
-                  onRefresh: _loadPlans,
-                  child: ListView(
-                    padding: const EdgeInsets.all(20),
-                    children: [
-                      Text(
-                        'Elige tu plan',
-                        style: text.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Más créditos para tus conversaciones, '
-                        'proyectos y herramientas de IA.',
-                        style: text.bodyLarge?.copyWith(
-                          color: colors.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      _buildFreePlan(),
-                      const SizedBox(height: 20),
-                      if (_pendingPaypalPaymentId != null)
-                        _buildPaypalPending(),
-                      if (_pendingPaypalPaymentId != null)
-                        const SizedBox(height: 18),
-                      if (_plans.isEmpty)
-                        _buildEmptyPlans()
-                      else
-                        for (final plan in _plans) ...[
-                          _buildPlanCard(plan),
-                          const SizedBox(height: 14),
-                        ],
-                      const SizedBox(height: 8),
-                      _buildPaymentInformation(),
-                    ],
+          ? _buildLoadError()
+          : RefreshIndicator(
+              onRefresh: _loadPlans,
+              child: ListView(
+                padding: const EdgeInsets.all(20),
+                children: [
+                  Text(
+                    'Elige tu plan',
+                    style: text.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Más créditos para tus conversaciones, '
+                    'proyectos y herramientas de IA.',
+                    style: text.bodyLarge?.copyWith(
+                      color: colors.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  _buildFreePlan(),
+                  const SizedBox(height: 20),
+                  if (_pendingPaypalPaymentId != null) _buildPaypalPending(),
+                  if (_pendingPaypalPaymentId != null)
+                    const SizedBox(height: 18),
+                  if (_plans.isEmpty)
+                    _buildEmptyPlans()
+                  else
+                    for (final plan in _plans) ...[
+                      _buildPlanCard(plan),
+                      const SizedBox(height: 14),
+                    ],
+                  const SizedBox(height: 8),
+                  _buildPaymentInformation(),
+                ],
+              ),
+            ),
     );
   }
 
@@ -545,9 +515,7 @@ class _PlansScreenState extends State<PlansScreen> {
             const SizedBox(height: 12),
             Text(
               'No pudimos cargar los planes',
-              style: text.titleLarge?.copyWith(
-                fontWeight: FontWeight.w800,
-              ),
+              style: text.titleLarge?.copyWith(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 8),
             Text(
@@ -582,16 +550,12 @@ class _PlansScreenState extends State<PlansScreen> {
         children: [
           Text(
             'Free',
-            style: text.titleLarge?.copyWith(
-              fontWeight: FontWeight.w800,
-            ),
+            style: text.titleLarge?.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 4),
           Text(
             'Empieza a trabajar con Numination.',
-            style: text.bodyMedium?.copyWith(
-              color: colors.onSurfaceVariant,
-            ),
+            style: text.bodyMedium?.copyWith(color: colors.onSurfaceVariant),
           ),
           const SizedBox(height: 18),
           _benefit('500 créditos diarios'),
@@ -638,9 +602,7 @@ class _PlansScreenState extends State<PlansScreen> {
               Expanded(
                 child: Text(
                   plan.title.replaceFirst('Numination ', ''),
-                  style: text.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
+                  style: text.titleLarge?.copyWith(fontWeight: FontWeight.w800),
                 ),
               ),
               if (featured)
@@ -666,15 +628,11 @@ class _PlansScreenState extends State<PlansScreen> {
           const SizedBox(height: 12),
           Text(
             _formatCop(plan.priceCop),
-            style: text.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w800,
-            ),
+            style: text.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
           ),
           Text(
             'por mes',
-            style: text.bodyMedium?.copyWith(
-              color: colors.onSurfaceVariant,
-            ),
+            style: text.bodyMedium?.copyWith(color: colors.onSurfaceVariant),
           ),
           const SizedBox(height: 18),
           _benefit('${_formatCredits(plan.credits)} créditos por semana'),
@@ -696,9 +654,7 @@ class _PlansScreenState extends State<PlansScreen> {
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
-                onPressed: canPayNequi
-                    ? () => _startNequiPayment(plan)
-                    : null,
+                onPressed: canPayNequi ? () => _startNequiPayment(plan) : null,
                 icon: const Icon(Icons.account_balance_wallet_outlined),
                 label: const Text('Pagar con Nequi'),
               ),
@@ -712,7 +668,9 @@ class _PlansScreenState extends State<PlansScreen> {
                     : null,
                 icon: const Icon(Icons.open_in_new_rounded),
                 label: Text(
-                  canPayPaypal ? 'Continuar con PayPal' : 'PayPal no disponible',
+                  canPayPaypal
+                      ? 'Continuar con PayPal'
+                      : 'PayPal no disponible',
                 ),
               ),
             ),
@@ -737,16 +695,16 @@ class _PlansScreenState extends State<PlansScreen> {
         children: [
           Text(
             'Compra pendiente',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w800,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 6),
           Text(
             _pendingPaypalPlanTitle == null
                 ? 'Finaliza el pago en PayPal y después verifícalo.'
                 : 'Plan: $_pendingPaypalPlanTitle. '
-                    'Finaliza el pago en PayPal y después verifícalo.',
+                      'Finaliza el pago en PayPal y después verifícalo.',
           ),
           const SizedBox(height: 12),
           SizedBox(
@@ -773,9 +731,7 @@ class _PlansScreenState extends State<PlansScreen> {
   Widget _buildEmptyPlans() {
     return const Padding(
       padding: EdgeInsets.symmetric(vertical: 30),
-      child: Center(
-        child: Text('No hay planes disponibles en este momento.'),
-      ),
+      child: Center(child: Text('No hay planes disponibles en este momento.')),
     );
   }
 
@@ -792,9 +748,9 @@ class _PlansScreenState extends State<PlansScreen> {
             'PayPal procesa el equivalente en USD mostrado por el backend. '
             'El precio en COP es una referencia aproximada.',
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: colors.onSurfaceVariant,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
           ),
           const SizedBox(height: 8),
           Text(
@@ -802,9 +758,9 @@ class _PlansScreenState extends State<PlansScreen> {
             'Crear una solicitud o abrir la app bancaria no activa '
             'automáticamente la suscripción.',
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: colors.onSurfaceVariant,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
           ),
         ],
       ),
@@ -833,9 +789,9 @@ class _PlansScreenState extends State<PlansScreen> {
 
   String _formatCredits(int credits) {
     return credits.toString().replaceAllMapped(
-          RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
-          (match) => '${match[1]}.',
-        );
+      RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
+      (match) => '${match[1]}.',
+    );
   }
 }
 
