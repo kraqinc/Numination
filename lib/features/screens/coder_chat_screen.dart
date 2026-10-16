@@ -17,6 +17,7 @@ import '../widgets/ai_response.dart';
 import '../widgets/coder_preview_screen.dart';
 import 'architect_mode_screen.dart';
 import 'dependency_map_screen.dart';
+import '../widgets/numi_loading_animation.dart';
 
 class CoderPreviewState {
   final bool ready;
@@ -1186,7 +1187,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
                   border: Border(bottom: BorderSide(color: palette.border)),
                 ),
                 child: _loadingFiles
-                    ? const Center(child: CircularProgressIndicator())
+                    ? const Center(child: NumiLoadingAnimation())
                     : _files.isEmpty
                     ? Center(
                         child: Text(

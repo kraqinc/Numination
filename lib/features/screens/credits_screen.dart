@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/env.dart';
 import '../../core/error_messages.dart';
 import '../widgets/galaxy_button.dart';
+import '../widgets/numi_loading_animation.dart';
 
 class CreditsScreen extends StatefulWidget {
   const CreditsScreen({super.key, required this.balance, this.onRefresh});
@@ -166,7 +167,7 @@ class _CreditsScreenState extends State<CreditsScreen> {
                     const SizedBox(
                       width: 18,
                       height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                      child: NumiLoadingAnimation(),
                     )
                   else
                     const Icon(Icons.open_in_new_rounded, size: 19),

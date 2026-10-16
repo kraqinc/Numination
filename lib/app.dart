@@ -13,6 +13,7 @@ import 'features/screens/auth_screen.dart';
 import 'features/screens/home_screen.dart';
 import 'features/screens/reset_password_screen.dart';
 import 'l10n/gen/app_localizations.dart';
+import 'features/widgets/numi_loading_animation.dart';
 
 class NuminationApp extends ConsumerWidget {
   const NuminationApp({super.key});
@@ -88,7 +89,9 @@ class _SplashScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Scaffold(
       backgroundColor: Color(0xFFECECEC),
-      body: Center(child: CircularProgressIndicator(color: Colors.black54)),
+      body: Center(
+        child: NumiLoadingAnimation(size: 112),
+      ),
     );
   }
 }

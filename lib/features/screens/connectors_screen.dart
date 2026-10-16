@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/api.dart';
 import '../../core/theme_controller.dart';
+import '../widgets/numi_loading_animation.dart';
 
 class ConnectorsScreen extends ConsumerStatefulWidget {
   const ConnectorsScreen({super.key});
@@ -512,7 +513,7 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
         ],
       ),
       body: _loading && _providers.isEmpty
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: NumiLoadingAnimation())
           : _error != null && _providers.isEmpty
           ? Center(
               child: Padding(

@@ -9,6 +9,7 @@ import '../../core/env.dart';
 import '../../core/numi_icons.dart';
 import 'confirm_mail.dart';
 import 'create_acc.dart';
+import '../widgets/numi_loading_animation.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key});
@@ -315,10 +316,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                             ? const SizedBox(
                                 width: 20,
                                 height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.4,
-                                  color: Colors.white,
-                                ),
+                                child: NumiLoadingAnimation(),
                               )
                             : const Row(
                                 mainAxisSize: MainAxisSize.min,

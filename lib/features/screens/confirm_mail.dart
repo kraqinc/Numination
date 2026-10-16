@@ -8,6 +8,7 @@ import 'auth_screen.dart';
 
 import 'confirm_age_screen.dart';
 import 'home_screen.dart';
+import '../widgets/numi_loading_animation.dart';
 
 class ConfirmMailScreen extends ConsumerStatefulWidget {
   const ConfirmMailScreen({super.key, required this.email});
@@ -296,10 +297,7 @@ class _ConfirmMailScreenState extends ConsumerState<ConfirmMailScreen> {
                             ? const SizedBox(
                                 width: 20,
                                 height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.4,
-                                  color: Colors.white,
-                                ),
+                                child: NumiLoadingAnimation(),
                               )
                             : const Text(
                                 'Verify  →',

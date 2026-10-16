@@ -6,6 +6,7 @@ import '../../core/i18n.dart';
 import '../../core/models.dart';
 import '../../core/theme_controller.dart';
 import 'package:numination/core/numi_icons.dart';
+import '../widgets/numi_loading_animation.dart';
 
 class GhostChatScreen extends ConsumerStatefulWidget {
   const GhostChatScreen({super.key});
@@ -235,10 +236,7 @@ class _GhostChatScreenState extends ConsumerState<GhostChatScreen> {
                             height: 40,
                             child: Padding(
                               padding: const EdgeInsets.all(10),
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: palette.textPrimary,
-                              ),
+                              child: NumiLoadingAnimation(),
                             ),
                           )
                         : IconButton(

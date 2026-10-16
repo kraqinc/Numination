@@ -7,6 +7,7 @@ import '../../core/error_messages.dart';
 import '../../core/auth_controller.dart';
 
 import 'home_screen.dart';
+import '../widgets/numi_loading_animation.dart';
 
 const _ageConfirmedKey = 'age_14_plus';
 const _bannedUnderageKey = 'banned_underage';
@@ -311,10 +312,7 @@ class _ConfirmAgeScreenState extends ConsumerState<ConfirmAgeScreen> {
                 ? const SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.4,
-                      color: Colors.white,
-                    ),
+                    child: NumiLoadingAnimation(),
                   )
                 : const Text(
                     'Continuar  →',

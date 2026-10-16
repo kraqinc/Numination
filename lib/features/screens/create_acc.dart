@@ -5,6 +5,7 @@ import 'package:numination/core/env.dart';
 import 'package:numination/core/numi_icons.dart';
 
 import 'open_mail_screen.dart';
+import '../widgets/numi_loading_animation.dart';
 
 class CreateAccountScreen extends ConsumerStatefulWidget {
   const CreateAccountScreen({super.key});
@@ -256,10 +257,7 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
                             ? const SizedBox(
                                 width: 22,
                                 height: 22,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.4,
-                                  color: Colors.white,
-                                ),
+                                child: NumiLoadingAnimation(),
                               )
                             : const Text(
                                 'Create account',

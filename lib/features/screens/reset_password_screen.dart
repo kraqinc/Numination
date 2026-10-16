@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/api.dart';
 import 'auth_screen.dart';
+import '../widgets/numi_loading_animation.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
   const ResetPasswordScreen({super.key});
@@ -210,7 +211,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                           ? const SizedBox(
                               width: 22,
                               height: 22,
-                              child: CircularProgressIndicator(strokeWidth: 2),
+                              child: NumiLoadingAnimation(),
                             )
                           : Text(
                               _completed

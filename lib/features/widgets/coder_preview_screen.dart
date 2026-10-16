@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:lucide_flutter/lucide_flutter.dart';
@@ -8,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../core/error_messages.dart';
+import 'numi_loading_animation.dart';
 
 class CoderPreviewCard extends StatelessWidget {
   const CoderPreviewCard({
@@ -129,7 +129,7 @@ class CoderPreviewCard extends StatelessWidget {
                   ? const SizedBox(
                       width: 19,
                       height: 19,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                      child: NumiLoadingAnimation(),
                     )
                   : const Icon(LucideIcons.play, size: 19),
               label: Text(
@@ -167,236 +167,50 @@ class CoderPreviewScreen extends StatefulWidget {
   State<CoderPreviewScreen> createState() => _CoderPreviewScreenState();
 }
 
-class _LegoPreviewLoader extends StatefulWidget {
-  const _LegoPreviewLoader({required this.loading});
+class _LottiePreviewLoader extends StatelessWidget {
+  const _LottiePreviewLoader({required this.loading});
 
   final bool loading;
 
   @override
-  State<_LegoPreviewLoader> createState() => _LegoPreviewLoaderState();
-}
-
-class _LegoPreviewLoaderState extends State<_LegoPreviewLoader>
-    with TickerProviderStateMixin {
-  late final AnimationController _buildController;
-  late final AnimationController _exitController;
-
-  bool _hidden = false;
-
-  @override
-  void initState() {
-    super.initState();
-
-    _buildController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2200),
-    );
-
-    _exitController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 520),
-    );
-
-    if (widget.loading) {
-      _buildController.repeat();
-    } else {
-      _hidden = true;
-      _buildController.value = 0.7;
-      _exitController.value = 1;
-    }
-  }
-
-  @override
-  void didUpdateWidget(covariant _LegoPreviewLoader oldWidget) {
-    super.didUpdateWidget(oldWidget);
-
-    if (oldWidget.loading && !widget.loading) {
-      // Dejamos el marco completo y después dispersamos sus piezas.
-      _buildController.stop();
-      _buildController.value = 0.7;
-
-      _exitController.forward(from: 0).whenComplete(() {
-        if (mounted) {
-          setState(() => _hidden = true);
-        }
-      });
-    } else if (!oldWidget.loading && widget.loading) {
-      _hidden = false;
-      _exitController.stop();
-      _exitController.reset();
-      _buildController.repeat();
-    }
-  }
-
-  List<Offset> get _brickPositions => [
-    for (var column = 0; column < 5; column++) Offset(column * 40.0, 0),
-    for (var row = 1; row < 3; row++) Offset(160, row * 26.0),
-    for (var column = 4; column >= 0; column--) Offset(column * 40.0, 78),
-    for (var row = 2; row >= 1; row--) Offset(0, row * 26.0),
-  ];
-
-  @override
-  void dispose() {
-    _buildController.dispose();
-    _exitController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    if (_hidden) return const SizedBox.shrink();
-
-    final colors = Theme.of(context).colorScheme;
     final english = Localizations.localeOf(context).languageCode == 'en';
 
-    return AnimatedBuilder(
-      animation: Listenable.merge([_buildController, _exitController]),
-      builder: (context, _) {
-        final phase = widget.loading ? _buildController.value : 0.7;
-
-        final cycleExplosion = widget.loading && phase > 0.74
-            ? ((phase - 0.74) / 0.26).clamp(0.0, 1.0).toDouble()
-            : 0.0;
-
-        final explosion = widget.loading
-            ? cycleExplosion
-            : _exitController.value;
-
-        final backgroundOpacity = widget.loading
-            ? 0.96
-            : (0.96 * (1 - _exitController.value)).clamp(0.0, 1.0).toDouble();
-
-        return IgnorePointer(
-          child: Container(
-            color: const Color(0xFF080A0C).withValues(alpha: backgroundOpacity),
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(
-                    width: 194,
-                    height: 100,
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: List.generate(_brickPositions.length, (index) {
-                        final point = _brickPositions[index];
-
-                        final building = phase < 0.45
-                            ? ((phase - index * 0.022) / 0.075)
-                                  .clamp(0.0, 1.0)
-                                  .toDouble()
-                            : 1.0;
-
-                        final opacity = (building * (1 - explosion))
-                            .clamp(0.0, 1.0)
-                            .toDouble();
-
-                        final angle = index * 2.399963229728653;
-                        final distance = explosion * 118;
-
-                        return Positioned(
-                          left: point.dx,
-                          top: point.dy,
-                          width: 34,
-                          height: 21,
-                          child: Opacity(
-                            opacity: opacity,
-                            child: Transform.translate(
-                              offset: Offset(
-                                math.cos(angle) * distance,
-                                math.sin(angle) * distance * 0.75,
-                              ),
-                              child: Transform.rotate(
-                                angle: angle * explosion * 1.15,
-                                child: Transform.scale(
-                                  scale: 1 - explosion * 0.62,
-                                  child: _LegoPreviewBrick(
-                                    color: index.isEven
-                                        ? colors.primary
-                                        : colors.tertiary,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      }),
-                    ),
+    return IgnorePointer(
+      child: AnimatedOpacity(
+        opacity: loading ? 1 : 0,
+        duration: const Duration(milliseconds: 280),
+        child: ColoredBox(
+          color: const Color(0xFF080A0C),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const NumiLoadingAnimation(size: 152),
+                const SizedBox(height: 18),
+                Text(
+                  english
+                      ? 'Building preview'
+                      : 'Construyendo vista previa',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
                   ),
-                  const SizedBox(height: 24),
-                  Text(
-                    english ? 'Building preview' : 'Construyendo vista previa',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  english
+                      ? 'Preparing the interface'
+                      : 'Preparando la interfaz',
+                  style: const TextStyle(
+                    color: Color(0xFFADB7C7),
+                    fontSize: 12,
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    english
-                        ? 'Assembling the interface'
-                        : 'Ensamblando la interfaz',
-                    style: const TextStyle(
-                      color: Color(0xFFADB7C7),
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
-        );
-      },
-    );
-  }
-}
-
-class _LegoPreviewBrick extends StatelessWidget {
-  const _LegoPreviewBrick({required this.color});
-
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            color.withValues(alpha: 0.98),
-            color.withValues(alpha: 0.68),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(5),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.38),
-          width: 0.7,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.22),
-            blurRadius: 5,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(5, 2, 5, 3),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            for (var i = 0; i < 2; i++)
-              Container(
-                width: 7,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.48),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-          ],
         ),
       ),
     );
@@ -797,7 +611,7 @@ class _CoderPreviewScreenState extends State<CoderPreviewScreen> {
                         ),
                         child: WebViewWidget(controller: _controller),
                       ),
-                _LegoPreviewLoader(loading: _loading),
+                _LottiePreviewLoader(loading: _loading),
               ],
             ),
           ),

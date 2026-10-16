@@ -16,6 +16,7 @@ import '../screens/notification_screen.dart';
 import '../screens/projects_screen.dart';
 import '../screens/settings_screen.dart';
 import 'package:numination/core/numi_icons.dart';
+import 'numi_loading_animation.dart';
 
 class AppDrawer extends ConsumerStatefulWidget {
   const AppDrawer({
@@ -561,10 +562,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                     ? SizedBox(
                         width: 15,
                         height: 15,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 1.6,
-                          color: palette.accent,
-                        ),
+                        child: NumiLoadingAnimation(),
                       )
                     : _creditBalance == null
                     ? null
@@ -605,9 +603,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
               Expanded(
                 child: _isLoading
                     ? Center(
-                        child: CircularProgressIndicator(
-                          color: palette.textPrimary,
-                        ),
+                        child: NumiLoadingAnimation(),
                       )
                     : _chats.isEmpty
                     ? Center(

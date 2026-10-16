@@ -8,6 +8,7 @@ import '../../core/models.dart';
 import '../../core/theme.dart';
 import '../../core/theme_controller.dart';
 import 'package:numination/core/numi_icons.dart';
+import '../widgets/numi_loading_animation.dart';
 
 class MemoryScreen extends ConsumerStatefulWidget {
   const MemoryScreen({super.key});
@@ -173,7 +174,7 @@ class _MemoryScreenState extends ConsumerState<MemoryScreen> {
         onRefresh: _load,
         child: _isLoading
             ? Center(
-                child: CircularProgressIndicator(color: palette.textPrimary),
+                child: NumiLoadingAnimation(),
               )
             : _memories.isEmpty
             ? _EmptyMemoryState(palette: palette)

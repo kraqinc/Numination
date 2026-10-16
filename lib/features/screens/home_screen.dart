@@ -26,6 +26,7 @@ import 'coder_chat_screen.dart' as coder_chat;
 import 'coder_screen.dart' as coder;
 import 'ghost_chat.dart';
 import 'plans_screen.dart';
+import '../widgets/numi_loading_animation.dart';
 
 class ChatMessage {
   final String text;
@@ -1384,7 +1385,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             ),
             Expanded(
               child: _isLoadingHistory
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const Center(child: NumiLoadingAnimation())
                   : _messages.isEmpty
                   ? const _EmptyState()
                   : ListView.builder(
@@ -1752,15 +1753,10 @@ class _MessageBubble extends ConsumerWidget {
                     fit: BoxFit.contain,
                     loadingBuilder: (context, child, progress) {
                       if (progress == null) return child;
-                      final total = progress.expectedTotalBytes;
                       return SizedBox(
                         height: 220,
                         child: Center(
-                          child: CircularProgressIndicator(
-                            value: total == null
-                                ? null
-                                : progress.cumulativeBytesLoaded / total,
-                          ),
+                          child: NumiLoadingAnimation(),
                         ),
                       );
                     },
@@ -2226,9 +2222,7 @@ class _BottomInputBar extends ConsumerWidget {
                                   key: ValueKey('loading'),
                                   width: 19,
                                   height: 19,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
+                                  child: NumiLoadingAnimation(),
                                 )
                               : Icon(
                                   toolsExpanded

@@ -6,6 +6,7 @@ import '../../core/i18n.dart';
 import '../../core/theme_controller.dart';
 import 'coder_chat_screen.dart';
 import 'package:numination/core/numi_icons.dart';
+import '../widgets/numi_loading_animation.dart';
 
 class CoderScreen extends ConsumerStatefulWidget {
   const CoderScreen({super.key});
@@ -203,10 +204,7 @@ class _CoderScreenState extends ConsumerState<CoderScreen> {
                           ? const SizedBox(
                               width: 20,
                               height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.black,
-                              ),
+                              child: NumiLoadingAnimation(),
                             )
                           : Text(
                               AppLocale.t('create'),

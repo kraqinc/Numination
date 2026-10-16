@@ -11,6 +11,7 @@ import '../../core/auth_controller.dart';
 import 'auth_screen.dart';
 import 'confirm_age_screen.dart';
 import 'home_screen.dart';
+import '../widgets/numi_loading_animation.dart';
 
 class OpenMailScreen extends ConsumerStatefulWidget {
   const OpenMailScreen({super.key, required this.email});
@@ -399,10 +400,7 @@ class _OpenMailScreenState extends ConsumerState<OpenMailScreen> {
                               ? const SizedBox(
                                   width: 21,
                                   height: 21,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2.3,
-                                    color: Colors.white,
-                                  ),
+                                  child: NumiLoadingAnimation(),
                                 )
                               : const Row(
                                   mainAxisSize: MainAxisSize.min,
@@ -440,10 +438,7 @@ class _OpenMailScreenState extends ConsumerState<OpenMailScreen> {
                               ? const SizedBox(
                                   width: 20,
                                   height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2.2,
-                                    color: _navy,
-                                  ),
+                                  child: NumiLoadingAnimation(),
                                 )
                               : const Text(
                                   'Ya confirmé mi correo',

@@ -11,6 +11,7 @@ import '../../core/i18n.dart';
 import '../../core/models.dart';
 import '../../core/theme_controller.dart';
 import 'package:numination/core/numi_icons.dart';
+import '../widgets/numi_loading_animation.dart';
 
 class CustomStringsScreen extends ConsumerStatefulWidget {
   const CustomStringsScreen({super.key});
@@ -178,7 +179,7 @@ class _CustomStringsScreenState extends ConsumerState<CustomStringsScreen> {
         ),
       ),
       body: _isLoading
-          ? Center(child: CircularProgressIndicator(color: palette.textPrimary))
+          ? Center(child: NumiLoadingAnimation())
           : ListView(
               padding: const EdgeInsets.all(20),
               children: [
@@ -195,9 +196,7 @@ class _CustomStringsScreenState extends ConsumerState<CustomStringsScreen> {
                               ? NetworkImage(_avatarUrl!)
                               : null,
                           child: _isUploadingAvatar
-                              ? CircularProgressIndicator(
-                                  color: palette.textPrimary,
-                                )
+                              ? NumiLoadingAnimation()
                               : (_avatarUrl == null
                                     ? Icon(
                                         NumiIcons.person,
@@ -284,10 +283,7 @@ class _CustomStringsScreenState extends ConsumerState<CustomStringsScreen> {
                         ? const SizedBox(
                             width: 20,
                             height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.black,
-                            ),
+                            child: NumiLoadingAnimation(),
                           )
                         : Text(
                             AppLocale.t('save'),

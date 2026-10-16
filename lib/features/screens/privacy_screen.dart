@@ -6,6 +6,7 @@ import '../../core/error_messages.dart';
 import '../../core/i18n.dart';
 import '../../core/theme_controller.dart';
 import 'package:numination/core/numi_icons.dart';
+import '../widgets/numi_loading_animation.dart';
 
 class PrivacyScreen extends ConsumerStatefulWidget {
   const PrivacyScreen({super.key});
@@ -138,7 +139,7 @@ class _PrivacyScreenState extends ConsumerState<PrivacyScreen> {
                 ? const SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: NumiLoadingAnimation(),
                   )
                 : null,
           ),

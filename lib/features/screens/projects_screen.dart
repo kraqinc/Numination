@@ -11,6 +11,7 @@ import '../../core/models.dart';
 import '../../core/theme.dart';
 import '../../core/theme_controller.dart';
 import 'package:numination/core/numi_icons.dart';
+import '../widgets/numi_loading_animation.dart';
 
 class ProjectsScreen extends ConsumerStatefulWidget {
   const ProjectsScreen({super.key, this.onOpenChat});
@@ -188,9 +189,7 @@ class _ProjectsScreenState extends ConsumerState<ProjectsScreen> {
                 children: [
                   SizedBox(height: MediaQuery.sizeOf(context).height * 0.35),
                   Center(
-                    child: CircularProgressIndicator(
-                      color: palette.textPrimary,
-                    ),
+                    child: NumiLoadingAnimation(),
                   ),
                 ],
               )

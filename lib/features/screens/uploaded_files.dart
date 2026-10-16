@@ -6,6 +6,7 @@ import '../../core/i18n.dart';
 import '../../core/theme.dart';
 import '../../core/theme_controller.dart';
 import 'package:numination/core/numi_icons.dart';
+import '../widgets/numi_loading_animation.dart';
 
 class UploadedFile {
   final String id;
@@ -107,7 +108,7 @@ class _UploadedFilesScreenState extends ConsumerState<UploadedFilesScreen> {
         ),
       ),
       body: _isLoading
-          ? Center(child: CircularProgressIndicator(color: palette.textPrimary))
+          ? Center(child: NumiLoadingAnimation())
           : _files.isEmpty
           ? _EmptyFilesState(errorText: _errorText, palette: palette)
           : ListView.separated(
