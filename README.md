@@ -330,7 +330,7 @@ Numination is an actively evolving project.
 - [ ] Production backend
 - [ ] Payments
 - [ ] Subscriptions
-- [ ] Advanced credits
+- [X] Advanced credits
 - [ ] Usage analytics
 - [ ] More integrations
 - [ ] Expanded platform support
@@ -497,7 +497,7 @@ AI Capabilities
 Numination is created and maintained by:
 
 * [**kraqinc**](https://github.com/kraqinc)
-* [**alvaronegrito230-blip**](https://github.com/alvaronegrito230-blip)
+* [**Trivoren**](https://github.com/Trivoren)
 
 ---
 
