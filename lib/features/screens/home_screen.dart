@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -24,6 +25,7 @@ import '../widgets/search_chats.dart';
 import '../widgets/voice_input_button.dart';
 import 'coder_chat_screen.dart' as coder_chat;
 import 'coder_screen.dart' as coder;
+import 'connectors_screen.dart';
 import 'ghost_chat.dart';
 import 'plans_screen.dart';
 import '../widgets/numi_loading_animation.dart';
@@ -87,6 +89,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     with WidgetsBindingObserver {
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
+  final List<Map<String, dynamic>> _mentionConnectors = [];
+  bool _showMentionSuggestions = false;
+  bool _loadingMentionConnectors = false;
+  bool _mentionConnectorsLoaded = false;
+  String _mentionQuery = '';
+  String? _mentionLoadError;
+  DateTime? _mentionConnectorsLoadedAt;
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   final FocusNode _messageFocusNode = FocusNode();
   final stt.SpeechToText _speech = stt.SpeechToText();
@@ -218,6 +227,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   @override
   void initState() {
     super.initState();
+    _messageController.addListener(_onComposerChanged);
 
     _rotateComposerHint();
     UpdateService.startAutomaticChecks();
@@ -409,6 +419,153 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     }
   }
 
+  void _onComposerChanged() {
+    final value = _messageController.value;
+    final cursor = value.selection.baseOffset;
+    final safeCursor = cursor < 0 || cursor > value.text.length
+        ? value.text.length
+        : cursor;
+    final beforeCursor = value.text.substring(0, safeCursor);
+    final match = RegExp(r'(^|\s)@([A-Za-z0-9_-]*)$').firstMatch(beforeCursor);
+
+    if (match == null) {
+      if (_showMentionSuggestions) {
+        setState(() {
+          _showMentionSuggestions = false;
+          _mentionQuery = '';
+        });
+      }
+      return;
+    }
+
+    final query = match.group(2) ?? '';
+    if (!_showMentionSuggestions || _mentionQuery != query.toLowerCase()) {
+      setState(() {
+        _showMentionSuggestions = true;
+        _mentionQuery = query.toLowerCase();
+      });
+    }
+
+    final loadedAt = _mentionConnectorsLoadedAt;
+    final needsRefresh =
+        _mentionLoadError == null &&
+        (!_mentionConnectorsLoaded ||
+            loadedAt == null ||
+            DateTime.now().difference(loadedAt) > const Duration(seconds: 30));
+    if (needsRefresh && !_loadingMentionConnectors) {
+      unawaited(_loadMentionConnectors());
+    }
+  }
+
+  Future<void> _loadMentionConnectors({bool force = false}) async {
+    if (_loadingMentionConnectors) return;
+    final loadedAt = _mentionConnectorsLoadedAt;
+    if (!force &&
+        _mentionConnectorsLoaded &&
+        loadedAt != null &&
+        DateTime.now().difference(loadedAt) <= const Duration(seconds: 30)) {
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _loadingMentionConnectors = true;
+        _mentionLoadError = null;
+      });
+    }
+
+    try {
+      final response = await ApiClient.get('/integrations');
+      final decoded = ApiClient.decode(response) as Map<String, dynamic>;
+      final providers =
+          (decoded['providers'] as List? ?? const [])
+              .whereType<Map>()
+              .map((row) => Map<String, dynamic>.from(row))
+              .where((row) => row['connected'] == true)
+              .where(
+                (row) => const {
+                  'google',
+                  'microsoft',
+                  'github',
+                  'notion',
+                }.contains(row['id']?.toString().toLowerCase()),
+              )
+              .toList()
+            ..sort((a, b) {
+              const order = {
+                'google': 0,
+                'microsoft': 1,
+                'github': 2,
+                'notion': 3,
+              };
+              return (order[a['id']] ?? 99).compareTo(order[b['id']] ?? 99);
+            });
+
+      if (!mounted) return;
+      setState(() {
+        _mentionConnectors
+          ..clear()
+          ..addAll(providers);
+        _mentionConnectorsLoaded = true;
+        _mentionConnectorsLoadedAt = DateTime.now();
+        _mentionLoadError = null;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _mentionLoadError = error is ApiException
+            ? error.message
+            : 'No se pudieron cargar tus conectores.';
+        _mentionConnectorsLoaded = false;
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _loadingMentionConnectors = false);
+      }
+    }
+  }
+
+  void _selectMentionConnector(String provider) {
+    final value = _messageController.value;
+    final text = value.text;
+    final cursor =
+        value.selection.baseOffset < 0 ||
+            value.selection.baseOffset > text.length
+        ? text.length
+        : value.selection.baseOffset;
+    final beforeCursor = text.substring(0, cursor);
+    final match = RegExp(r'(^|\s)@([A-Za-z0-9_-]*)$').firstMatch(beforeCursor);
+    final start = match == null
+        ? cursor
+        : match.start + (match.group(1)?.length ?? 0);
+    final token = '@$provider ';
+    final nextText = text.substring(0, start) + token + text.substring(cursor);
+    _messageController.value = TextEditingValue(
+      text: nextText,
+      selection: TextSelection.collapsed(offset: start + token.length),
+    );
+
+    setState(() {
+      _showMentionSuggestions = false;
+      _mentionQuery = '';
+    });
+    _messageFocusNode.requestFocus();
+  }
+
+  Future<void> _openConnectorsFromMention() async {
+    if (!mounted) return;
+    setState(() {
+      _showMentionSuggestions = false;
+      _mentionQuery = '';
+    });
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(builder: (_) => const ConnectorsScreen()),
+    );
+    if (!mounted) return;
+    _mentionConnectorsLoaded = false;
+    await _loadMentionConnectors(force: true);
+  }
+
   Future<void> _loadProfile() async {
     try {
       final response = await ApiClient.get('/auth/me');
@@ -428,6 +585,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     UpdateService.stopAutomaticChecks();
+    _messageController.removeListener(_onComposerChanged);
     _messageController.dispose();
     _scrollController.dispose();
     _messageFocusNode.dispose();
@@ -1417,6 +1575,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             else
               _BottomInputBar(
                 controller: _messageController,
+                connectorSuggestions: _mentionConnectors,
+                showConnectorSuggestions: _showMentionSuggestions,
+                loadingConnectorSuggestions: _loadingMentionConnectors,
+                connectorQuery: _mentionQuery,
+                connectorLoadError: _mentionLoadError,
+                onConnectorSelected: _selectMentionConnector,
+                onManageConnectors: _openConnectorsFromMention,
                 focusNode: _messageFocusNode,
                 modeId: _modeId,
                 availableModes: availableModes,
@@ -1854,6 +2019,13 @@ class _MessageBubble extends ConsumerWidget {
 class _BottomInputBar extends ConsumerWidget {
   const _BottomInputBar({
     required this.controller,
+    required this.connectorSuggestions,
+    required this.showConnectorSuggestions,
+    required this.loadingConnectorSuggestions,
+    required this.connectorQuery,
+    required this.connectorLoadError,
+    required this.onConnectorSelected,
+    required this.onManageConnectors,
     required this.focusNode,
     required this.modeId,
     required this.availableModes,
@@ -1882,6 +2054,13 @@ class _BottomInputBar extends ConsumerWidget {
   });
 
   final TextEditingController controller;
+  final List<Map<String, dynamic>> connectorSuggestions;
+  final bool showConnectorSuggestions;
+  final bool loadingConnectorSuggestions;
+  final String connectorQuery;
+  final String? connectorLoadError;
+  final ValueChanged<String> onConnectorSelected;
+  final VoidCallback onManageConnectors;
   final FocusNode focusNode;
   final String modeId;
   final List<AiModeConfig> availableModes;
@@ -2028,6 +2207,204 @@ class _BottomInputBar extends ConsumerWidget {
                       onPressed: () => onPromptSelected(starter),
                     );
                   },
+                ),
+              ),
+            ),
+          if (showConnectorSuggestions)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(5, 0, 5, 8),
+              child: Material(
+                color: palette.surface,
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: palette.textSecondary.withValues(alpha: 0.18),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.12),
+                        blurRadius: 16,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  child: Builder(
+                    builder: (context) {
+                      final filtered = connectorSuggestions
+                          .where((row) {
+                            final id =
+                                row['id']?.toString().toLowerCase() ?? '';
+                            final label =
+                                row['label']?.toString().toLowerCase() ?? id;
+                            return connectorQuery.isEmpty ||
+                                id.contains(connectorQuery) ||
+                                label.contains(connectorQuery);
+                          })
+                          .take(4)
+                          .toList();
+
+                      if (loadingConnectorSuggestions) {
+                        return const Padding(
+                          padding: EdgeInsets.all(18),
+                          child: Center(
+                            child: SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          ),
+                        );
+                      }
+
+                      if (connectorLoadError != null &&
+                          connectorSuggestions.isEmpty) {
+                        return Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                connectorLoadError!,
+                                style: TextStyle(
+                                  color: palette.textSecondary,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: TextButton(
+                                  onPressed: onManageConnectors,
+                                  child: const Text('Administrar conectores'),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      if (connectorSuggestions.isEmpty) {
+                        return Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'No tienes conectores vinculados',
+                                style: TextStyle(
+                                  color: palette.textPrimary,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                'Conecta una cuenta para usarla desde el chat.',
+                                style: TextStyle(
+                                  color: palette.textSecondary,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: TextButton(
+                                  onPressed: onManageConnectors,
+                                  child: const Text('Ver conectores'),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      if (filtered.isEmpty) {
+                        return Padding(
+                          padding: const EdgeInsets.all(14),
+                          child: Text(
+                            'No hay conectores que coincidan con @$connectorQuery',
+                            style: TextStyle(
+                              color: palette.textSecondary,
+                              fontSize: 12,
+                            ),
+                          ),
+                        );
+                      }
+
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          for (var i = 0; i < filtered.length; i++) ...[
+                            ListTile(
+                              dense: true,
+                              leading: Container(
+                                width: 34,
+                                height: 34,
+                                decoration: BoxDecoration(
+                                  color: palette.accent.withValues(alpha: 0.10),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Icon(
+                                  LucideIcons.link2,
+                                  size: 17,
+                                  color: palette.accent,
+                                ),
+                              ),
+                              title: Text(
+                                '@${filtered[i]['id']?.toString() ?? ''}',
+                                style: TextStyle(
+                                  color: palette.textPrimary,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              subtitle: Text(
+                                (filtered[i]['accountEmail']
+                                            ?.toString()
+                                            .trim()
+                                            .isNotEmpty ??
+                                        false)
+                                    ? filtered[i]['accountEmail'].toString()
+                                    : (filtered[i]['label']?.toString() ?? ''),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: palette.textSecondary,
+                                  fontSize: 11,
+                                ),
+                              ),
+                              onTap: () => onConnectorSelected(
+                                filtered[i]['id'].toString(),
+                              ),
+                            ),
+                            if (i < filtered.length - 1)
+                              Divider(
+                                height: 1,
+                                indent: 54,
+                                color: palette.textSecondary.withValues(
+                                  alpha: 0.10,
+                                ),
+                              ),
+                          ],
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(12, 7, 12, 9),
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                'Los datos consultados se enviarán a Numi para responder.',
+                                style: TextStyle(
+                                  color: palette.textSecondary,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
                 ),
               ),
             ),
