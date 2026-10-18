@@ -94,35 +94,12 @@ class AiResponse extends ConsumerWidget {
   }
 
   void _parseText(String source, List<_ResponsePart> result) {
-    final normalized = source.replaceAll('\r\n', '\n');
-    final lines = normalized.split('\n');
+  final normalized = source.replaceAll('\r\n', '\n');
 
-    final buffer = <String>[];
-
-    void flushText() {
-      if (buffer.isEmpty) return;
-
-      final text = buffer.join('\n');
-
-      if (text.trim().isNotEmpty) {
-        result.add(_ResponsePart.text(text));
-      }
-
-      buffer.clear();
-    }
-
-    for (final rawLine in lines) {
-      final line = rawLine.trim();
-
-      if (_isMathBlock(line)) {
-        flushText();
-
-        result.add(_ResponsePart.math(_normalizeMath(line)));
-      } else {
-        buffer.add(rawLine);
-      }
-    }
-
+  if (normalized.trim().isNotEmpty) {
+    result.add(_ResponsePart.text(normalized));
+  }
+}
     flushText();
   }
 
