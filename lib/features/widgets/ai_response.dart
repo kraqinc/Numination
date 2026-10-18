@@ -1,212 +1,168 @@
-import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_math_fork/flutter_math.dart';
+import 'package:flutter_smooth_markdown/flutter_smooth_markdown.dart';
 import 'package:lucide_flutter/lucide_flutter.dart';
 import 'package:simple_icons/simple_icons.dart';
-import 'package:flutter_smooth_markdown/flutter_smooth_markdown.dart';
 
 import '../../core/theme.dart';
-import '../../core/theme_controller.dart';
-import 'package:numination/core/numi_icons.dart';
 
-class AiResponse extends ConsumerWidget {
+class AiResponse extends StatelessWidget {
   const AiResponse({
     super.key,
     required this.text,
+    required this.palette,
     this.animateCharacters = false,
   });
 
   final String text;
-  final bool animateCharacters;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final palette = ref.watch(appPaletteProvider);
-    final parts = _parseResponse(text);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (var i = 0; i < parts.length; i++) ...[
-          _ResponsePartView(
-            part: parts[i],
-            palette: palette,
-            onCopy: (code) => _copyCode(context, code),
-            animateCharacters: animateCharacters,
-          ),
-          if (i != parts.length - 1) const SizedBox(height: 8),
-        ],
-      ],
-    );
-  }
-
-  Future<void> _copyCode(BuildContext context, String code) async {
-    await Clipboard.setData(ClipboardData(text: code));
-
-    if (!context.mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Código copiado'),
-        duration: Duration(milliseconds: 1200),
-      ),
-    );
-  }
-
-  List<_ResponsePart> _parseResponse(String source) {
-    final result = <_ResponsePart>[];
-
-    final codeRegex = RegExp(r'```([^\n`]*)\n?([\s\S]*?)```', multiLine: true);
-
-    var cursor = 0;
-
-    for (final match in codeRegex.allMatches(source)) {
-      if (match.start > cursor) {
-        _parseText(source.substring(cursor, match.start), result);
-      }
-
-      final language = match.group(1)?.trim();
-      final code = match.group(2) ?? '';
-
-      result.add(
-        _ResponsePart.code(
-          code.trimRight(),
-          language == null || language.isEmpty ? 'code' : language,
-        ),
-      );
-
-      cursor = match.end;
-    }
-
-    if (cursor < source.length) {
-      _parseText(source.substring(cursor), result);
-    }
-
-    if (result.isEmpty && source.trim().isNotEmpty) {
-      _parseText(source, result);
-    }
-
-    return result;
-  }
-
-  void _parseText(String source, List<_ResponsePart> result) {
-  final normalized = source.replaceAll('\r\n', '\n');
-
-  if (normalized.trim().isNotEmpty) {
-    result.add(_ResponsePart.text(normalized));
-  }
-}
-    flushText();
-  }
-
-  bool _isMathBlock(String line) {
-    if (line.isEmpty) return false;
-
-    if (line.startsWith(r'$$') && line.endsWith(r'$$')) {
-      return true;
-    }
-
-    if (line.startsWith(r'\[') && line.endsWith(r'\]')) {
-      return true;
-    }
-
-    if (line.startsWith(r'\(') && line.endsWith(r'\)')) {
-      return true;
-    }
-
-    if (line.startsWith(r'\frac')) {
-      return true;
-    }
-
-    if (line.startsWith(r'\sqrt')) {
-      return true;
-    }
-
-    return false;
-  }
-
-  String _normalizeMath(String value) {
-    var result = value.trim();
-
-    if (result.startsWith(r'$$') && result.endsWith(r'$$')) {
-      result = result.substring(2, result.length - 2).trim();
-    }
-
-    if (result.startsWith(r'\[') && result.endsWith(r'\]')) {
-      result = result.substring(2, result.length - 2).trim();
-    }
-
-    if (result.startsWith(r'\(') && result.endsWith(r'\)')) {
-      result = result.substring(2, result.length - 2).trim();
-    }
-
-    return result;
-  }
-}
-
-enum _ResponsePartType { text, math, code }
-
-class _ResponsePart {
-  const _ResponsePart.text(this.content)
-    : type = _ResponsePartType.text,
-      language = null;
-
-  const _ResponsePart.math(this.content)
-    : type = _ResponsePartType.math,
-      language = null;
-
-  const _ResponsePart.code(this.content, this.language)
-    : type = _ResponsePartType.code;
-
-  final _ResponsePartType type;
-  final String content;
-  final String? language;
-}
-
-class _ResponsePartView extends StatelessWidget {
-  const _ResponsePartView({
-    required this.part,
-    required this.palette,
-    required this.onCopy,
-    required this.animateCharacters,
-  });
-
-  final _ResponsePart part;
   final AppPalette palette;
-  final ValueChanged<String> onCopy;
   final bool animateCharacters;
 
   @override
   Widget build(BuildContext context) {
-    switch (part.type) {
-      case _ResponsePartType.text:
-        return _TextResponse(
-          text: part.content,
-          palette: palette,
-          animateCharacters: animateCharacters,
-        );
-
-      case _ResponsePartType.math:
-        return _MathResponse(expression: part.content, palette: palette);
-
-      case _ResponsePartType.code:
-        return _CodeResponse(
-          code: part.content,
-          language: part.language ?? 'code',
-          palette: palette,
-          onCopy: onCopy,
-        );
-    }
+    return _ResponseContent(
+      text: text,
+      palette: palette,
+      animateCharacters: animateCharacters,
+    );
   }
 }
 
+class _ResponseContent extends StatelessWidget {
+  const _ResponseContent({
+    required this.text,
+    required this.palette,
+    required this.animateCharacters,
+  });
 
-class _TextResponse extends StatelessWidget {
-  const _TextResponse({
+  final String text;
+  final AppPalette palette;
+  final bool animateCharacters;
+
+  @override
+  Widget build(BuildContext context) {
+    final parts = _parseResponse(text);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var i = 0; i < parts.length; i++)
+          Padding(
+            padding: EdgeInsets.only(
+              bottom: i == parts.length - 1 ? 0 : 12,
+            ),
+            child: switch (parts[i]) {
+              _CodePart(:final language, :final code) => _CodeBlock(
+                  language: language,
+                  code: code,
+                  palette: palette,
+                ),
+              _TextPart(:final content) => _MarkdownContent(
+                  text: content,
+                  palette: palette,
+                  animateCharacters: animateCharacters,
+                ),
+            },
+          ),
+      ],
+    );
+  }
+
+  List<_ResponsePart> _parseResponse(String source) {
+    final parts = <_ResponsePart>[];
+    final lines = source.replaceAll('\r\n', '\n').split('\n');
+    final textBuffer = StringBuffer();
+
+    String? codeLanguage;
+    StringBuffer? codeBuffer;
+
+    void flushText() {
+      final value = textBuffer.toString();
+      if (value.isNotEmpty) {
+        parts.add(_TextPart(value));
+        textBuffer.clear();
+      }
+    }
+
+    for (final line in lines) {
+      final fence = RegExp(r'^\s*(```+|~~~+)\s*(.*?)\s*$')
+          .firstMatch(line);
+
+      if (fence != null) {
+        final marker = fence.group(1)!;
+        final language = fence.group(2)?.trim() ?? '';
+
+        if (codeBuffer == null) {
+          flushText();
+          codeLanguage = language;
+          codeBuffer = StringBuffer();
+        } else if (marker[0] == (codeLanguage == null ? '`' : marker[0])) {
+          parts.add(
+            _CodePart(
+              language: codeLanguage ?? '',
+              code: _removeTrailingNewline(codeBuffer.toString()),
+            ),
+          );
+          codeBuffer = null;
+          codeLanguage = null;
+        } else {
+          codeBuffer.writeln(line);
+        }
+        continue;
+      }
+
+      if (codeBuffer != null) {
+        codeBuffer.writeln(line);
+      } else {
+        textBuffer.writeln(line);
+      }
+    }
+
+    if (codeBuffer != null) {
+      parts.add(
+        _CodePart(
+          language: codeLanguage ?? '',
+          code: _removeTrailingNewline(codeBuffer.toString()),
+        ),
+      );
+    }
+
+    flushText();
+    return parts;
+  }
+
+  String _removeTrailingNewline(String value) {
+    if (value.endsWith('\n')) {
+      return value.substring(0, value.length - 1);
+    }
+    return value;
+  }
+}
+
+sealed class _ResponsePart {
+  const _ResponsePart();
+}
+
+class _TextPart extends _ResponsePart {
+  const _TextPart(this.content);
+
+  final String content;
+}
+
+class _CodePart extends _ResponsePart {
+  const _CodePart({
+    required this.language,
+    required this.code,
+  });
+
+  final String language;
+  final String code;
+}
+
+class _MarkdownContent extends StatelessWidget {
+  const _MarkdownContent({
     required this.text,
     required this.palette,
     required this.animateCharacters,
@@ -219,10 +175,14 @@ class _TextResponse extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final content = text;
 
+    // SmoothMarkdown renders complete Markdown blocks and preserves
+    // tables, lists, links and multiline mathematical expressions.
     return SmoothMarkdown(
-      data: text,
+      data: content,
       styleSheet: MarkdownStyleSheet.fromTheme(theme),
+      selectable: true,
       onTapLink: (url) async {
         final uri = Uri.tryParse(url);
         if (uri == null ||
@@ -235,618 +195,169 @@ class _TextResponse extends StatelessWidget {
           mode: LaunchMode.externalApplication,
         );
       },
-      selectable: true,
     );
   }
 }
 
-
-class _CharacterRevealLine extends StatefulWidget {
-  const _CharacterRevealLine({required this.line, required this.palette});
-
-  final String line;
-  final AppPalette palette;
-
-  @override
-  State<_CharacterRevealLine> createState() => _CharacterRevealLineState();
-}
-
-class _CharacterRevealLineState extends State<_CharacterRevealLine> {
-  Timer? _timer;
-  int _visibleRunes = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _startTimer();
-  }
-
-  @override
-  void didUpdateWidget(covariant _CharacterRevealLine oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.line != widget.line) {
-      final target = widget.line.runes.length;
-      if (_visibleRunes > target) _visibleRunes = target;
-      _startTimer();
-    }
-  }
-
-  void _startTimer() {
-    if (_timer != null || _visibleRunes >= widget.line.runes.length) return;
-    _timer = Timer.periodic(const Duration(milliseconds: 16), (timer) {
-      if (!mounted) {
-        timer.cancel();
-        _timer = null;
-        return;
-      }
-      final target = widget.line.runes.length;
-      setState(() {
-        _visibleRunes = (_visibleRunes + 3).clamp(0, target).toInt();
-      });
-      if (_visibleRunes >= target) {
-        timer.cancel();
-        _timer = null;
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final visible = String.fromCharCodes(widget.line.runes.take(_visibleRunes));
-    return _FormattedLine(line: visible, palette: widget.palette);
-  }
-}
-
-class _FormattedLine extends StatelessWidget {
-  const _FormattedLine({required this.line, required this.palette});
-
-  final String line;
-  final AppPalette palette;
-
-  @override
-  Widget build(BuildContext context) {
-    final trimmed = line.trim();
-
-    if (trimmed.startsWith('### ')) {
-      return Text(
-        trimmed.substring(4),
-        style: TextStyle(
-          color: palette.textPrimary,
-          fontSize: 16,
-          fontWeight: FontWeight.w800,
-        ),
-      );
-    }
-
-    if (trimmed.startsWith('## ')) {
-      return Text(
-        trimmed.substring(3),
-        style: TextStyle(
-          color: palette.textPrimary,
-          fontSize: 18,
-          fontWeight: FontWeight.w800,
-        ),
-      );
-    }
-
-    if (trimmed.startsWith('# ')) {
-      return Text(
-        trimmed.substring(2),
-        style: TextStyle(
-          color: palette.textPrimary,
-          fontSize: 20,
-          fontWeight: FontWeight.w800,
-        ),
-      );
-    }
-
-    return Text.rich(
-      TextSpan(children: _spans(line)),
-      style: TextStyle(color: palette.textPrimary, fontSize: 15, height: 1.45),
-    );
-  }
-
-  List<InlineSpan> _spans(String value) {
-    final result = <InlineSpan>[];
-    final regex = RegExp(
-      r'(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\(https?://[^)\s]+\))',
-    );
-    var cursor = 0;
-
-    for (final match in regex.allMatches(value)) {
-      if (match.start > cursor) {
-        result.add(TextSpan(text: value.substring(cursor, match.start)));
-      }
-
-      final token = match.group(0)!;
-
-      if (token.startsWith('**')) {
-        result.add(
-          TextSpan(
-            text: token.substring(2, token.length - 2),
-            style: const TextStyle(fontWeight: FontWeight.w700),
-          ),
-        );
-      } else if (token.startsWith('[')) {
-        final link = RegExp(
-          r'^\[([^\]]+)\]\((https?://[^)]+)\)$',
-        ).firstMatch(token);
-        final uri = link == null ? null : Uri.tryParse(link.group(2)!);
-
-        if (link != null && uri != null) {
-          result.add(
-            WidgetSpan(
-              alignment: PlaceholderAlignment.middle,
-              child: InkWell(
-                onTap: () =>
-                    launchUrl(uri, mode: LaunchMode.externalApplication),
-                child: Text(
-                  link.group(1)!,
-                  style: TextStyle(
-                    color: palette.accent,
-                    decoration: TextDecoration.underline,
-                  ),
-                ),
-              ),
-            ),
-          );
-        } else {
-          result.add(TextSpan(text: token));
-        }
-      } else {
-        result.add(
-          WidgetSpan(
-            alignment: PlaceholderAlignment.middle,
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 2),
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-              decoration: BoxDecoration(
-                color: palette.surfaceAlt,
-                borderRadius: BorderRadius.circular(5),
-              ),
-              child: Text(
-                token.substring(1, token.length - 1),
-                style: TextStyle(
-                  color: palette.textPrimary,
-                  fontFamily: 'monospace',
-                  fontSize: 13,
-                ),
-              ),
-            ),
-          ),
-        );
-      }
-
-      cursor = match.end;
-    }
-
-    if (cursor < value.length) {
-      result.add(TextSpan(text: value.substring(cursor)));
-    }
-
-    return result;
-  }
-}
-
-class _MathResponse extends StatelessWidget {
-  const _MathResponse({required this.expression, required this.palette});
-
-  final String expression;
-  final AppPalette palette;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
-      decoration: BoxDecoration(
-        color: palette.surfaceAlt,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: palette.border),
-      ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Math.tex(
-          expression,
-          mathStyle: MathStyle.display,
-          textStyle: TextStyle(color: palette.textPrimary, fontSize: 18),
-          onErrorFallback: (error) {
-            return Text(
-              expression,
-              style: TextStyle(
-                color: palette.textPrimary,
-                fontSize: 14,
-                fontFamily: 'monospace',
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-}
-
-class _CodeResponse extends StatelessWidget {
-  const _CodeResponse({
-    required this.code,
+class _CodeBlock extends StatelessWidget {
+  const _CodeBlock({
     required this.language,
+    required this.code,
     required this.palette,
-    required this.onCopy,
   });
 
-  final String code;
   final String language;
+  final String code;
   final AppPalette palette;
-  final ValueChanged<String> onCopy;
 
-  IconData _iconForLanguage() {
-    final value = language
-        .toLowerCase()
-        .trim()
-        .replaceAll('_', '-')
-        .replaceAll(' ', '');
-
-    if (value.contains('dart')) {
-      return SimpleIcons.dart;
-    }
-
-    if (value.contains('python') || value == 'py') {
-      return SimpleIcons.python;
-    }
-
-    if (value.contains('julia')) {
-      return SimpleIcons.julia;
-    }
-
-    if (value.contains('javascript') ||
-        value == 'js' ||
-        value == 'jsx' ||
-        value.contains('node')) {
-      return SimpleIcons.javascript;
-    }
-
-    if (value.contains('typescript') || value == 'ts' || value == 'tsx') {
-      return SimpleIcons.typescript;
-    }
-
-    if (value.contains('java')) {
-      return SimpleIcons.openjdk;
-    }
-
-    if (value.contains('kotlin') || value == 'kt' || value == 'kts') {
-      return SimpleIcons.kotlin;
-    }
-
-    if (value == 'c' || value == 'h') {
-      return SimpleIcons.c;
-    }
-
-    if (value.contains('c++') ||
-        value.contains('cpp') ||
-        value == 'cc' ||
-        value == 'cxx') {
-      return SimpleIcons.cplusplus;
-    }
-
-    if (value.contains('c#') || value.contains('csharp') || value == 'cs') {
-      return SimpleIcons.dotnet;
-    }
-
-    if (value == 'go' || value == 'golang') {
-      return SimpleIcons.go;
-    }
-
-    if (value.contains('rust') || value == 'rs') {
-      return SimpleIcons.rust;
-    }
-
-    if (value.contains('swift')) {
-      return SimpleIcons.swift;
-    }
-
-    if (value.contains('php')) {
-      return SimpleIcons.php;
-    }
-
-    if (value.contains('ruby') || value == 'rb') {
-      return SimpleIcons.ruby;
-    }
-
-    if (value.contains('perl') || value == 'pl') {
-      return SimpleIcons.perl;
-    }
-
-    if (value.contains('lua')) {
-      return SimpleIcons.lua;
-    }
-
-    if (value == 'r' || value == 'rscript') {
-      return SimpleIcons.r;
-    }
-
-    if (value.contains('haskell') || value == 'hs') {
-      return SimpleIcons.haskell;
-    }
-
-    if (value.contains('elixir') || value == 'ex' || value == 'exs') {
-      return SimpleIcons.elixir;
-    }
-
-    if (value.contains('erlang') || value == 'erl') {
-      return SimpleIcons.erlang;
-    }
-
-    if (value.contains('scala')) {
-      return SimpleIcons.scala;
-    }
-
-    if (value.contains('groovy') || value == 'gvy') {
-      return SimpleIcons.apachegroovy;
-    }
-
-    if (value.contains('fortran') ||
-        value == 'f77' ||
-        value == 'f90' ||
-        value == 'f95' ||
-        value == 'f03' ||
-        value == 'f08' ||
-        value == 'f18') {
-      return SimpleIcons.fortran;
-    }
-
-    if (value.contains('f#') ||
-        value.contains('fsharp') ||
-        value == 'fs' ||
-        value == 'fsi' ||
-        value == 'fsx') {
-      return SimpleIcons.fsharp;
-    }
-
-    if (value.contains('ocaml') || value == 'ml') {
-      return SimpleIcons.ocaml;
-    }
-
-    if (value.contains('nim')) {
-      return SimpleIcons.nim;
-    }
-
-    if (value.contains('crystal') || value == 'cr') {
-      return SimpleIcons.crystal;
-    }
-
-    if (value.contains('zig')) {
-      return SimpleIcons.zig;
-    }
-
-    if (value.contains('solidity') || value == 'sol') {
-      return SimpleIcons.solidity;
-    }
-
-    if (value.contains('ada')) {
-      return SimpleIcons.ada;
-    }
-
-    if (value.contains('delphi') || value.contains('pascal')) {
-      return SimpleIcons.delphi;
-    }
-
-    if (value.contains('coffeescript') || value == 'coffee') {
-      return SimpleIcons.coffeescript;
-    }
-
-    if (value.contains('assemblyscript')) {
-      return SimpleIcons.assemblyscript;
-    }
-
-    if (value == 'assembly' ||
-        value == 'asm' ||
-        value.contains('x86asm') ||
-        value.contains('armasm')) {
-      return SimpleIcons.webassembly;
-    }
-
-    if (value == 'wasm' || value.contains('webassembly')) {
-      return SimpleIcons.webassembly;
-    }
-
-    if (value.contains('html') ||
-        value == 'htm' ||
-        value.contains('xhtml') ||
-        value.contains('html5')) {
-      return SimpleIcons.html5;
-    }
-
-    if (value.contains('css')) {
-      return SimpleIcons.css;
-    }
-
-    if (value.contains('scss') || value.contains('sass')) {
-      return SimpleIcons.sass;
-    }
-
-    if (value.contains('less')) {
-      return SimpleIcons.less;
-    }
-
-    if (value.contains('sql') ||
-        value.contains('postgres') ||
-        value.contains('postgresql')) {
-      return SimpleIcons.postgresql;
-    }
-
-    if (value.contains('mysql')) {
-      return SimpleIcons.mysql;
-    }
-
-    if (value.contains('mariadb')) {
-      return SimpleIcons.mariadb;
-    }
-
-    if (value.contains('sqlite')) {
-      return SimpleIcons.sqlite;
-    }
-
-    if (value.contains('graphql') || value == 'gql') {
-      return SimpleIcons.graphql;
-    }
-
-    if (value.contains('json')) {
-      return SimpleIcons.json;
-    }
-
-    if (value.contains('yaml') || value.contains('yml')) {
-      return SimpleIcons.yaml;
-    }
-
-    if (value.contains('xml')) {
-      return SimpleIcons.xml;
-    }
-
-    if (value.contains('markdown') || value == 'md' || value == 'mdown') {
-      return SimpleIcons.markdown;
-    }
-
-    if (value.contains('bash') ||
-        value.contains('shell') ||
-        value == 'sh' ||
-        value == 'zsh') {
-      return value == 'zsh' ? SimpleIcons.zsh : SimpleIcons.gnubash;
-    }
-
-    if (value == 'fish' || value.contains('fishshell')) {
-      return SimpleIcons.fishshell;
-    }
-
-    if (value.contains('dockerfile') || value == 'docker') {
-      return SimpleIcons.docker;
-    }
-
-    if (value.contains('terraform') || value == 'tf') {
-      return SimpleIcons.terraform;
-    }
-
-    if (value.contains('ansible')) {
-      return SimpleIcons.ansible;
-    }
-
-    if (value.contains('nix') || value.contains('nixos')) {
-      return SimpleIcons.nixos;
-    }
-
-    if (value.contains('graphql')) {
-      return SimpleIcons.graphql;
-    }
-
-    if (value.contains('react')) {
-      return SimpleIcons.react;
-    }
-
-    if (value.contains('vue')) {
-      return SimpleIcons.vuedotjs;
-    }
-
-    if (value.contains('angular')) {
-      return SimpleIcons.angular;
-    }
-
-    if (value.contains('flutter')) {
-      return SimpleIcons.flutter;
-    }
-
-    if (value.contains('electron')) {
-      return SimpleIcons.electronbuilder;
-    }
-
-    if (value.contains('gradle')) {
-      return SimpleIcons.gradle;
-    }
-
-    if (value.contains('springboot') || value.contains('spring-boot')) {
-      return SimpleIcons.springboot;
-    }
-
-    if (value.contains('spring')) {
-      return SimpleIcons.spring;
-    }
-
-    if (value.contains('rustdesk')) {
-      return SimpleIcons.rustdesk;
-    }
-
-    if (value.contains('markdown')) {
-      return SimpleIcons.markdown;
-    }
-
-    return NumiIcons.code_rounded;
+  IconData _languageIcon() {
+    switch (language.toLowerCase().trim()) {
+      case 'dart':
+        return SimpleIcons.dart;
+      case 'python':
+      case 'py':
+        return SimpleIcons.python;
+      case 'javascript':
+      case 'js':
+        return SimpleIcons.javascript;
+      case 'typescript':
+      case 'ts':
+        return SimpleIcons.typescript;
+      case 'java':
+        return SimpleIcons.java;
+      case 'kotlin':
+      case 'kt':
+        return SimpleIcons.kotlin;
+      case 'swift':
+        return SimpleIcons.swift;
+      case 'go':
+      case 'golang':
+        return SimpleIcons.go;
+      case 'rust':
+      case 'rs':
+        return SimpleIcons.rust;
+      case 'html':
+        return SimpleIcons.html5;
+      case 'css':
+        return SimpleIcons.css3;
+      case 'json':
+        return SimpleIcons.json;
+      case 'bash':
+      case 'sh':
+      case 'shell':
+      case 'terminal':
+        return LucideIcons.terminal;
+      case 'yaml':
+      case 'yml':
+        return SimpleIcons.yaml;
+      case 'markdown':
+      case 'md':
+        return SimpleIcons.markdown;
+      case 'php':
+        return SimpleIcons.php;
+      case 'ruby':
+      case 'rb':
+        return SimpleIcons.ruby;
+      case 'c':
+        return SimpleIcons.c;
+      case 'cpp':
+      case 'c++':
+        return SimpleIcons.cplusplus;
+      case 'csharp':
+      case 'c#':
+        return SimpleIcons.csharp;
+      case 'sql':
+        return SimpleIcons.postgresql;
+      default:
+        return LucideIcons.code2;
+    }
+  }
+
+  String _displayLanguage() {
+    final value = language.trim();
+    if (value.isEmpty) return 'Código';
+    return value;
   }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: double.infinity,
       decoration: BoxDecoration(
-        color: palette.surfaceAlt,
-        borderRadius: BorderRadius.circular(14),
+        color: palette.surface,
         border: Border.all(color: palette.border),
+        borderRadius: BorderRadius.circular(12),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 9, 8, 9),
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 10,
+            ),
+            decoration: BoxDecoration(
+              color: palette.surfaceAlt,
+              border: Border(
+                bottom: BorderSide(color: palette.border),
+              ),
+            ),
             child: Row(
               children: [
                 Icon(
-                  _iconForLanguage(),
+                  _languageIcon(),
+                  size: 16,
                   color: palette.textSecondary,
-                  size: 18,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    language.toUpperCase(),
-                    overflow: TextOverflow.ellipsis,
+                    _displayLanguage(),
                     style: TextStyle(
                       color: palette.textSecondary,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.7,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
-                IconButton(
-                  onPressed: () => onCopy(code),
-                  tooltip: 'Copiar',
-                  visualDensity: VisualDensity.compact,
-                  icon: Icon(
-                    LucideIcons.copy,
-                    color: palette.textSecondary,
-                    size: 19,
+                InkWell(
+                  onTap: () async {
+                    await Clipboard.setData(
+                      ClipboardData(text: code),
+                    );
+
+                    if (!context.mounted) return;
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Código copiado'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(6),
+                  child: Padding(
+                    padding: const EdgeInsets.all(5),
+                    child: Icon(
+                      LucideIcons.copy,
+                      size: 15,
+                      color: palette.textSecondary,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-          Divider(height: 1, color: palette.border),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.all(14),
-              child: SelectableText(
-                code,
-                style: TextStyle(
-                  color: palette.textPrimary,
-                  fontFamily: 'monospace',
-                  fontSize: 13,
-                  height: 1.5,
-                ),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.all(14),
+            child: SelectableText(
+              code,
+              style: TextStyle(
+                color: palette.textPrimary,
+                fontSize: 13,
+                height: 1.55,
+                fontFamily: 'monospace',
               ),
             ),
           ),
