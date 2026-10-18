@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:lucide_flutter/lucide_flutter.dart';
 import 'package:simple_icons/simple_icons.dart';
+import 'package:flutter_smooth_markdown/flutter_smooth_markdown.dart';
 
 import '../../core/theme.dart';
 import '../../core/theme_controller.dart';
