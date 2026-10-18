@@ -9,12 +9,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_flutter/lucide_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/ai_modes_controller.dart';
 import '../../core/api.dart';
 import '../../core/auth_controller.dart';
 import '../../core/error_messages.dart';
 import '../../core/l10n_extensions.dart';
+import '../../core/module_warmup.dart';
 import '../../core/models.dart';
 import '../../core/theme_controller.dart';
 import '../../core/update_service.dart';
@@ -40,6 +42,7 @@ class ChatMessage {
   final String? memoryId;
   final String? memoryTitle;
   final String? memoryContent;
+  final List<Map<String, dynamic>> activities;
 
   const ChatMessage({
     required this.text,
@@ -51,6 +54,7 @@ class ChatMessage {
     this.memoryId,
     this.memoryTitle,
     this.memoryContent,
+    this.activities = const [],
   });
 }
 
@@ -104,6 +108,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   bool _webSearchForNextMessage = false;
   bool _toolsExpanded = false;
   bool _imageGenerationForNextMessage = false;
+  final List<Map<String, dynamic>> _currentActivities = [];
+  bool _activityExpanded = false;
+  bool _isSearchingWebForCurrentRequest = false;
 
   static const _hintPreferenceKey = 'numination.lastComposerHintIndex';
 
@@ -236,6 +243,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     _initSpeech();
     _loadProfile();
     _loadCredits();
+    unawaited(ModuleWarmup.start());
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
@@ -549,6 +557,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       _showMentionSuggestions = false;
       _mentionQuery = '';
     });
+    _messageFocusNode.requestFocus();
+  }
+
+  void _openMentionPicker() {
+    final value = _messageController.value;
+    final text = value.text;
+    final rawCursor = value.selection.baseOffset;
+    final cursor = rawCursor < 0 || rawCursor > text.length ? text.length : rawCursor;
+    final needsSpace = cursor > 0 && !RegExp(r'\s').hasMatch(text.substring(cursor - 1, cursor));
+    final insertion = needsSpace ? ' @' : '@';
+    final nextText = text.substring(0, cursor) + insertion + text.substring(cursor);
+    _messageController.value = TextEditingValue(
+      text: nextText,
+      selection: TextSelection.collapsed(offset: cursor + insertion.length),
+    );
     _messageFocusNode.requestFocus();
   }
 
@@ -1054,6 +1077,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       _animatedAssistantMessageId = null;
       _webSearchForNextMessage = false;
       _imageGenerationForNextMessage = false;
+      _currentActivities.clear();
+      _activityExpanded = false;
+      _isSearchingWebForCurrentRequest = useWebSearch;
     });
 
     _scrollToBottom();
@@ -1196,10 +1222,43 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             ? Map<String, dynamic>.from(rawPayload)
             : <String, dynamic>{};
 
-        if (eventName == 'token') {
+        if (eventName == 'status') {
+          final stage = payload['stage']?.toString() ?? '';
+          if (mounted && stage == 'searching_web') {
+            setState(() => _isSearchingWebForCurrentRequest = true);
+          }
+          continue;
+        } else if (eventName == 'activity') {
+          final kind = payload['kind']?.toString() ?? 'thinking';
+          final title = payload['title']?.toString().trim() ?? '';
+          final url = payload['url']?.toString().trim() ?? '';
+          if (mounted) {
+            setState(() {
+              if (kind == 'search' && url.isEmpty && title.toLowerCase().contains('buscando')) {
+                _isSearchingWebForCurrentRequest = true;
+              } else if (title.isNotEmpty) {
+                final duplicate = _currentActivities.indexWhere((item) =>
+                  (url.isNotEmpty && item['url'] == url) ||
+                  (url.isEmpty && item['url'] == null && item['title'] == title),
+                );
+                final item = <String, dynamic>{
+                  'kind': kind, 'status': payload['status']?.toString() ?? '',
+                  'title': title, 'url': url, 'icon': payload['icon']?.toString() ?? '',
+                };
+                if (duplicate >= 0) {
+                  _currentActivities[duplicate] = item;
+                } else if (_currentActivities.length < 20) {
+                  _currentActivities.add(item);
+                }
+              }
+            });
+          }
+          continue;
+        } else if (eventName == 'token') {
           final delta = payload['delta']?.toString() ?? '';
           if (delta.isEmpty) continue;
 
+          _isSearchingWebForCurrentRequest = false;
           responseText += delta;
 
           if (mounted &&
@@ -1212,6 +1271,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   text: responseText,
                   fromUser: false,
                   chatId: chatId,
+                  activities: List<Map<String, dynamic>>.from(_currentActivities),
                 );
               }
             });
@@ -1256,6 +1316,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   memoryId: payload['memoryId']?.toString(),
                   memoryTitle: payload['memoryTitle']?.toString(),
                   memoryContent: payload['memoryContent']?.toString(),
+                  activities: List<Map<String, dynamic>>.from(_currentActivities),
                 );
               }
 
@@ -1552,13 +1613,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                       itemCount: _messages.length + (_isSending ? 1 : 0),
                       itemBuilder: (context, index) {
                         if (_isSending && index == _messages.length) {
-                          return const _ThinkingMessage();
+                          return _ThinkingMessage(
+                            activities: _currentActivities,
+                            expanded: _activityExpanded,
+                            isSearching: _isSearchingWebForCurrentRequest,
+                            onToggle: () => setState(() => _activityExpanded = !_activityExpanded),
+                          );
                         }
 
                         final message = _messages[index];
 
                         return _MessageBubble(
                           message: message,
+                          showActivityDisclosure: !_isSending,
                           animateCharacters:
                               !message.fromUser &&
                               (message.id == null ||
@@ -1645,6 +1712,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 onSend: _sendMessage,
                 onMicTap: _toggleListening,
                 onAttachTap: _attachFile,
+                onOpenMentionPicker: _openMentionPicker,
               ),
           ],
         ),
@@ -1860,6 +1928,7 @@ class _MessageBubble extends ConsumerWidget {
   const _MessageBubble({
     required this.message,
     this.animateCharacters = false,
+    this.showActivityDisclosure = true,
     required this.onCopy,
     required this.onEdit,
     required this.onFeedback,
@@ -1867,6 +1936,7 @@ class _MessageBubble extends ConsumerWidget {
 
   final ChatMessage message;
   final bool animateCharacters;
+  final bool showActivityDisclosure;
   final ValueChanged<ChatMessage> onCopy;
   final ValueChanged<ChatMessage> onEdit;
   final void Function(ChatMessage, String) onFeedback;
@@ -1888,6 +1958,8 @@ class _MessageBubble extends ConsumerWidget {
               ? CrossAxisAlignment.end
               : CrossAxisAlignment.start,
           children: [
+            if (!isUser && showActivityDisclosure && message.activities.isNotEmpty)
+              _ActivityDisclosure(activities: message.activities),
             if (!isUser && message.memorySaved)
               _MemorySavedWidget(
                 title: message.memoryTitle,
@@ -2051,6 +2123,7 @@ class _BottomInputBar extends ConsumerWidget {
     required this.onSend,
     required this.onMicTap,
     required this.onAttachTap,
+    required this.onOpenMentionPicker,
   });
 
   final TextEditingController controller;
@@ -2086,6 +2159,7 @@ class _BottomInputBar extends ConsumerWidget {
   final VoidCallback onSend;
   final VoidCallback onMicTap;
   final VoidCallback onAttachTap;
+  final VoidCallback onOpenMentionPicker;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -2411,25 +2485,7 @@ class _BottomInputBar extends ConsumerWidget {
           AnimatedContainer(
             duration: const Duration(milliseconds: 220),
             curve: Curves.easeOutCubic,
-            padding: const EdgeInsets.fromLTRB(8, 5, 5, 5),
-            decoration: BoxDecoration(
-              color: palette.surface,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: toolsExpanded || hasActiveTool
-                    ? palette.accent.withValues(alpha: 0.38)
-                    : palette.textSecondary.withValues(alpha: 0.16),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(
-                    alpha: isListening ? 0.10 : 0.045,
-                  ),
-                  blurRadius: isListening ? 20 : 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
+            padding: const EdgeInsets.symmetric(vertical: 2),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2553,6 +2609,14 @@ class _BottomInputBar extends ConsumerWidget {
                                     onPressed: () {
                                       closeTools();
                                       onAttachTap();
+                                    },
+                                  ),
+                                  toolButton(
+                                    icon: LucideIcons.link2,
+                                    label: english ? 'Connectors' : 'Conectores',
+                                    onPressed: () {
+                                      closeTools();
+                                      onOpenMentionPicker();
                                     },
                                   ),
                                   toolButton(
@@ -2732,59 +2796,157 @@ class _BottomInputBar extends ConsumerWidget {
   }
 }
 
-class _ThinkingMessage extends StatefulWidget {
-  const _ThinkingMessage();
+class _ThinkingMessage extends StatelessWidget {
+  const _ThinkingMessage({
+    required this.activities,
+    required this.expanded,
+    required this.isSearching,
+    required this.onToggle,
+  });
+
+  final List<Map<String, dynamic>> activities;
+  final bool expanded;
+  final bool isSearching;
+  final VoidCallback onToggle;
 
   @override
-  State<_ThinkingMessage> createState() => _ThinkingMessageState();
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.onSurfaceVariant;
+    final hasSources = activities.any((item) =>
+        item['kind'] == 'search' && (item['url']?.toString().isNotEmpty ?? false));
+    final title = isSearching ? 'Buscando en la web' : hasSources ? 'Búsquedas (${activities.where((item) => item['url']?.toString().isNotEmpty == true).length})' : 'Pensando';
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            onTap: onToggle,
+            borderRadius: BorderRadius.circular(10),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 2),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(isSearching ? LucideIcons.globe : LucideIcons.brain, size: 17, color: color),
+                  const SizedBox(width: 8),
+                  Text(title, style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w600)),
+                  const SizedBox(width: 5),
+                  Icon(expanded ? LucideIcons.chevronUp : LucideIcons.chevronDown, size: 17, color: color),
+                ],
+              ),
+            ),
+          ),
+          if (expanded) ...[
+            if (activities.isEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(28, 5, 8, 5),
+                child: Text('Preparando la solicitud…', style: TextStyle(color: color, fontSize: 12)),
+              )
+            else
+              ...activities.map((item) => _ActivityEntry(item: item)),
+          ],
+        ],
+      ),
+    );
+  }
 }
 
-class _ThinkingMessageState extends State<_ThinkingMessage>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 900),
-  )..repeat();
+class _ActivityDisclosure extends StatefulWidget {
+  const _ActivityDisclosure({required this.activities});
+  final List<Map<String, dynamic>> activities;
 
   @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
+  State<_ActivityDisclosure> createState() => _ActivityDisclosureState();
+}
+
+class _ActivityDisclosureState extends State<_ActivityDisclosure> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.onSurfaceVariant;
+    final sources = widget.activities.where((item) =>
+        item['kind'] == 'search' && (item['url']?.toString().isNotEmpty ?? false)).length;
+    final title = sources > 0 ? 'Búsquedas ($sources)' : 'Pensando';
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6, left: 3),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            onTap: () => setState(() => _expanded = !_expanded),
+            borderRadius: BorderRadius.circular(10),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(sources > 0 ? LucideIcons.globe : LucideIcons.brain, size: 16, color: color),
+                  const SizedBox(width: 7),
+                  Text(title, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600)),
+                  const SizedBox(width: 4),
+                  Icon(_expanded ? LucideIcons.chevronUp : LucideIcons.chevronDown, size: 16, color: color),
+                ],
+              ),
+            ),
+          ),
+          if (_expanded)
+            ...widget.activities.map((item) => _ActivityEntry(item: item)),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActivityEntry extends StatelessWidget {
+  const _ActivityEntry({required this.item});
+  final Map<String, dynamic> item;
+
+  Future<void> _openUrl(String raw) async {
+    final uri = Uri.tryParse(raw);
+    if (uri == null || uri.scheme != 'https' || uri.host.isEmpty) return;
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final title = item['title']?.toString().trim() ?? 'Actividad';
+    final url = item['url']?.toString().trim() ?? '';
+    final isLink = url.startsWith('https://');
+    final isSearch = item['kind']?.toString() == 'search';
     return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: List.generate(3, (index) {
-          return AnimatedBuilder(
-            animation: _controller,
-            builder: (context, child) {
-              final phase = (_controller.value * 3 - index) % 3;
-              final opacity =
-                  0.35 + (0.65 * (1 - (phase - 1).abs().clamp(0.0, 1.0)));
-              final offsetY = -3 * (1 - (phase - 1).abs().clamp(0.0, 1.0));
-
-              return Transform.translate(
-                offset: Offset(0, offsetY),
-                child: Opacity(
-                  opacity: opacity,
-                  child: Container(
-                    width: 7,
-                    height: 7,
-                    margin: const EdgeInsets.symmetric(horizontal: 3),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.onSurface,
-                      shape: BoxShape.circle,
-                    ),
+      padding: const EdgeInsets.only(left: 27, right: 4, top: 3, bottom: 3),
+      child: InkWell(
+        onTap: isLink ? () => _openUrl(url) : null,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 4),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(isLink ? LucideIcons.globe : (isSearch ? LucideIcons.search : LucideIcons.circle), size: 14, color: colors.onSurfaceVariant),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: isLink ? colors.primary : colors.onSurfaceVariant,
+                    fontSize: 12,
+                    decoration: isLink ? TextDecoration.underline : TextDecoration.none,
                   ),
                 ),
-              );
-            },
-          );
-        }),
+              ),
+              if (isLink) ...[
+                const SizedBox(width: 6),
+                Icon(LucideIcons.externalLink, size: 13, color: colors.onSurfaceVariant),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }

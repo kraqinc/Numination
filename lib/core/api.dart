@@ -55,6 +55,13 @@ class ApiCancelToken {
   }
 }
 
+class _CachedModuleGet {
+  _CachedModuleGet(this.future);
+
+  final Future<http.Response> future;
+  DateTime? expiresAt;
+}
+
 class ApiClient {
   static const _delays = [
     Duration(seconds: 1),
@@ -63,6 +70,73 @@ class ApiClient {
   ];
 
   static String? _token;
+
+  static const Duration _moduleGetCacheTtl = Duration(seconds: 30);
+
+  static const Set<String> _moduleGetCacheablePaths = <String>{
+    '/auth/me',
+    '/credits',
+    '/modes',
+    '/projects',
+    '/chats',
+    '/memory',
+    '/notifications',
+    '/integrations',
+    '/artifacts',
+  };
+
+  static final Map<String, _CachedModuleGet> _moduleGetCache = {};
+
+  static void _clearModuleGetCache() => _moduleGetCache.clear();
+
+  static void _invalidateModuleGetCacheForMutation(String path) {
+    final normalized = path.split('?').first;
+
+    if (normalized.startsWith('/ai/chat') ||
+        normalized == '/ai/coder') {
+      _moduleGetCache.remove('/credits');
+      _moduleGetCache.remove('/chats');
+    } else if (normalized.startsWith('/projects') ||
+        normalized.startsWith('/chats')) {
+      _moduleGetCache.remove('/projects');
+      _moduleGetCache.remove('/chats');
+    } else if (normalized.startsWith('/memory')) {
+      _moduleGetCache.remove('/memory');
+    } else if (normalized.startsWith('/notifications')) {
+      _moduleGetCache.remove('/notifications');
+    } else if (normalized.startsWith('/integrations')) {
+      _moduleGetCache.remove('/integrations');
+    } else if (normalized.startsWith('/artifacts')) {
+      _moduleGetCache.remove('/artifacts');
+    } else if (normalized.startsWith('/credits') ||
+        normalized.startsWith('/billing') ||
+        normalized.startsWith('/payments') ||
+        normalized.startsWith('/paypal')) {
+      _moduleGetCache.remove('/credits');
+    } else if (normalized.startsWith('/auth')) {
+      _clearModuleGetCache();
+    }
+  }
+
+  static Future<void> _markModuleGetCacheReady(
+    String path,
+    _CachedModuleGet entry,
+  ) async {
+    try {
+      final response = await entry.future;
+      if (!identical(_moduleGetCache[path], entry)) return;
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        entry.expiresAt = DateTime.now().add(_moduleGetCacheTtl);
+      } else {
+        _moduleGetCache.remove(path);
+      }
+    } catch (_) {
+      if (identical(_moduleGetCache[path], entry)) {
+        _moduleGetCache.remove(path);
+      }
+    }
+  }
 
   static void setLanguageCode(String languageCode) =>
       AppErrorMessages.setLanguageCode(languageCode);
@@ -78,6 +152,7 @@ class ApiClient {
   );
 
   static void setToken(String? token) {
+    _clearModuleGetCache();
     final normalized = token?.trim();
     _token = normalized == null || normalized.isEmpty ? null : normalized;
   }
@@ -161,13 +236,40 @@ class ApiClient {
   }
 
   static Future<http.Response> get(String path) {
-    return _send(
+    if (!_moduleGetCacheablePaths.contains(path)) {
+      return _send(
+        (client) => client.get(_uri(path), headers: _headers),
+        retryable: true,
+      );
+    }
+
+    final now = DateTime.now();
+    final cached = _moduleGetCache[path];
+
+    if (cached != null) {
+      final expiresAt = cached.expiresAt;
+
+      // Si ya se está cargando, las pantallas comparten la misma petición.
+      if (expiresAt == null || now.isBefore(expiresAt)) {
+        return cached.future;
+      }
+
+      _moduleGetCache.remove(path);
+    }
+
+    final future = _send(
       (client) => client.get(_uri(path), headers: _headers),
       retryable: true,
     );
+
+    final entry = _CachedModuleGet(future);
+    _moduleGetCache[path] = entry;
+    unawaited(_markModuleGetCacheReady(path, entry));
+    return future;
   }
 
   static Future<http.Response> post(String path, [Map<String, dynamic>? body]) {
+    _invalidateModuleGetCacheForMutation(path);
     return _send(
       (client) => client.post(
         _uri(path),
@@ -185,6 +287,7 @@ class ApiClient {
     ApiCancelToken token, {
     Duration timeout = const Duration(seconds: 35),
   }) {
+    _invalidateModuleGetCacheForMutation(path);
     return _send(
       (client) =>
           client.post(_uri(path), headers: _headers, body: jsonEncode(body)),
@@ -201,6 +304,7 @@ class ApiClient {
     Map<String, dynamic> body,
     ApiCancelToken token,
   ) async* {
+    _invalidateModuleGetCacheForMutation(path);
     if (token.isCancelled) throw const ApiRequestCancelled();
 
     final client = http.Client();
@@ -326,6 +430,7 @@ class ApiClient {
   }
 
   static Future<http.Response> put(String path, [Map<String, dynamic>? body]) {
+    _invalidateModuleGetCacheForMutation(path);
     return _send(
       (client) => client.put(
         _uri(path),
@@ -340,6 +445,7 @@ class ApiClient {
     String path, [
     Map<String, dynamic>? body,
   ]) {
+    _invalidateModuleGetCacheForMutation(path);
     return _send(
       (client) => client.patch(
         _uri(path),
@@ -351,6 +457,7 @@ class ApiClient {
   }
 
   static Future<http.Response> delete(String path) {
+    _invalidateModuleGetCacheForMutation(path);
     return _send(
       (client) => client.delete(_uri(path), headers: _headers),
       retryable: false,

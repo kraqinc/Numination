@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_flutter/lucide_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/api.dart';
 import '../../core/env.dart';
@@ -94,6 +95,7 @@ class _CoderAttachment {
 class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   final _messageController = TextEditingController();
+  final _messageFocusNode = FocusNode();
   final _scrollController = ScrollController();
   final stt.SpeechToText _speech = stt.SpeechToText();
 
@@ -118,6 +120,13 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
   bool _showFiles = false;
   bool _overthink = false;
   bool _hasChanges = false;
+  final List<String> _lastChangedPaths = [];
+  final List<String> _lastDeletedPaths = [];
+  bool _githubActionBusy = false;
+  String? _githubOwner;
+  String? _githubRepo;
+  String? _githubBaseBranch;
+  String? _publishedBranch;
 
   ApiCancelToken? _generationToken;
 
@@ -137,6 +146,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
     _generationToken?.cancel();
     _speech.stop();
     _messageController.dispose();
+    _messageFocusNode.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -446,8 +456,8 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
         return StatefulBuilder(
           builder: (sheetContext, setSheetState) {
             return SafeArea(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+              child: ListView(
+                shrinkWrap: true,
                 children: [
                   ListTile(
                     leading: const Icon(LucideIcons.paperclip),
@@ -467,6 +477,45 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
                     onTap: () {
                       Navigator.pop(sheetContext);
                       Navigator.of(context).maybePop();
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(LucideIcons.link2),
+                    title: const Text('Usar GitHub en este prompt'),
+                    subtitle: const Text('Insertar @github para leer código del repositorio'),
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      _insertGitHubMention();
+                    },
+                  ),
+                  ListTile(
+                    enabled: _hasChanges && !_githubActionBusy,
+                    leading: const Icon(LucideIcons.gitBranch),
+                    title: const Text('Publicar cambios en GitHub'),
+                    subtitle: Text(_hasChanges ? 'Crear rama nueva; la rama base queda intacta' : 'Genera cambios en Coder primero'),
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      _publishChangesToGitHub();
+                    },
+                  ),
+                  ListTile(
+                    enabled: _publishedBranch != null && !_githubActionBusy,
+                    leading: const Icon(LucideIcons.playCircle),
+                    title: const Text('Ejecutar pruebas en GitHub Actions'),
+                    subtitle: Text(_publishedBranch == null ? 'Publica una rama para ejecutar sus pruebas' : 'Rama: $_publishedBranch'),
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      _runGitHubWorkflow();
+                    },
+                  ),
+                  ListTile(
+                    enabled: _githubOwner != null && _githubRepo != null && !_githubActionBusy,
+                    leading: const Icon(LucideIcons.activity),
+                    title: const Text('Consultar resultado de pruebas'),
+                    subtitle: const Text('Ver estado y abrir una ejecución de GitHub Actions'),
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      _checkGitHubRuns();
                     },
                   ),
                   SwitchListTile(
@@ -600,7 +649,20 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
           ),
         );
 
-        _hasChanges = changed.isNotEmpty || deleted.isNotEmpty;
+        for (final item in changed) {
+          final changedPath = item is Map ? item['path']?.toString() ?? '' : item.toString();
+          if (changedPath.isEmpty) continue;
+          _lastDeletedPaths.remove(changedPath);
+          if (!_lastChangedPaths.contains(changedPath)) _lastChangedPaths.add(changedPath);
+        }
+        for (final item in deleted) {
+          final deletedPath = item.toString();
+          if (deletedPath.isEmpty) continue;
+          _lastChangedPaths.remove(deletedPath);
+          if (!_lastDeletedPaths.contains(deletedPath)) _lastDeletedPaths.add(deletedPath);
+        }
+        _hasChanges = _lastChangedPaths.isNotEmpty || _lastDeletedPaths.isNotEmpty;
+        if (changed.isNotEmpty || deleted.isNotEmpty) _publishedBranch = null;
       });
 
       await _loadFiles();
@@ -635,6 +697,302 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
     }
   }
 
+  void _insertGitHubMention() {
+    final value = _messageController.value;
+    final text = value.text;
+    final rawCursor = value.selection.baseOffset;
+    final cursor = rawCursor < 0 || rawCursor > text.length ? text.length : rawCursor;
+    final needsSpace = cursor > 0 && !RegExp(r'\s').hasMatch(text.substring(cursor - 1, cursor));
+    final insertion = needsSpace ? ' @github ' : '@github ';
+    final nextText = text.substring(0, cursor) + insertion + text.substring(cursor);
+    _messageController.value = TextEditingValue(
+      text: nextText,
+      selection: TextSelection.collapsed(offset: cursor + insertion.length),
+    );
+    _messageFocusNode.requestFocus();
+  }
+
+  Future<void> _openGitHubUrl(String rawUrl) async {
+    final uri = Uri.tryParse(rawUrl);
+    if (uri == null || uri.scheme != 'https' || uri.host != 'github.com') return;
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  Future<void> _publishChangesToGitHub() async {
+    if (!_hasChanges || _githubActionBusy) return;
+    final fileByPath = <String, FileItem>{
+      for (final file in _files.where((file) => !file.isDirectory)) file.path: file,
+    };
+    final filesPayload = <Map<String, String>>[];
+    for (final changedPath in _lastChangedPaths) {
+      final file = fileByPath[changedPath];
+      if (file == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No encontré $changedPath en el sandbox actualizado. Recarga los archivos e intenta otra vez.')),
+        );
+        return;
+      }
+      filesPayload.add({'path': changedPath, 'content': file.content});
+    }
+
+    String initialOwner = _githubOwner ?? '';
+    String initialRepo = _githubRepo ?? '';
+    final lastUserMessage = _messages.where((message) => message.fromUser).toList().reversed;
+    for (final message in lastUserMessage) {
+      final urlMatch = RegExp(r'github\.com/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)', caseSensitive: false).firstMatch(message.text);
+      final mentionMatch = RegExp(r'@github\s+([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)', caseSensitive: false).firstMatch(message.text);
+      final match = urlMatch ?? mentionMatch;
+      if (match != null) {
+        initialOwner = match.group(1) ?? initialOwner;
+        initialRepo = (match.group(2) ?? initialRepo).replaceFirst(RegExp(r'\.git$', caseSensitive: false), '');
+        break;
+      }
+    }
+
+    final ownerController = TextEditingController(text: initialOwner);
+    final repoController = TextEditingController(text: initialRepo);
+    final branchController = TextEditingController(text: _githubBaseBranch ?? 'main');
+    final target = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Publicar en GitHub'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Numination creará una rama nueva y un commit remoto. No modificará la rama base ni hará merge automáticamente.'),
+              const SizedBox(height: 14),
+              TextField(controller: ownerController, decoration: const InputDecoration(labelText: 'Propietario / usuario')),
+              TextField(controller: repoController, decoration: const InputDecoration(labelText: 'Repositorio')),
+              TextField(controller: branchController, decoration: const InputDecoration(labelText: 'Rama base'), textCapitalization: TextCapitalization.none),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancelar')),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(dialogContext, {
+                'owner': ownerController.text.trim(),
+                'repo': repoController.text.trim().replaceFirst(RegExp(r'\.git$', caseSensitive: false), ''),
+                'baseBranch': branchController.text.trim(),
+              });
+            },
+            child: const Text('Revisar cambios'),
+          ),
+        ],
+      ),
+    );
+    ownerController.dispose();
+    repoController.dispose();
+    branchController.dispose();
+    if (!mounted || target == null) return;
+    final owner = target['owner'] ?? '';
+    final repo = target['repo'] ?? '';
+    final baseBranch = target['baseBranch'] ?? '';
+    if (owner.isEmpty || repo.isEmpty || baseBranch.isEmpty || filesPayload.isEmpty && _lastDeletedPaths.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Completa el repositorio, la rama y asegúrate de tener cambios.')));
+      return;
+    }
+
+    final previewLines = <String>[
+      ...filesPayload.map((file) => '+ ${file['path']}'),
+      ..._lastDeletedPaths.map((path) => '− $path'),
+    ];
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Confirmar publicación'),
+        content: SizedBox(
+          width: 420,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Repositorio: $owner/$repo'),
+                Text('Base: $baseBranch'),
+                const SizedBox(height: 8),
+                const Text('Archivos que se incluirán en la rama nueva:'),
+                const SizedBox(height: 6),
+                SelectableText(previewLines.join('\n')),
+                const SizedBox(height: 10),
+                const Text('Revisa la rama y el diff en GitHub antes de abrir una pull request.'),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Volver')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Crear rama y commit')),
+        ],
+      ),
+    );
+    if (!mounted || confirmed != true) return;
+
+    setState(() => _githubActionBusy = true);
+    try {
+      final response = await ApiClient.post('/integrations/github/publish', {
+        'owner': owner,
+        'repo': repo,
+        'baseBranch': baseBranch,
+        'message': 'Numination: ${widget.projectName} — cambios revisados',
+        'files': filesPayload,
+        'deleted': List<String>.from(_lastDeletedPaths),
+        'confirmed': true,
+      });
+      final data = ApiClient.decode(response) as Map<String, dynamic>;
+      final branch = data['branch']?.toString() ?? '';
+      final branchUrl = data['branchUrl']?.toString() ?? '';
+      if (branch.isEmpty || branchUrl.isEmpty) throw StateError('GitHub no devolvió el enlace de la rama.');
+      setState(() {
+        _githubOwner = owner;
+        _githubRepo = repo;
+        _githubBaseBranch = baseBranch;
+        _publishedBranch = branch;
+        _lastChangedPaths.clear();
+        _lastDeletedPaths.clear();
+        _hasChanges = false;
+      });
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Rama publicada: $branch'),
+          action: SnackBarAction(label: 'Abrir rama', onPressed: () => _openGitHubUrl(branchUrl)),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('No se pudo publicar: $error')));
+    } finally {
+      if (mounted) setState(() => _githubActionBusy = false);
+    }
+  }
+
+  Future<void> _runGitHubWorkflow() async {
+    final owner = _githubOwner;
+    final repo = _githubRepo;
+    final branch = _publishedBranch;
+    if (owner == null || repo == null || branch == null || _githubActionBusy) return;
+
+    setState(() => _githubActionBusy = true);
+    try {
+      final query = Uri(queryParameters: {'owner': owner, 'repo': repo}).query;
+      final response = await ApiClient.get('/integrations/github/workflows?$query');
+      final data = ApiClient.decode(response) as Map<String, dynamic>;
+      final workflows = (data['workflows'] as List? ?? const [])
+          .whereType<Map>()
+          .map((workflow) => Map<String, dynamic>.from(workflow))
+          .where((workflow) => workflow['state']?.toString() == 'active')
+          .toList();
+      if (!mounted) return;
+      if (workflows.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No hay workflows activos en este repositorio. Para ejecutar pruebas, debe existir uno habilitado con workflow_dispatch.')));
+        return;
+      }
+
+      final selected = await showModalBottomSheet<Map<String, dynamic>>(
+        context: context,
+        showDragHandle: true,
+        builder: (sheetContext) => SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              const ListTile(title: Text('Selecciona el workflow de pruebas')),
+              for (final workflow in workflows)
+                ListTile(
+                  leading: const Icon(LucideIcons.playCircle),
+                  title: Text(workflow['name']?.toString() ?? 'Workflow'),
+                  subtitle: Text(workflow['path']?.toString() ?? ''),
+                  onTap: () => Navigator.pop(sheetContext, workflow),
+                ),
+            ],
+          ),
+        ),
+      );
+      if (!mounted || selected == null) return;
+
+      final workflowId = selected['id']?.toString() ?? selected['path']?.toString().split('/').last ?? '';
+      final dispatchResponse = await ApiClient.post('/integrations/github/workflows/dispatch', {
+        'owner': owner,
+        'repo': repo,
+        'workflowId': workflowId,
+        'ref': branch,
+        'inputs': <String, String>{},
+        'confirmed': true,
+      });
+      final dispatchData = ApiClient.decode(dispatchResponse) as Map<String, dynamic>;
+      final actionsUrl = dispatchData['actionsUrl']?.toString() ?? 'https://github.com/$owner/$repo/actions';
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('GitHub aceptó la ejecución de ${selected['name'] ?? 'las pruebas'}. El resultado todavía está pendiente.'),
+          action: SnackBarAction(label: 'Ver Actions', onPressed: () => _openGitHubUrl(actionsUrl)),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('No se pudieron iniciar las pruebas: $error')));
+    } finally {
+      if (mounted) setState(() => _githubActionBusy = false);
+    }
+  }
+
+  Future<void> _checkGitHubRuns() async {
+    final owner = _githubOwner;
+    final repo = _githubRepo;
+    if (owner == null || repo == null || _githubActionBusy) return;
+    setState(() => _githubActionBusy = true);
+    try {
+      final parameters = <String, String>{'owner': owner, 'repo': repo};
+      if (_publishedBranch != null) parameters['branch'] = _publishedBranch!;
+      final query = Uri(queryParameters: parameters).query;
+      final response = await ApiClient.get('/integrations/github/workflows/runs?$query');
+      final data = ApiClient.decode(response) as Map<String, dynamic>;
+      final runs = (data['runs'] as List? ?? const [])
+          .whereType<Map>()
+          .map((run) => Map<String, dynamic>.from(run))
+          .toList();
+      if (!mounted) return;
+      if (runs.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Todavía no hay ejecuciones registradas para esta rama.')));
+        return;
+      }
+      await showModalBottomSheet<void>(
+        context: context,
+        showDragHandle: true,
+        builder: (sheetContext) => SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              const ListTile(title: Text('Ejecuciones recientes')),
+              for (final run in runs)
+                ListTile(
+                  leading: Icon(
+                    run['conclusion'] == 'success' ? LucideIcons.checkCircle2 :
+                    run['conclusion'] == 'failure' ? LucideIcons.xCircle : LucideIcons.activity,
+                  ),
+                  title: Text(run['name']?.toString() ?? 'Workflow'),
+                  subtitle: Text('${run['status'] ?? 'desconocido'}${run['conclusion'] == null ? '' : ' · ${run['conclusion']}'} · ${run['branch'] ?? ''}'),
+                  trailing: const Icon(LucideIcons.externalLink),
+                  onTap: () {
+                    final url = run['url']?.toString() ?? '';
+                    Navigator.pop(sheetContext);
+                    _openGitHubUrl(url);
+                  },
+                ),
+            ],
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('No se pudieron consultar los resultados: $error')));
+    } finally {
+      if (mounted) setState(() => _githubActionBusy = false);
+    }
+  }
+
   Future<void> _undoChanges() async {
     try {
       final response = await ApiClient.post(
@@ -650,6 +1008,9 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
 
       setState(() {
         _hasChanges = false;
+        _lastChangedPaths.clear();
+        _lastDeletedPaths.clear();
+        _publishedBranch = null;
       });
 
       ScaffoldMessenger.of(
@@ -1301,6 +1662,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
                     Expanded(
                       child: TextField(
                         controller: _messageController,
+                        focusNode: _messageFocusNode,
                         enabled: !_isSending,
                         minLines: 1,
                         maxLines: 5,
