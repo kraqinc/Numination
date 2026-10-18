@@ -226,6 +226,7 @@ class _ResponsePartView extends StatelessWidget {
   }
 }
 
+
 class _TextResponse extends StatelessWidget {
   const _TextResponse({
     required this.text,
@@ -239,23 +240,28 @@ class _TextResponse extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final lines = text.split('\n');
+    final theme = Theme.of(context);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (final line in lines)
-          if (line.trim().isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 2),
-              child: animateCharacters
-                  ? _CharacterRevealLine(line: line, palette: palette)
-                  : _FormattedLine(line: line, palette: palette),
-            ),
-      ],
+    return SmoothMarkdown(
+      data: text,
+      styleSheet: MarkdownStyleSheet.fromTheme(theme),
+      onTapLink: (url) async {
+        final uri = Uri.tryParse(url);
+        if (uri == null ||
+            (uri.scheme != 'https' && uri.scheme != 'http')) {
+          return;
+        }
+
+        await launchUrl(
+          uri,
+          mode: LaunchMode.externalApplication,
+        );
+      },
+      selectable: true,
     );
   }
 }
+
 
 class _CharacterRevealLine extends StatefulWidget {
   const _CharacterRevealLine({required this.line, required this.palette});
