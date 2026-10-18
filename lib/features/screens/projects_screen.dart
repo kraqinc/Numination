@@ -188,9 +188,7 @@ class _ProjectsScreenState extends ConsumerState<ProjectsScreen> {
                 physics: const AlwaysScrollableScrollPhysics(),
                 children: [
                   SizedBox(height: MediaQuery.sizeOf(context).height * 0.35),
-                  Center(
-                    child: NumiLoadingAnimation(),
-                  ),
+                  Center(child: NumiLoadingAnimation()),
                 ],
               )
             : _projects.isEmpty

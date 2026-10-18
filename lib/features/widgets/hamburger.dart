@@ -602,9 +602,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
               const SizedBox(height: 16),
               Expanded(
                 child: _isLoading
-                    ? Center(
-                        child: NumiLoadingAnimation(),
-                      )
+                    ? Center(child: NumiLoadingAnimation())
                     : _chats.isEmpty
                     ? Center(
                         child: Text(

@@ -230,9 +230,7 @@ class _ArtifactsScreenState extends ConsumerState<ArtifactsScreen> {
       body: RefreshIndicator(
         onRefresh: _load,
         child: _isLoading
-            ? Center(
-                child: NumiLoadingAnimation(),
-              )
+            ? Center(child: NumiLoadingAnimation())
             : _artifacts.isEmpty
             ? _EmptyArtifactsState(errorText: _errorText, palette: palette)
             : ListView.separated(

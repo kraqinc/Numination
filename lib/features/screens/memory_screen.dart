@@ -173,9 +173,7 @@ class _MemoryScreenState extends ConsumerState<MemoryScreen> {
       body: RefreshIndicator(
         onRefresh: _load,
         child: _isLoading
-            ? Center(
-                child: NumiLoadingAnimation(),
-              )
+            ? Center(child: NumiLoadingAnimation())
             : _memories.isEmpty
             ? _EmptyMemoryState(palette: palette)
             : ListView.separated(

@@ -1357,7 +1357,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
   }
 }
 
-class _CoderMessageBubble extends StatelessWidget {
+class _CoderMessageBubble extends ConsumerWidget {
   const _CoderMessageBubble({
     required this.message,
     required this.onCopy,
@@ -1371,7 +1371,9 @@ class _CoderMessageBubble extends StatelessWidget {
   final void Function(_CoderMessage, String) onFeedback;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = ref.watch(appPaletteProvider);
+
     return Align(
       alignment: message.fromUser
           ? Alignment.centerRight
@@ -1386,24 +1388,58 @@ class _CoderMessageBubble extends StatelessWidget {
               ? CrossAxisAlignment.end
               : CrossAxisAlignment.start,
           children: [
-            Container(
-              padding: const EdgeInsets.all(13),
-              decoration: BoxDecoration(
-                color: message.fromUser
-                    ? Theme.of(
-                        context,
-                      ).colorScheme.primary.withValues(alpha: .12)
-                    : Theme.of(context).colorScheme.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Theme.of(context).dividerColor),
-              ),
-              child: message.fromUser
-                  ? SelectableText(message.text)
-                  : AiResponse(
-                      text: message.text,
-                      animateCharacters: message.animateCharacters,
+            if (message.fromUser)
+              Align(
+                alignment: Alignment.centerRight,
+                widthFactor: 1,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: MediaQuery.sizeOf(context).width * 0.78,
+                  ),
+                  child: IntrinsicWidth(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: palette.accent.withValues(alpha: 0.13),
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(18),
+                          topRight: Radius.circular(18),
+                          bottomLeft: Radius.circular(18),
+                          bottomRight: Radius.circular(5),
+                        ),
+                        border: Border.all(
+                          color: palette.accent.withValues(alpha: 0.24),
+                        ),
+                      ),
+                      child: SelectableText(
+                        message.text,
+                        style: TextStyle(
+                          color: palette.textPrimary,
+                          fontSize: 15,
+                          height: 1.45,
+                        ),
+                      ),
                     ),
-            ),
+                  ),
+                ),
+              )
+            else
+              Container(
+                padding: const EdgeInsets.all(13),
+                decoration: BoxDecoration(
+                  color: palette.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: palette.border),
+                ),
+                child: AiResponse(
+                  text: message.text,
+                  palette: palette,
+                  animateCharacters: message.animateCharacters,
+                ),
+              ),
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [

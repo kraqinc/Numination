@@ -189,9 +189,7 @@ class _LottiePreviewLoader extends StatelessWidget {
                 const NumiLoadingAnimation(size: 152),
                 const SizedBox(height: 18),
                 Text(
-                  english
-                      ? 'Building preview'
-                      : 'Construyendo vista previa',
+                  english ? 'Building preview' : 'Construyendo vista previa',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 16,

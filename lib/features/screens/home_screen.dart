@@ -1587,20 +1587,6 @@ class _EmptyState extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 70,
-              height: 70,
-              decoration: BoxDecoration(
-                color: palette.surface,
-                borderRadius: BorderRadius.circular(22),
-              ),
-              child: Icon(
-                LucideIcons.sparkles,
-                color: palette.accent,
-                size: 34,
-              ),
-            ),
-            const SizedBox(height: 20),
             Text(
               '¿Qué vamos a resolver hoy?',
               textAlign: TextAlign.center,
@@ -1755,9 +1741,7 @@ class _MessageBubble extends ConsumerWidget {
                       if (progress == null) return child;
                       return SizedBox(
                         height: 220,
-                        child: Center(
-                          child: NumiLoadingAnimation(),
-                        ),
+                        child: Center(child: NumiLoadingAnimation()),
                       );
                     },
                     errorBuilder: (context, error, stackTrace) => Container(
@@ -1779,28 +1763,52 @@ class _MessageBubble extends ConsumerWidget {
                     horizontal: 4,
                     vertical: 6,
                   ),
-                  child: AiResponse(text: message.text),
+                  child: AiResponse(text: message.text, palette: palette),
                 ),
             ] else if (isUser)
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  color: palette.accent.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(
-                    color: palette.accent.withValues(alpha: 0.25),
+              Align(
+                alignment: Alignment.centerRight,
+                widthFactor: 1,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: MediaQuery.sizeOf(context).width * 0.78,
+                  ),
+                  child: IntrinsicWidth(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: palette.accent.withValues(alpha: 0.14),
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(18),
+                          topRight: Radius.circular(18),
+                          bottomLeft: Radius.circular(18),
+                          bottomRight: Radius.circular(5),
+                        ),
+                        border: Border.all(
+                          color: palette.accent.withValues(alpha: 0.25),
+                        ),
+                      ),
+                      child: SelectableText(
+                        message.text,
+                        style: TextStyle(
+                          color: palette.textPrimary,
+                          fontSize: 15,
+                          height: 1.45,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-                child: AiResponse(text: message.text),
               )
             else
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
                 child: AiResponse(
                   text: message.text,
+                  palette: palette,
                   animateCharacters: animateCharacters,
                 ),
               ),
@@ -1931,6 +1939,16 @@ class _BottomInputBar extends ConsumerWidget {
       required VoidCallback onPressed,
       bool selected = false,
     }) {
+      final foreground = selected ? palette.accent : palette.textSecondary;
+
+      final background = selected
+          ? palette.accent.withValues(alpha: 0.13)
+          : palette.surfaceAlt.withValues(alpha: 0.45);
+
+      final borderColor = selected
+          ? palette.accent.withValues(alpha: 0.7)
+          : palette.textSecondary.withValues(alpha: 0.18);
+
       return Tooltip(
         message: label,
         child: Semantics(
@@ -1939,40 +1957,43 @@ class _BottomInputBar extends ConsumerWidget {
           label: label,
           child: Material(
             color: Colors.transparent,
-            shape: const CircleBorder(),
+            borderRadius: BorderRadius.circular(13),
             child: InkWell(
-              customBorder: const CircleBorder(),
+              borderRadius: BorderRadius.circular(13),
               onTap: onPressed,
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 180),
                 curve: Curves.easeOutCubic,
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: selected
-                      ? palette.accent.withValues(alpha: 0.15)
-                      : palette.surfaceAlt,
-                  border: Border.all(
-                    color: selected
-                        ? palette.accent.withValues(alpha: 0.8)
-                        : palette.textSecondary.withValues(alpha: 0.18),
-                    width: selected ? 1.4 : 1,
-                  ),
-                  boxShadow: selected
-                      ? [
-                          BoxShadow(
-                            color: palette.accent.withValues(alpha: 0.17),
-                            blurRadius: 12,
-                            spreadRadius: 1,
-                          ),
-                        ]
-                      : const [],
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
                 ),
-                child: Icon(
-                  icon,
-                  size: 19,
-                  color: selected ? palette.accent : palette.textSecondary,
+                decoration: BoxDecoration(
+                  color: background,
+                  borderRadius: BorderRadius.circular(13),
+                  border: Border.all(
+                    color: borderColor,
+                    width: selected ? 1.2 : 1,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(icon, size: 16, color: foreground),
+                    const SizedBox(width: 8),
+                    Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: foreground,
+                        fontSize: 12,
+                        fontWeight: selected
+                            ? FontWeight.w600
+                            : FontWeight.w500,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),

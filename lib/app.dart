@@ -89,9 +89,7 @@ class _SplashScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Scaffold(
       backgroundColor: Color(0xFFECECEC),
-      body: Center(
-        child: NumiLoadingAnimation(size: 112),
-      ),
+      body: Center(child: NumiLoadingAnimation(size: 112)),
     );
   }
 }
