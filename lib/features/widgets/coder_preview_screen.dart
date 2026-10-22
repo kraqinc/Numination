@@ -233,6 +233,26 @@ class _CoderPreviewScreenState extends State<CoderPreviewScreen> {
       ..setBackgroundColor(const Color(0xFF080A0C))
       ..setNavigationDelegate(
         NavigationDelegate(
+          onNavigationRequest: (request) {
+            final destination = Uri.tryParse(request.url);
+            final initial = Uri.tryParse(widget.previewUrl.trim());
+            if (destination == null ||
+                destination.scheme != 'https' ||
+                destination.host.isEmpty ||
+                destination.userInfo.isNotEmpty) {
+              return NavigationDecision.prevent;
+            }
+
+            if (initial != null &&
+                destination.scheme == initial.scheme &&
+                destination.host == initial.host &&
+                destination.port == initial.port) {
+              return NavigationDecision.navigate;
+            }
+
+            unawaited(_openNavigationExternally(destination));
+            return NavigationDecision.prevent;
+          },
           onProgress: (progress) {
             if (!mounted) {
               return;
@@ -280,12 +300,30 @@ class _CoderPreviewScreenState extends State<CoderPreviewScreen> {
     _loadPreview();
   }
 
+  Future<void> _openNavigationExternally(Uri uri) async {
+    try {
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!opened && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppErrorMessages.previewLoadFailed)),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppErrorMessages.previewLoadFailed)),
+        );
+      }
+    }
+  }
+
   Future<void> _loadPreview() async {
     final uri = Uri.tryParse(widget.previewUrl.trim());
 
     if (uri == null ||
         uri.host.isEmpty ||
-        (uri.scheme != 'https' && uri.scheme != 'http')) {
+        uri.scheme != 'https' ||
+        uri.userInfo.isNotEmpty) {
       if (mounted) {
         setState(() {
           _loading = false;
@@ -454,7 +492,8 @@ class _CoderPreviewScreenState extends State<CoderPreviewScreen> {
 
     if (uri == null ||
         uri.host.isEmpty ||
-        (uri.scheme != 'https' && uri.scheme != 'http')) {
+        uri.scheme != 'https' ||
+        uri.userInfo.isNotEmpty) {
       if (mounted) {
         setState(() {
           _error = AppErrorMessages.previewInvalidAddress;

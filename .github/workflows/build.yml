@@ -9,12 +9,14 @@ on:
       - main
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   flutter:
     name: Flutter analyze & test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - uses: actions/checkout@v4
@@ -43,33 +45,26 @@ jobs:
           ENV
 
       - name: Get dependencies
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
+
+      - name: Scan dependency lockfile with OSV
+        uses: google/osv-scanner-action/osv-scanner-action@7f58dd6750d78fc29a900ba64b1a0f946f62fba4 # v2.6.0
+        with:
+          scan-args: |-
+            --lockfile=pubspec.lock
 
       - name: Analyze
         run: flutter analyze
 
       - name: Test
-        run: |
-          # Exclude dependency_analyzer_test.dart (known failing heuristic) so CI stays green.
-          # Same jobs as before: flutter + android + ios.
-          shopt -s nullglob
-          tests=()
-          for f in test/**/*_test.dart test/*_test.dart; do
-            case "$f" in
-              *dependency_analyzer_test.dart) continue ;;
-              *) tests+=("$f") ;;
-            esac
-          done
-          if [ ${#tests[@]} -eq 0 ]; then
-            echo "No tests to run"
-            exit 0
-          fi
-          flutter test "${tests[@]}"
+        run: flutter test
 
   android:
     name: Android APK
     needs: flutter
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
@@ -152,7 +147,7 @@ jobs:
           rm -f "$SOURCE_KEYSTORE"
 
       - name: Get dependencies
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
 
       - name: Build release APK
         env:
@@ -354,7 +349,7 @@ jobs:
           ENV
 
       - name: Get dependencies
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
 
       - name: Build iOS
         run: flutter build ios --release --no-codesign

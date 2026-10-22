@@ -165,13 +165,18 @@ class ApiClient {
 
   static Uri _uri(String path) {
     final base = Env.apiBaseUrl.trim();
+    final parsedBase = Uri.tryParse(base);
 
-    if (base.isEmpty ||
-        !(base.startsWith('http://') || base.startsWith('https://'))) {
+    if (parsedBase == null ||
+        parsedBase.scheme != 'https' ||
+        parsedBase.host.isEmpty ||
+        parsedBase.userInfo.isNotEmpty ||
+        parsedBase.hasQuery ||
+        parsedBase.hasFragment) {
       throw ApiException(-1, AppErrorMessages.configurationError);
     }
 
-    final normalizedBase = base.replaceFirst(RegExp(r'/+$'), '');
+    final normalizedBase = parsedBase.toString().replaceFirst(RegExp(r'/+$'), '');
     final normalizedPath = path.startsWith('/') ? path : '/$path';
 
     return Uri.parse('$normalizedBase$normalizedPath');

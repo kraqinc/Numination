@@ -42,7 +42,7 @@ android {
             create("release") {
                 storeFile = file(keystorePath)
 
-                storeType = "PKCS12"
+                storeType = "JKS"
 
                 storePassword =
                     keystorePassword ?: ""

@@ -168,7 +168,10 @@ class _MarkdownContent extends StatelessWidget {
   Future<void> _openLink(String url) async {
     final uri = Uri.tryParse(url);
 
-    if (uri == null || (uri.scheme != 'https' && uri.scheme != 'http')) {
+    if (uri == null ||
+        uri.scheme != 'https' ||
+        uri.host.isEmpty ||
+        uri.userInfo.isNotEmpty) {
       return;
     }
 

@@ -59,7 +59,18 @@ class UpdateService {
   }
 
   static Uri _endpoint(String action, {Map<String, String> query = const {}}) {
-    final base = Env.supabaseUrl.trim().replaceFirst(RegExp(r'/+$'), '');
+    final parsedBase = Uri.tryParse(Env.supabaseUrl.trim());
+    if (parsedBase == null ||
+        parsedBase.scheme != 'https' ||
+        parsedBase.host.isEmpty ||
+        parsedBase.userInfo.isNotEmpty ||
+        parsedBase.hasQuery ||
+        parsedBase.hasFragment) {
+      throw const FormatException(
+        'Numination updater requires a valid HTTPS Supabase URL.',
+      );
+    }
+    final base = parsedBase.toString().replaceFirst(RegExp(r'/+$'), '');
 
     return Uri.parse(
       '$base/functions/v1/numination-updater',
