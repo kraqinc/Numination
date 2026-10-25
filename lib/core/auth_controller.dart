@@ -84,6 +84,10 @@ class AuthController extends Notifier<AuthState> {
 
         ApiClient.setToken(session.accessToken);
 
+        if (authState.event == supabase.AuthChangeEvent.signedIn) {
+          unawaited(_reportNewLogin(session.user));
+        }
+
         if (_passwordRecoveryLinkPending) {
           _passwordRecoveryLinkPending = false;
           _passwordRecoveryActive = true;
@@ -139,6 +143,18 @@ class AuthController extends Notifier<AuthState> {
 
     unawaited(_syncWithBackend(session.user));
     return const AuthInitial();
+  }
+
+  Future<void> _reportNewLogin(supabase.User user) async {
+    try {
+      final provider = user.appMetadata['provider']?.toString() ?? 'unknown';
+      final response = await ApiClient.post('/auth/login-event', {
+        'provider': provider,
+      });
+      ApiClient.decode(response);
+    } catch (_) {
+      // A mail provider outage must never block account sign-in.
+    }
   }
 
   Future<void> _syncWithBackend(supabase.User user) async {

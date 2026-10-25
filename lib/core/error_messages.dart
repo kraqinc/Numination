@@ -133,6 +133,10 @@ class AppErrorMessages {
   }) {
     final detail = '${code ?? ''} ${rawMessage ?? ''}'.toLowerCase();
 
+    if ((code ?? '').toUpperCase() == 'AI_TEMPORARILY_UNAVAILABLE') {
+      return aiUnavailable;
+    }
+
     if (detail.contains('requested path is invalid') ||
         detail.contains('preview_invalid_path')) {
       return previewInvalidAddress;

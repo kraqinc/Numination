@@ -12,6 +12,7 @@ import 'notification_screen.dart';
 import 'privacy_screen.dart';
 import 'subscription_coder_screen.dart';
 import 'credits_hub_screen.dart';
+import 'email_preferences_screen.dart';
 import 'plans_screen.dart';
 import 'theme_screen.dart';
 import 'package:numination/core/numi_icons.dart';
@@ -62,6 +63,14 @@ class SettingsScreen extends ConsumerWidget {
             label: AppLocale.t('notifications'),
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const NotificationScreen()),
+            ),
+          ),
+          _SettingsTile(
+            icon: Icons.mark_email_unread_outlined,
+            label: 'Correos de Numination',
+            subtitle: 'Alertas de seguridad, novedades y newsletter',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const EmailPreferencesScreen()),
             ),
           ),
           _SettingsTile(

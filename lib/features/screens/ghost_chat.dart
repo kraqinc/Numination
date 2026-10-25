@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api.dart';
+import '../../core/error_messages.dart';
 import '../../core/i18n.dart';
 import '../../core/models.dart';
 import '../../core/theme_controller.dart';
@@ -59,14 +60,21 @@ class _GhostChatScreenState extends ConsumerState<GhostChatScreen> {
         );
       });
     } catch (e) {
-      setState(() {
-        _messages.add(
-          const _GhostMessage(
-            text: 'No se pudo contactar al servidor. Intenta de nuevo.',
-            fromUser: false,
+      if (!mounted) return;
+      final message = e is ApiException
+          ? e.message
+          : AppErrorMessages.fromException(
+              e,
+              fallback: AppErrorMessages.aiUnavailable,
+            );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '$message No se descontaron créditos si la IA no respondió.',
           ),
-        );
-      });
+          duration: const Duration(seconds: 5),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _isSending = false);
       _scrollToBottom();

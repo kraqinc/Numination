@@ -484,7 +484,9 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
                   ListTile(
                     leading: const Icon(LucideIcons.link2),
                     title: const Text('Usar GitHub en este prompt'),
-                    subtitle: const Text('Insertar @github para leer código del repositorio'),
+                    subtitle: const Text(
+                      'Insertar @github para leer código del repositorio',
+                    ),
                     onTap: () {
                       Navigator.pop(sheetContext);
                       _insertGitHubMention();
@@ -494,7 +496,11 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
                     enabled: _hasChanges && !_githubActionBusy,
                     leading: const Icon(LucideIcons.gitBranch),
                     title: const Text('Publicar cambios en GitHub'),
-                    subtitle: Text(_hasChanges ? 'Crear rama nueva; la rama base queda intacta' : 'Genera cambios en Coder primero'),
+                    subtitle: Text(
+                      _hasChanges
+                          ? 'Crear rama nueva; la rama base queda intacta'
+                          : 'Genera cambios en Coder primero',
+                    ),
                     onTap: () {
                       Navigator.pop(sheetContext);
                       _publishChangesToGitHub();
@@ -504,17 +510,26 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
                     enabled: _publishedBranch != null && !_githubActionBusy,
                     leading: const Icon(LucideIcons.playCircle),
                     title: const Text('Ejecutar pruebas en GitHub Actions'),
-                    subtitle: Text(_publishedBranch == null ? 'Publica una rama para ejecutar sus pruebas' : 'Rama: $_publishedBranch'),
+                    subtitle: Text(
+                      _publishedBranch == null
+                          ? 'Publica una rama para ejecutar sus pruebas'
+                          : 'Rama: $_publishedBranch',
+                    ),
                     onTap: () {
                       Navigator.pop(sheetContext);
                       _runGitHubWorkflow();
                     },
                   ),
                   ListTile(
-                    enabled: _githubOwner != null && _githubRepo != null && !_githubActionBusy,
+                    enabled:
+                        _githubOwner != null &&
+                        _githubRepo != null &&
+                        !_githubActionBusy,
                     leading: const Icon(LucideIcons.activity),
                     title: const Text('Consultar resultado de pruebas'),
-                    subtitle: const Text('Ver estado y abrir una ejecución de GitHub Actions'),
+                    subtitle: const Text(
+                      'Ver estado y abrir una ejecución de GitHub Actions',
+                    ),
                     onTap: () {
                       Navigator.pop(sheetContext);
                       _checkGitHubRuns();
@@ -652,18 +667,25 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
         );
 
         for (final item in changed) {
-          final changedPath = item is Map ? item['path']?.toString() ?? '' : item.toString();
+          final changedPath = item is Map
+              ? item['path']?.toString() ?? ''
+              : item.toString();
           if (changedPath.isEmpty) continue;
           _lastDeletedPaths.remove(changedPath);
-          if (!_lastChangedPaths.contains(changedPath)) _lastChangedPaths.add(changedPath);
+          if (!_lastChangedPaths.contains(changedPath)) {
+            _lastChangedPaths.add(changedPath);
+          }
         }
         for (final item in deleted) {
           final deletedPath = item.toString();
           if (deletedPath.isEmpty) continue;
           _lastChangedPaths.remove(deletedPath);
-          if (!_lastDeletedPaths.contains(deletedPath)) _lastDeletedPaths.add(deletedPath);
+          if (!_lastDeletedPaths.contains(deletedPath)) {
+            _lastDeletedPaths.add(deletedPath);
+          }
         }
-        _hasChanges = _lastChangedPaths.isNotEmpty || _lastDeletedPaths.isNotEmpty;
+        _hasChanges =
+            _lastChangedPaths.isNotEmpty || _lastDeletedPaths.isNotEmpty;
         if (changed.isNotEmpty || deleted.isNotEmpty) _publishedBranch = null;
       });
 
@@ -672,18 +694,24 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
       return;
     } on ApiException catch (e) {
       if (!mounted || token.isCancelled) return;
-
-      setState(() {
-        _messages.add(_CoderMessage(text: e.message, fromUser: false));
-      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${e.message}\nNo se cobra una solicitud que no terminó correctamente.',
+          ),
+          duration: const Duration(seconds: 5),
+        ),
+      );
     } catch (_) {
       if (!mounted || token.isCancelled) return;
-
-      setState(() {
-        _messages.add(
-          _CoderMessage(text: AppErrorMessages.aiUnavailable, fromUser: false),
-        );
-      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${AppErrorMessages.aiUnavailable}\nNo se cobra una solicitud que no terminó correctamente.',
+          ),
+          duration: const Duration(seconds: 5),
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -703,10 +731,15 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
     final value = _messageController.value;
     final text = value.text;
     final rawCursor = value.selection.baseOffset;
-    final cursor = rawCursor < 0 || rawCursor > text.length ? text.length : rawCursor;
-    final needsSpace = cursor > 0 && !RegExp(r'\s').hasMatch(text.substring(cursor - 1, cursor));
+    final cursor = rawCursor < 0 || rawCursor > text.length
+        ? text.length
+        : rawCursor;
+    final needsSpace =
+        cursor > 0 &&
+        !RegExp(r'\s').hasMatch(text.substring(cursor - 1, cursor));
     final insertion = needsSpace ? ' @github ' : '@github ';
-    final nextText = text.substring(0, cursor) + insertion + text.substring(cursor);
+    final nextText =
+        text.substring(0, cursor) + insertion + text.substring(cursor);
     _messageController.value = TextEditingValue(
       text: nextText,
       selection: TextSelection.collapsed(offset: cursor + insertion.length),
@@ -716,21 +749,28 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
 
   Future<void> _openGitHubUrl(String rawUrl) async {
     final uri = Uri.tryParse(rawUrl);
-    if (uri == null || uri.scheme != 'https' || uri.host != 'github.com') return;
+    if (uri == null || uri.scheme != 'https' || uri.host != 'github.com') {
+      return;
+    }
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   Future<void> _publishChangesToGitHub() async {
     if (!_hasChanges || _githubActionBusy) return;
     final fileByPath = <String, FileItem>{
-      for (final file in _files.where((file) => !file.isDirectory)) file.path: file,
+      for (final file in _files.where((file) => !file.isDirectory))
+        file.path: file,
     };
     final filesPayload = <Map<String, String>>[];
     for (final changedPath in _lastChangedPaths) {
       final file = fileByPath[changedPath];
       if (file == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('No encontré $changedPath en el sandbox actualizado. Recarga los archivos e intenta otra vez.')),
+          SnackBar(
+            content: Text(
+              'No encontré $changedPath en el sandbox actualizado. Recarga los archivos e intenta otra vez.',
+            ),
+          ),
         );
         return;
       }
@@ -739,21 +779,35 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
 
     String initialOwner = _githubOwner ?? '';
     String initialRepo = _githubRepo ?? '';
-    final lastUserMessage = _messages.where((message) => message.fromUser).toList().reversed;
+    final lastUserMessage = _messages
+        .where((message) => message.fromUser)
+        .toList()
+        .reversed;
     for (final message in lastUserMessage) {
-      final urlMatch = RegExp(r'github\.com/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)', caseSensitive: false).firstMatch(message.text);
-      final mentionMatch = RegExp(r'@github\s+([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)', caseSensitive: false).firstMatch(message.text);
+      final urlMatch = RegExp(
+        r'github\.com/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)',
+        caseSensitive: false,
+      ).firstMatch(message.text);
+      final mentionMatch = RegExp(
+        r'@github\s+([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)',
+        caseSensitive: false,
+      ).firstMatch(message.text);
       final match = urlMatch ?? mentionMatch;
       if (match != null) {
         initialOwner = match.group(1) ?? initialOwner;
-        initialRepo = (match.group(2) ?? initialRepo).replaceFirst(RegExp(r'\.git$', caseSensitive: false), '');
+        initialRepo = (match.group(2) ?? initialRepo).replaceFirst(
+          RegExp(r'\.git$', caseSensitive: false),
+          '',
+        );
         break;
       }
     }
 
     final ownerController = TextEditingController(text: initialOwner);
     final repoController = TextEditingController(text: initialRepo);
-    final branchController = TextEditingController(text: _githubBaseBranch ?? 'main');
+    final branchController = TextEditingController(
+      text: _githubBaseBranch ?? 'main',
+    );
     final target = await showDialog<Map<String, String>>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -762,21 +816,41 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Numination creará una rama nueva y un commit remoto. No modificará la rama base ni hará merge automáticamente.'),
+              const Text(
+                'Numination creará una rama nueva y un commit remoto. No modificará la rama base ni hará merge automáticamente.',
+              ),
               const SizedBox(height: 14),
-              TextField(controller: ownerController, decoration: const InputDecoration(labelText: 'Propietario / usuario')),
-              TextField(controller: repoController, decoration: const InputDecoration(labelText: 'Repositorio')),
-              TextField(controller: branchController, decoration: const InputDecoration(labelText: 'Rama base'), textCapitalization: TextCapitalization.none),
+              TextField(
+                controller: ownerController,
+                decoration: const InputDecoration(
+                  labelText: 'Propietario / usuario',
+                ),
+              ),
+              TextField(
+                controller: repoController,
+                decoration: const InputDecoration(labelText: 'Repositorio'),
+              ),
+              TextField(
+                controller: branchController,
+                decoration: const InputDecoration(labelText: 'Rama base'),
+                textCapitalization: TextCapitalization.none,
+              ),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancelar'),
+          ),
           FilledButton(
             onPressed: () {
               Navigator.pop(dialogContext, {
                 'owner': ownerController.text.trim(),
-                'repo': repoController.text.trim().replaceFirst(RegExp(r'\.git$', caseSensitive: false), ''),
+                'repo': repoController.text.trim().replaceFirst(
+                  RegExp(r'\.git$', caseSensitive: false),
+                  '',
+                ),
                 'baseBranch': branchController.text.trim(),
               });
             },
@@ -792,8 +866,17 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
     final owner = target['owner'] ?? '';
     final repo = target['repo'] ?? '';
     final baseBranch = target['baseBranch'] ?? '';
-    if (owner.isEmpty || repo.isEmpty || baseBranch.isEmpty || filesPayload.isEmpty && _lastDeletedPaths.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Completa el repositorio, la rama y asegúrate de tener cambios.')));
+    if (owner.isEmpty ||
+        repo.isEmpty ||
+        baseBranch.isEmpty ||
+        filesPayload.isEmpty && _lastDeletedPaths.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Completa el repositorio, la rama y asegúrate de tener cambios.',
+          ),
+        ),
+      );
       return;
     }
 
@@ -819,14 +902,22 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
                 const SizedBox(height: 6),
                 SelectableText(previewLines.join('\n')),
                 const SizedBox(height: 10),
-                const Text('Revisa la rama y el diff en GitHub antes de abrir una pull request.'),
+                const Text(
+                  'Revisa la rama y el diff en GitHub antes de abrir una pull request.',
+                ),
               ],
             ),
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Volver')),
-          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Crear rama y commit')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Volver'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Crear rama y commit'),
+          ),
         ],
       ),
     );
@@ -846,7 +937,9 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
       final data = ApiClient.decode(response) as Map<String, dynamic>;
       final branch = data['branch']?.toString() ?? '';
       final branchUrl = data['branchUrl']?.toString() ?? '';
-      if (branch.isEmpty || branchUrl.isEmpty) throw StateError('GitHub no devolvió el enlace de la rama.');
+      if (branch.isEmpty || branchUrl.isEmpty) {
+        throw StateError('GitHub no devolvió el enlace de la rama.');
+      }
       setState(() {
         _githubOwner = owner;
         _githubRepo = repo;
@@ -860,12 +953,17 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Rama publicada: $branch'),
-          action: SnackBarAction(label: 'Abrir rama', onPressed: () => _openGitHubUrl(branchUrl)),
+          action: SnackBarAction(
+            label: 'Abrir rama',
+            onPressed: () => _openGitHubUrl(branchUrl),
+          ),
         ),
       );
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('No se pudo publicar: $error')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('No se pudo publicar: $error')));
     } finally {
       if (mounted) setState(() => _githubActionBusy = false);
     }
@@ -875,12 +973,16 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
     final owner = _githubOwner;
     final repo = _githubRepo;
     final branch = _publishedBranch;
-    if (owner == null || repo == null || branch == null || _githubActionBusy) return;
+    if (owner == null || repo == null || branch == null || _githubActionBusy) {
+      return;
+    }
 
     setState(() => _githubActionBusy = true);
     try {
       final query = Uri(queryParameters: {'owner': owner, 'repo': repo}).query;
-      final response = await ApiClient.get('/integrations/github/workflows?$query');
+      final response = await ApiClient.get(
+        '/integrations/github/workflows?$query',
+      );
       final data = ApiClient.decode(response) as Map<String, dynamic>;
       final workflows = (data['workflows'] as List? ?? const [])
           .whereType<Map>()
@@ -889,7 +991,13 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
           .toList();
       if (!mounted) return;
       if (workflows.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No hay workflows activos en este repositorio. Para ejecutar pruebas, debe existir uno habilitado con workflow_dispatch.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'No hay workflows activos en este repositorio. Para ejecutar pruebas, debe existir uno habilitado con workflow_dispatch.',
+            ),
+          ),
+        );
         return;
       }
 
@@ -914,27 +1022,41 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
       );
       if (!mounted || selected == null) return;
 
-      final workflowId = selected['id']?.toString() ?? selected['path']?.toString().split('/').last ?? '';
-      final dispatchResponse = await ApiClient.post('/integrations/github/workflows/dispatch', {
-        'owner': owner,
-        'repo': repo,
-        'workflowId': workflowId,
-        'ref': branch,
-        'inputs': <String, String>{},
-        'confirmed': true,
-      });
-      final dispatchData = ApiClient.decode(dispatchResponse) as Map<String, dynamic>;
-      final actionsUrl = dispatchData['actionsUrl']?.toString() ?? 'https://github.com/$owner/$repo/actions';
+      final workflowId =
+          selected['id']?.toString() ??
+          selected['path']?.toString().split('/').last ??
+          '';
+      final dispatchResponse =
+          await ApiClient.post('/integrations/github/workflows/dispatch', {
+            'owner': owner,
+            'repo': repo,
+            'workflowId': workflowId,
+            'ref': branch,
+            'inputs': <String, String>{},
+            'confirmed': true,
+          });
+      final dispatchData =
+          ApiClient.decode(dispatchResponse) as Map<String, dynamic>;
+      final actionsUrl =
+          dispatchData['actionsUrl']?.toString() ??
+          'https://github.com/$owner/$repo/actions';
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('GitHub aceptó la ejecución de ${selected['name'] ?? 'las pruebas'}. El resultado todavía está pendiente.'),
-          action: SnackBarAction(label: 'Ver Actions', onPressed: () => _openGitHubUrl(actionsUrl)),
+          content: Text(
+            'GitHub aceptó la ejecución de ${selected['name'] ?? 'las pruebas'}. El resultado todavía está pendiente.',
+          ),
+          action: SnackBarAction(
+            label: 'Ver Actions',
+            onPressed: () => _openGitHubUrl(actionsUrl),
+          ),
         ),
       );
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('No se pudieron iniciar las pruebas: $error')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudieron iniciar las pruebas: $error')),
+      );
     } finally {
       if (mounted) setState(() => _githubActionBusy = false);
     }
@@ -949,7 +1071,9 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
       final parameters = <String, String>{'owner': owner, 'repo': repo};
       if (_publishedBranch != null) parameters['branch'] = _publishedBranch!;
       final query = Uri(queryParameters: parameters).query;
-      final response = await ApiClient.get('/integrations/github/workflows/runs?$query');
+      final response = await ApiClient.get(
+        '/integrations/github/workflows/runs?$query',
+      );
       final data = ApiClient.decode(response) as Map<String, dynamic>;
       final runs = (data['runs'] as List? ?? const [])
           .whereType<Map>()
@@ -957,7 +1081,13 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
           .toList();
       if (!mounted) return;
       if (runs.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Todavía no hay ejecuciones registradas para esta rama.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Todavía no hay ejecuciones registradas para esta rama.',
+            ),
+          ),
+        );
         return;
       }
       await showModalBottomSheet<void>(
@@ -971,11 +1101,16 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
               for (final run in runs)
                 ListTile(
                   leading: Icon(
-                    run['conclusion'] == 'success' ? LucideIcons.checkCircle2 :
-                    run['conclusion'] == 'failure' ? LucideIcons.xCircle : LucideIcons.activity,
+                    run['conclusion'] == 'success'
+                        ? LucideIcons.checkCircle2
+                        : run['conclusion'] == 'failure'
+                        ? LucideIcons.xCircle
+                        : LucideIcons.activity,
                   ),
                   title: Text(run['name']?.toString() ?? 'Workflow'),
-                  subtitle: Text('${run['status'] ?? 'desconocido'}${run['conclusion'] == null ? '' : ' · ${run['conclusion']}'} · ${run['branch'] ?? ''}'),
+                  subtitle: Text(
+                    '${run['status'] ?? 'desconocido'}${run['conclusion'] == null ? '' : ' · ${run['conclusion']}'} · ${run['branch'] ?? ''}',
+                  ),
                   trailing: const Icon(LucideIcons.externalLink),
                   onTap: () {
                     final url = run['url']?.toString() ?? '';
@@ -989,7 +1124,11 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
       );
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('No se pudieron consultar los resultados: $error')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudieron consultar los resultados: $error'),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _githubActionBusy = false);
     }
@@ -1146,6 +1285,32 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
           projectId: widget.projectId,
           projectName: widget.projectName,
           file: file,
+          onFileChanged: (editedFile) {
+            if (!mounted) return;
+            setState(() {
+              final index = _files.indexWhere(
+                (item) => item.id == editedFile.id,
+              );
+              if (index >= 0) {
+                _files[index] = editedFile;
+              } else {
+                _files.add(editedFile);
+              }
+              if (editedFile.content != file.content) {
+                _lastDeletedPaths.remove(editedFile.path);
+                if (!_lastChangedPaths.contains(editedFile.path)) {
+                  _lastChangedPaths.add(editedFile.path);
+                }
+                _hasChanges = true;
+                _publishedBranch = null;
+              } else {
+                _lastChangedPaths.remove(editedFile.path);
+                _hasChanges =
+                    _lastChangedPaths.isNotEmpty ||
+                    _lastDeletedPaths.isNotEmpty;
+              }
+            });
+          },
         ),
       ),
     );
@@ -1171,9 +1336,12 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
     });
 
     if (result.requestCoderReview) {
-      final prompt = 'Revisa el archivo `${editedFile.path}` que adjunto y corrige los errores reales de sintaxis o lógica que encuentres. La versión adjunta es la fuente de verdad. Modifica únicamente este archivo, no elimines ni crees otros archivos y conserva el comportamiento que ya funciona. Aplica la corrección en el proyecto y explica brevemente los cambios.';
+      final prompt =
+          'Revisa el archivo `${editedFile.path}` que adjunto y corrige los errores reales de sintaxis o lógica que encuentres. La versión adjunta es la fuente de verdad. Modifica únicamente este archivo, no elimines ni crees otros archivos y conserva el comportamiento que ya funciona. Aplica la corrección en el proyecto y explica brevemente los cambios.';
       setState(() {
-        _pendingAttachments.removeWhere((attachment) => attachment.name == editedFile.path);
+        _pendingAttachments.removeWhere(
+          (attachment) => attachment.name == editedFile.path,
+        );
         _pendingAttachments.add(
           _CoderAttachment(
             name: editedFile.path,
@@ -1182,7 +1350,9 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
           ),
         );
         _messageController.text = prompt;
-        _messageController.selection = TextSelection.collapsed(offset: prompt.length);
+        _messageController.selection = TextSelection.collapsed(
+          offset: prompt.length,
+        );
       });
       await _sendMessage();
     }

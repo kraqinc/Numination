@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -44,11 +46,13 @@ class CoderEditorScreen extends ConsumerStatefulWidget {
     required this.projectId,
     required this.projectName,
     required this.file,
+    this.onFileChanged,
   });
 
   final String projectId;
   final String projectName;
   final FileItem file;
+  final ValueChanged<FileItem>? onFileChanged;
 
   @override
   ConsumerState<CoderEditorScreen> createState() => _CoderEditorScreenState();
@@ -65,6 +69,9 @@ class _CoderEditorScreenState extends ConsumerState<CoderEditorScreen> {
   bool _allowPop = false;
   bool _applyingLocalFix = false;
   bool _fixWasApplied = false;
+  String? _lastDiffBefore;
+  String? _lastDiffAfter;
+  Timer? _autoSaveTimer;
   String? _statusMessage;
 
   String get _extension {
@@ -93,6 +100,7 @@ class _CoderEditorScreenState extends ConsumerState<CoderEditorScreen> {
 
   @override
   void dispose() {
+    _autoSaveTimer?.cancel();
     _controller.removeListener(_handleCodeChanged);
     _controller.dispose();
     _undoController.removeListener(_refreshUndoState);
@@ -214,6 +222,8 @@ class _CoderEditorScreenState extends ConsumerState<CoderEditorScreen> {
           text[match.end] == '(' &&
           cursor == match.end + 1) {
         final corrected = text.replaceRange(match.start, match.end, 'print');
+        _lastDiffBefore = 'pint';
+        _lastDiffAfter = 'print';
         _applyingLocalFix = true;
         _controller.value = _controller.value.copyWith(
           text: corrected,
@@ -223,9 +233,6 @@ class _CoderEditorScreenState extends ConsumerState<CoderEditorScreen> {
         _applyingLocalFix = false;
         _fixWasApplied = true;
         _statusMessage = 'Corrección instantánea: pint → print';
-      } else if (_statusMessage?.startsWith('Corrección instantánea:') == true) {
-        _statusMessage = null;
-        _fixWasApplied = false;
       }
     }
 
@@ -233,6 +240,13 @@ class _CoderEditorScreenState extends ConsumerState<CoderEditorScreen> {
     setState(() {
       _dirty = _controller.text != _savedContent;
     });
+    widget.onFileChanged?.call(_fileWithContent(_controller.text));
+    _autoSaveTimer?.cancel();
+    if (_dirty) {
+      _autoSaveTimer = Timer(const Duration(milliseconds: 850), () {
+        if (mounted && _dirty) unawaited(_save(silent: true));
+      });
+    }
   }
 
   FileItem _fileWithContent(String content) => FileItem(
@@ -245,11 +259,13 @@ class _CoderEditorScreenState extends ConsumerState<CoderEditorScreen> {
     parentId: widget.file.parentId,
   );
 
-  Future<bool> _save() async {
+  Future<bool> _save({bool silent = false}) async {
     if (_saving) return false;
     final content = _controller.text;
     if (content == _savedContent) {
-      if (mounted) setState(() => _statusMessage = 'Todos los cambios están guardados.');
+      if (!silent && mounted) {
+        setState(() => _statusMessage = 'Todos los cambios están guardados.');
+      }
       return true;
     }
 
@@ -258,6 +274,7 @@ class _CoderEditorScreenState extends ConsumerState<CoderEditorScreen> {
       _statusMessage = 'Guardando en el proyecto…';
     });
 
+    var saveSucceeded = false;
     try {
       final response = await ApiClient.put(
         '/projects/${Uri.encodeComponent(widget.projectId)}/files/${Uri.encodeComponent(widget.file.id)}',
@@ -265,21 +282,44 @@ class _CoderEditorScreenState extends ConsumerState<CoderEditorScreen> {
       );
       ApiClient.decode(response);
       if (!mounted) return false;
+      saveSucceeded = true;
       setState(() {
         _savedContent = content;
-        _dirty = false;
-        _statusMessage = 'Guardado en el proyecto';
+        _dirty = _controller.text != content;
+        _statusMessage = _dirty
+            ? 'Guardado; hay cambios más recientes pendientes'
+            : 'Guardado en el proyecto';
       });
       return true;
     } catch (error) {
       if (!mounted) return false;
-      setState(() => _statusMessage = 'No se pudo guardar. Revisa la conexión e inténtalo de nuevo.');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error is ApiException ? error.message : 'No se pudo guardar el archivo.')),
+      setState(
+        () => _statusMessage = silent
+            ? 'Autoguardado pendiente; se conservaron tus cambios'
+            : 'No se pudo guardar. Revisa la conexión e inténtalo de nuevo.',
       );
+      if (!silent) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              error is ApiException
+                  ? error.message
+                  : 'No se pudo guardar el archivo.',
+            ),
+          ),
+        );
+      }
       return false;
     } finally {
-      if (mounted) setState(() => _saving = false);
+      if (mounted) {
+        setState(() => _saving = false);
+        if (saveSucceeded && _dirty) {
+          _autoSaveTimer?.cancel();
+          _autoSaveTimer = Timer(const Duration(milliseconds: 850), () {
+            if (mounted && _dirty) unawaited(_save(silent: true));
+          });
+        }
+      }
     }
   }
 
@@ -311,7 +351,9 @@ class _CoderEditorScreenState extends ConsumerState<CoderEditorScreen> {
         context: context,
         builder: (dialogContext) => AlertDialog(
           title: const Text('Cambios sin guardar'),
-          content: const Text('Guarda el archivo antes de salir o descarta los cambios de esta sesión.'),
+          content: const Text(
+            'Guarda el archivo antes de salir o descarta los cambios de esta sesión.',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, 'stay'),
@@ -336,15 +378,19 @@ class _CoderEditorScreenState extends ConsumerState<CoderEditorScreen> {
     setState(() => _allowPop = true);
     await WidgetsBinding.instance.endOfFrame;
     if (!mounted) return;
-    Navigator.of(context).pop(
-      CoderEditorResult(file: _fileWithContent(_savedContent)),
-    );
+    Navigator.of(
+      context,
+    ).pop(CoderEditorResult(file: _fileWithContent(_savedContent)));
   }
 
   void _applyAvailableQuickFixes() {
     if (!_isPython) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Las correcciones rápidas locales están disponibles para Python. Usa “Corregir con Coder” para revisar otros lenguajes.')),
+        const SnackBar(
+          content: Text(
+            'Las correcciones rápidas locales están disponibles para Python. Usa “Corregir con Coder” para revisar otros lenguajes.',
+          ),
+        ),
       );
       return;
     }
@@ -358,7 +404,11 @@ class _CoderEditorScreenState extends ConsumerState<CoderEditorScreen> {
     }
     if (corrected == _controller.text) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se encontraron errores conocidos para corregir automáticamente.')),
+        const SnackBar(
+          content: Text(
+            'No se encontraron errores conocidos para corregir automáticamente.',
+          ),
+        ),
       );
       return;
     }
@@ -368,17 +418,26 @@ class _CoderEditorScreenState extends ConsumerState<CoderEditorScreen> {
       composing: TextRange.empty,
     );
     _fixWasApplied = true;
+    _lastDiffBefore = 'pint';
+    _lastDiffAfter = 'print';
     setState(() {
       _dirty = _controller.text != _savedContent;
       _statusMessage = 'Corrección rápida aplicada: pint → print';
     });
+    widget.onFileChanged?.call(_fileWithContent(_controller.text));
+    _autoSaveTimer?.cancel();
+    if (_dirty) {
+      _autoSaveTimer = Timer(const Duration(milliseconds: 850), () {
+        if (mounted && _dirty) unawaited(_save(silent: true));
+      });
+    }
   }
 
   void _copyCurrentFile() {
     Clipboard.setData(ClipboardData(text: _controller.text));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Código copiado')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Código copiado')));
   }
 
   @override
@@ -410,7 +469,10 @@ class _CoderEditorScreenState extends ConsumerState<CoderEditorScreen> {
                 widget.file.name,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               Text(
                 widget.file.path,
@@ -428,12 +490,16 @@ class _CoderEditorScreenState extends ConsumerState<CoderEditorScreen> {
             ),
             IconButton(
               tooltip: 'Deshacer',
-              onPressed: _undoController.value.canUndo ? _undoController.undo : null,
+              onPressed: _undoController.value.canUndo
+                  ? _undoController.undo
+                  : null,
               icon: const Icon(LucideIcons.undo2),
             ),
             IconButton(
               tooltip: 'Rehacer',
-              onPressed: _undoController.value.canRedo ? _undoController.redo : null,
+              onPressed: _undoController.value.canRedo
+                  ? _undoController.redo
+                  : null,
               icon: const Icon(LucideIcons.redo2),
             ),
             IconButton(
@@ -447,7 +513,11 @@ class _CoderEditorScreenState extends ConsumerState<CoderEditorScreen> {
                 tooltip: _saving ? 'Guardando…' : 'Guardar archivo',
                 onPressed: _saving ? null : _saveAndStay,
                 icon: _saving
-                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
                     : const Icon(LucideIcons.save),
               ),
             ),
@@ -467,7 +537,13 @@ class _CoderEditorScreenState extends ConsumerState<CoderEditorScreen> {
                   children: [
                     Icon(LucideIcons.code2, size: 16, color: palette.accent),
                     const SizedBox(width: 8),
-                    Text(_languageLabel, style: TextStyle(color: palette.textSecondary, fontSize: 12)),
+                    Text(
+                      _languageLabel,
+                      style: TextStyle(
+                        color: palette.textSecondary,
+                        fontSize: 12,
+                      ),
+                    ),
                     const SizedBox(width: 12),
                     Container(width: 1, height: 18, color: palette.border),
                     const SizedBox(width: 10),
@@ -478,8 +554,12 @@ class _CoderEditorScreenState extends ConsumerState<CoderEditorScreen> {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 12,
-                          color: _dirty ? const Color(0xFFFFC857) : palette.textSecondary,
-                          fontWeight: _dirty ? FontWeight.w700 : FontWeight.w400,
+                          color: _dirty
+                              ? const Color(0xFFFFC857)
+                              : palette.textSecondary,
+                          fontWeight: _dirty
+                              ? FontWeight.w700
+                              : FontWeight.w400,
                         ),
                       ),
                     ),
@@ -506,11 +586,26 @@ class _CoderEditorScreenState extends ConsumerState<CoderEditorScreen> {
                         }
                       },
                       itemBuilder: (_) => const [
-                        PopupMenuItem(value: 'comment', child: Text('Comentar / descomentar selección')),
-                        PopupMenuItem(value: 'indent', child: Text('Indentar selección')),
-                        PopupMenuItem(value: 'outdent', child: Text('Quitar indentación')),
-                        PopupMenuItem(value: 'fold_imports', child: Text('Plegar imports')),
-                        PopupMenuItem(value: 'fix', child: Text('Aplicar correcciones rápidas')),
+                        PopupMenuItem(
+                          value: 'comment',
+                          child: Text('Comentar / descomentar selección'),
+                        ),
+                        PopupMenuItem(
+                          value: 'indent',
+                          child: Text('Indentar selección'),
+                        ),
+                        PopupMenuItem(
+                          value: 'outdent',
+                          child: Text('Quitar indentación'),
+                        ),
+                        PopupMenuItem(
+                          value: 'fold_imports',
+                          child: Text('Plegar imports'),
+                        ),
+                        PopupMenuItem(
+                          value: 'fix',
+                          child: Text('Aplicar correcciones rápidas'),
+                        ),
                       ],
                     ),
                   ],
@@ -520,12 +615,29 @@ class _CoderEditorScreenState extends ConsumerState<CoderEditorScreen> {
                 Material(
                   color: palette.accent.withValues(alpha: .10),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
                     child: Row(
                       children: [
-                        Icon(_fixWasApplied ? LucideIcons.wandSparkles : LucideIcons.info, size: 15, color: palette.accent),
+                        Icon(
+                          _fixWasApplied
+                              ? LucideIcons.wandSparkles
+                              : LucideIcons.info,
+                          size: 15,
+                          color: palette.accent,
+                        ),
                         const SizedBox(width: 8),
-                        Expanded(child: Text(_statusMessage!, style: TextStyle(fontSize: 12, color: palette.textPrimary))),
+                        Expanded(
+                          child: Text(
+                            _statusMessage!,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: palette.textPrimary,
+                            ),
+                          ),
+                        ),
                         IconButton(
                           visualDensity: VisualDensity.compact,
                           tooltip: 'Cerrar aviso',
@@ -534,6 +646,118 @@ class _CoderEditorScreenState extends ConsumerState<CoderEditorScreen> {
                             _fixWasApplied = false;
                           }),
                           icon: const Icon(LucideIcons.x, size: 16),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              if (_fixWasApplied &&
+                  _lastDiffBefore != null &&
+                  _lastDiffAfter != null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 2),
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: palette.surface,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: palette.border),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              LucideIcons.code2,
+                              size: 15,
+                              color: palette.accent,
+                            ),
+                            const SizedBox(width: 7),
+                            Expanded(
+                              child: Text(
+                                'Corrección aplicada en vivo',
+                                style: TextStyle(
+                                  color: palette.textPrimary,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              visualDensity: VisualDensity.compact,
+                              tooltip: 'Cerrar diff',
+                              onPressed: () => setState(() {
+                                _fixWasApplied = false;
+                                _lastDiffBefore = null;
+                                _lastDiffAfter = null;
+                              }),
+                              icon: const Icon(LucideIcons.x, size: 15),
+                            ),
+                          ],
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 9,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0x1AEF4444),
+                            borderRadius: BorderRadius.circular(7),
+                          ),
+                          child: Row(
+                            children: [
+                              const Text(
+                                '−',
+                                style: TextStyle(
+                                  color: Color(0xFFEF4444),
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _lastDiffBefore!,
+                                  style: const TextStyle(
+                                    fontFamily: 'monospace',
+                                    color: Color(0xFFEF4444),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 9,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0x1A22C55E),
+                            borderRadius: BorderRadius.circular(7),
+                          ),
+                          child: Row(
+                            children: [
+                              const Text(
+                                '+',
+                                style: TextStyle(
+                                  color: Color(0xFF22C55E),
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _lastDiffAfter!,
+                                  style: const TextStyle(
+                                    fontFamily: 'monospace',
+                                    color: Color(0xFF22C55E),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -580,13 +804,35 @@ class _CoderEditorScreenState extends ConsumerState<CoderEditorScreen> {
                 ),
                 child: Row(
                   children: [
-                    Icon(LucideIcons.listTree, size: 14, color: palette.textSecondary),
+                    Icon(
+                      LucideIcons.listTree,
+                      size: 14,
+                      color: palette.textSecondary,
+                    ),
                     const SizedBox(width: 5),
-                    Text('$_lineCount líneas', style: TextStyle(fontSize: 11, color: palette.textSecondary)),
+                    Text(
+                      '$_lineCount líneas',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: palette.textSecondary,
+                      ),
+                    ),
                     const SizedBox(width: 10),
-                    Text('$_characterCount caracteres', style: TextStyle(fontSize: 11, color: palette.textSecondary)),
+                    Text(
+                      '$_characterCount caracteres',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: palette.textSecondary,
+                      ),
+                    ),
                     const Spacer(),
-                    Text('Ctrl/Cmd+Z · Deshacer', style: TextStyle(fontSize: 10, color: palette.textSecondary)),
+                    Text(
+                      'Ctrl/Cmd+Z · Deshacer',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: palette.textSecondary,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -600,7 +846,9 @@ class _CoderEditorScreenState extends ConsumerState<CoderEditorScreen> {
                     label: const Text('Guardar y corregir con Coder'),
                     style: FilledButton.styleFrom(
                       backgroundColor: palette.accent,
-                      foregroundColor: palette.isDark ? Colors.black : Colors.white,
+                      foregroundColor: palette.isDark
+                          ? Colors.black
+                          : Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 13),
                     ),
                   ),

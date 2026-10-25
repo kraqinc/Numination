@@ -564,10 +564,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final value = _messageController.value;
     final text = value.text;
     final rawCursor = value.selection.baseOffset;
-    final cursor = rawCursor < 0 || rawCursor > text.length ? text.length : rawCursor;
-    final needsSpace = cursor > 0 && !RegExp(r'\s').hasMatch(text.substring(cursor - 1, cursor));
+    final cursor = rawCursor < 0 || rawCursor > text.length
+        ? text.length
+        : rawCursor;
+    final needsSpace =
+        cursor > 0 &&
+        !RegExp(r'\s').hasMatch(text.substring(cursor - 1, cursor));
     final insertion = needsSpace ? ' @' : '@';
-    final nextText = text.substring(0, cursor) + insertion + text.substring(cursor);
+    final nextText =
+        text.substring(0, cursor) + insertion + text.substring(cursor);
     _messageController.value = TextEditingValue(
       text: nextText,
       selection: TextSelection.collapsed(offset: cursor + insertion.length),
@@ -1234,16 +1239,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           final url = payload['url']?.toString().trim() ?? '';
           if (mounted) {
             setState(() {
-              if (kind == 'search' && url.isEmpty && title.toLowerCase().contains('buscando')) {
+              if (kind == 'search' &&
+                  url.isEmpty &&
+                  title.toLowerCase().contains('buscando')) {
                 _isSearchingWebForCurrentRequest = true;
               } else if (title.isNotEmpty) {
-                final duplicate = _currentActivities.indexWhere((item) =>
-                  (url.isNotEmpty && item['url'] == url) ||
-                  (url.isEmpty && item['url'] == null && item['title'] == title),
+                final duplicate = _currentActivities.indexWhere(
+                  (item) =>
+                      (url.isNotEmpty && item['url'] == url) ||
+                      (url.isEmpty &&
+                          item['url'] == null &&
+                          item['title'] == title),
                 );
                 final item = <String, dynamic>{
-                  'kind': kind, 'status': payload['status']?.toString() ?? '',
-                  'title': title, 'url': url, 'icon': payload['icon']?.toString() ?? '',
+                  'kind': kind,
+                  'status': payload['status']?.toString() ?? '',
+                  'title': title,
+                  'url': url,
+                  'icon': payload['icon']?.toString() ?? '',
                 };
                 if (duplicate >= 0) {
                   _currentActivities[duplicate] = item;
@@ -1271,7 +1284,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   text: responseText,
                   fromUser: false,
                   chatId: chatId,
-                  activities: List<Map<String, dynamic>>.from(_currentActivities),
+                  activities: List<Map<String, dynamic>>.from(
+                    _currentActivities,
+                  ),
                 );
               }
             });
@@ -1316,7 +1331,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   memoryId: payload['memoryId']?.toString(),
                   memoryTitle: payload['memoryTitle']?.toString(),
                   memoryContent: payload['memoryContent']?.toString(),
-                  activities: List<Map<String, dynamic>>.from(_currentActivities),
+                  activities: List<Map<String, dynamic>>.from(
+                    _currentActivities,
+                  ),
                 );
               }
 
@@ -1387,23 +1404,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         return;
       }
 
-      final failureText = responseText.isEmpty
-          ? 'Numi no pudo responder en este momento. ${e.message}'
-          : '$responseText\n\n${AppErrorMessages.streamInterrupted}';
-
-      setState(() {
+      if (responseText.trim().isNotEmpty) {
         final failure = ChatMessage(
-          text: failureText,
+          text: '$responseText\n\n${AppErrorMessages.streamInterrupted}',
           fromUser: false,
           chatId: requestChatId,
         );
-
+        setState(() {
+          if (assistantIndex >= 0 && assistantIndex < _messages.length) {
+            _messages[assistantIndex] = failure;
+          } else {
+            _messages.add(failure);
+          }
+        });
+      } else {
         if (assistantIndex >= 0 && assistantIndex < _messages.length) {
-          _messages[assistantIndex] = failure;
-        } else {
-          _messages.add(failure);
+          setState(() => _messages.removeAt(assistantIndex));
         }
-      });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '${e.message}\nNo se descontaron créditos porque la IA no completó la respuesta.',
+            ),
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
     } catch (_) {
       if (createdChat &&
           requestChatId != null &&
@@ -1416,21 +1442,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         return;
       }
 
-      setState(() {
+      if (responseText.trim().isNotEmpty) {
         final failure = ChatMessage(
-          text: responseText.isEmpty
-              ? AppErrorMessages.aiUnavailable
-              : '$responseText\n\n${AppErrorMessages.streamInterrupted}',
+          text: '$responseText\n\n${AppErrorMessages.streamInterrupted}',
           fromUser: false,
           chatId: requestChatId,
         );
-
+        setState(() {
+          if (assistantIndex >= 0 && assistantIndex < _messages.length) {
+            _messages[assistantIndex] = failure;
+          } else {
+            _messages.add(failure);
+          }
+        });
+      } else {
         if (assistantIndex >= 0 && assistantIndex < _messages.length) {
-          _messages[assistantIndex] = failure;
-        } else {
-          _messages.add(failure);
+          setState(() => _messages.removeAt(assistantIndex));
         }
-      });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '${AppErrorMessages.aiUnavailable}\nNo se descontaron créditos porque la IA no completó la respuesta.',
+            ),
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
     } finally {
       if (mounted && identical(_generationToken, token)) {
         setState(() {
@@ -1617,7 +1654,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                             activities: _currentActivities,
                             expanded: _activityExpanded,
                             isSearching: _isSearchingWebForCurrentRequest,
-                            onToggle: () => setState(() => _activityExpanded = !_activityExpanded),
+                            onToggle: () => setState(
+                              () => _activityExpanded = !_activityExpanded,
+                            ),
                           );
                         }
 
@@ -1958,7 +1997,9 @@ class _MessageBubble extends ConsumerWidget {
               ? CrossAxisAlignment.end
               : CrossAxisAlignment.start,
           children: [
-            if (!isUser && showActivityDisclosure && message.activities.isNotEmpty)
+            if (!isUser &&
+                showActivityDisclosure &&
+                message.activities.isNotEmpty)
               _ActivityDisclosure(activities: message.activities),
             if (!isUser && message.memorySaved)
               _MemorySavedWidget(
@@ -2613,7 +2654,9 @@ class _BottomInputBar extends ConsumerWidget {
                                   ),
                                   toolButton(
                                     icon: LucideIcons.link2,
-                                    label: english ? 'Connectors' : 'Conectores',
+                                    label: english
+                                        ? 'Connectors'
+                                        : 'Conectores',
                                     onPressed: () {
                                       closeTools();
                                       onOpenMentionPicker();
@@ -2812,9 +2855,16 @@ class _ThinkingMessage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = Theme.of(context).colorScheme.onSurfaceVariant;
-    final hasSources = activities.any((item) =>
-        item['kind'] == 'search' && (item['url']?.toString().isNotEmpty ?? false));
-    final title = isSearching ? 'Buscando en la web' : hasSources ? 'Búsquedas (${activities.where((item) => item['url']?.toString().isNotEmpty == true).length})' : 'Pensando';
+    final hasSources = activities.any(
+      (item) =>
+          item['kind'] == 'search' &&
+          (item['url']?.toString().isNotEmpty ?? false),
+    );
+    final title = isSearching
+        ? 'Buscando en la web'
+        : hasSources
+        ? 'Búsquedas (${activities.where((item) => item['url']?.toString().isNotEmpty == true).length})'
+        : 'Pensando';
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
       child: Column(
@@ -2828,11 +2878,26 @@ class _ThinkingMessage extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(isSearching ? LucideIcons.globe : LucideIcons.brain, size: 17, color: color),
+                  Icon(
+                    isSearching ? LucideIcons.globe : LucideIcons.brain,
+                    size: 17,
+                    color: color,
+                  ),
                   const SizedBox(width: 8),
-                  Text(title, style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w600)),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   const SizedBox(width: 5),
-                  Icon(expanded ? LucideIcons.chevronUp : LucideIcons.chevronDown, size: 17, color: color),
+                  Icon(
+                    expanded ? LucideIcons.chevronUp : LucideIcons.chevronDown,
+                    size: 17,
+                    color: color,
+                  ),
                 ],
               ),
             ),
@@ -2841,7 +2906,10 @@ class _ThinkingMessage extends StatelessWidget {
             if (activities.isEmpty)
               Padding(
                 padding: const EdgeInsets.fromLTRB(28, 5, 8, 5),
-                child: Text('Preparando la solicitud…', style: TextStyle(color: color, fontSize: 12)),
+                child: Text(
+                  'Preparando la solicitud…',
+                  style: TextStyle(color: color, fontSize: 12),
+                ),
               )
             else
               ...activities.map((item) => _ActivityEntry(item: item)),
@@ -2866,8 +2934,13 @@ class _ActivityDisclosureState extends State<_ActivityDisclosure> {
   @override
   Widget build(BuildContext context) {
     final color = Theme.of(context).colorScheme.onSurfaceVariant;
-    final sources = widget.activities.where((item) =>
-        item['kind'] == 'search' && (item['url']?.toString().isNotEmpty ?? false)).length;
+    final sources = widget.activities
+        .where(
+          (item) =>
+              item['kind'] == 'search' &&
+              (item['url']?.toString().isNotEmpty ?? false),
+        )
+        .length;
     final title = sources > 0 ? 'Búsquedas ($sources)' : 'Pensando';
     return Padding(
       padding: const EdgeInsets.only(bottom: 6, left: 3),
@@ -2882,11 +2955,26 @@ class _ActivityDisclosureState extends State<_ActivityDisclosure> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(sources > 0 ? LucideIcons.globe : LucideIcons.brain, size: 16, color: color),
+                  Icon(
+                    sources > 0 ? LucideIcons.globe : LucideIcons.brain,
+                    size: 16,
+                    color: color,
+                  ),
                   const SizedBox(width: 7),
-                  Text(title, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600)),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   const SizedBox(width: 4),
-                  Icon(_expanded ? LucideIcons.chevronUp : LucideIcons.chevronDown, size: 16, color: color),
+                  Icon(
+                    _expanded ? LucideIcons.chevronUp : LucideIcons.chevronDown,
+                    size: 16,
+                    color: color,
+                  ),
                 ],
               ),
             ),
@@ -2926,7 +3014,13 @@ class _ActivityEntry extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(isLink ? LucideIcons.globe : (isSearch ? LucideIcons.search : LucideIcons.circle), size: 14, color: colors.onSurfaceVariant),
+              Icon(
+                isLink
+                    ? LucideIcons.globe
+                    : (isSearch ? LucideIcons.search : LucideIcons.circle),
+                size: 14,
+                color: colors.onSurfaceVariant,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -2936,13 +3030,19 @@ class _ActivityEntry extends StatelessWidget {
                   style: TextStyle(
                     color: isLink ? colors.primary : colors.onSurfaceVariant,
                     fontSize: 12,
-                    decoration: isLink ? TextDecoration.underline : TextDecoration.none,
+                    decoration: isLink
+                        ? TextDecoration.underline
+                        : TextDecoration.none,
                   ),
                 ),
               ),
               if (isLink) ...[
                 const SizedBox(width: 6),
-                Icon(LucideIcons.externalLink, size: 13, color: colors.onSurfaceVariant),
+                Icon(
+                  LucideIcons.externalLink,
+                  size: 13,
+                  color: colors.onSurfaceVariant,
+                ),
               ],
             ],
           ),
