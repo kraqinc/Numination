@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -18,6 +19,7 @@ import '../widgets/ai_response.dart';
 import '../widgets/coder_preview_screen.dart';
 import 'architect_mode_screen.dart';
 import 'dependency_map_screen.dart';
+import 'coder_editor_screen.dart';
 import '../widgets/numi_loading_animation.dart';
 
 class CoderPreviewState {
@@ -1133,64 +1135,57 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
   }
 
   void _previewFile(FileItem file) {
-    final palette = ref.read(appPaletteProvider);
+    unawaited(_openCodeEditor(file));
+  }
 
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: palette.surface,
-      showDragHandle: true,
-      builder: (sheetContext) {
-        return SafeArea(
-          child: SizedBox(
-            height: MediaQuery.sizeOf(context).height * .78,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      const Icon(LucideIcons.fileCode2),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          file.path,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: 'Copiar contenido',
-                        onPressed: () {
-                          Clipboard.setData(ClipboardData(text: file.content));
-                        },
-                        icon: const Icon(LucideIcons.copy),
-                      ),
-                    ],
-                  ),
-                ),
-                const Divider(height: 1),
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(16),
-                    child: SelectableText(
-                      file.isDirectory ? 'Directorio' : file.content,
-                      style: const TextStyle(
-                        fontFamily: 'monospace',
-                        fontSize: 13,
-                        height: 1.45,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+  Future<void> _openCodeEditor(FileItem file) async {
+    if (file.isDirectory) return;
+    final result = await Navigator.of(context).push<CoderEditorResult>(
+      MaterialPageRoute<CoderEditorResult>(
+        builder: (_) => CoderEditorScreen(
+          projectId: widget.projectId,
+          projectName: widget.projectName,
+          file: file,
+        ),
+      ),
+    );
+    if (!mounted || result == null) return;
+
+    final editedFile = result.file;
+    final contentChanged = editedFile.content != file.content;
+    setState(() {
+      final index = _files.indexWhere((item) => item.id == editedFile.id);
+      if (index >= 0) {
+        _files[index] = editedFile;
+      } else {
+        _files.add(editedFile);
+      }
+      if (contentChanged) {
+        _lastDeletedPaths.remove(editedFile.path);
+        if (!_lastChangedPaths.contains(editedFile.path)) {
+          _lastChangedPaths.add(editedFile.path);
+        }
+        _hasChanges = true;
+        _publishedBranch = null;
+      }
+    });
+
+    if (result.requestCoderReview) {
+      final prompt = 'Revisa el archivo `${editedFile.path}` que adjunto y corrige los errores reales de sintaxis o lógica que encuentres. La versión adjunta es la fuente de verdad. Modifica únicamente este archivo, no elimines ni crees otros archivos y conserva el comportamiento que ya funciona. Aplica la corrección en el proyecto y explica brevemente los cambios.';
+      setState(() {
+        _pendingAttachments.removeWhere((attachment) => attachment.name == editedFile.path);
+        _pendingAttachments.add(
+          _CoderAttachment(
+            name: editedFile.path,
+            content: editedFile.content,
+            sizeBytes: editedFile.content.length,
           ),
         );
-      },
-    );
+        _messageController.text = prompt;
+        _messageController.selection = TextSelection.collapsed(offset: prompt.length);
+      });
+      await _sendMessage();
+    }
   }
 
   Future<void> _feedback(_CoderMessage message, String kind) async {

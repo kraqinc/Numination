@@ -9,8 +9,11 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/api.dart';
 import '../../core/theme_controller.dart';
+import '../../core/theme.dart';
 import '../widgets/numi_loading_animation.dart';
 
+/// Catálogo de conectores con el estilo compacto de Complementos.
+/// Toda la superficie y el texto usan AppPalette para respetar el tema activo.
 class ConnectorsScreen extends ConsumerStatefulWidget {
   const ConnectorsScreen({super.key});
 
@@ -20,9 +23,13 @@ class ConnectorsScreen extends ConsumerStatefulWidget {
 
 class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
     with WidgetsBindingObserver {
+  static const _providerIds = ['google', 'microsoft', 'github', 'notion'];
+
   final Map<String, Map<String, dynamic>> _providers = {};
+  final TextEditingController _searchController = TextEditingController();
   bool _loading = true;
   bool _busy = false;
+  String _query = '';
   String? _error;
   String? _callbackUrl;
   bool _encryptionConfigured = false;
@@ -37,6 +44,7 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -48,9 +56,7 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
   }
 
   Future<void> _load({bool silent = false}) async {
-    if (_busy) {
-      return;
-    }
+    if (_busy) return;
     _busy = true;
     if (!silent && mounted) {
       setState(() {
@@ -61,26 +67,24 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
     try {
       final response = await ApiClient.get('/integrations');
       final decoded = ApiClient.decode(response) as Map<String, dynamic>;
-      final list = (decoded['providers'] as List? ?? const [])
+      final providers = (decoded['providers'] as List? ?? const [])
           .whereType<Map>()
           .map((row) => Map<String, dynamic>.from(row))
-          .toList();
-      if (!mounted) {
-        return;
-      }
+          .toList(growable: false);
+      if (!mounted) return;
       setState(() {
         _providers
           ..clear()
-          ..addEntries(list.map((row) => MapEntry(row['id'].toString(), row)));
+          ..addEntries(
+            providers.map((row) => MapEntry(row['id'].toString(), row)),
+          );
         _callbackUrl = decoded['callbackUrl']?.toString();
         _encryptionConfigured = decoded['encryptionConfigured'] == true;
         _error = null;
         _loading = false;
       });
     } catch (error) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       setState(() {
         _error = error is ApiException
             ? error.message
@@ -90,6 +94,19 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
     } finally {
       _busy = false;
     }
+  }
+
+  bool _isConnected(String id) => _providers[id]?['connected'] == true;
+  bool _isConfigured(String id) => _providers[id]?['configured'] == true;
+
+  List<String> get _visibleProviderIds {
+    if (_query.isEmpty) return _providerIds;
+    return _providerIds.where((id) {
+      final provider = _providers[id] ?? const <String, dynamic>{};
+      final email = provider['accountEmail']?.toString() ?? '';
+      final text = '${_label(id)} ${_description(id)} $email'.toLowerCase();
+      return text.contains(_query);
+    }).toList(growable: false);
   }
 
   Future<void> _startConnection(String provider) async {
@@ -111,9 +128,7 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
         ],
       ),
     );
-    if (confirmed != true || !mounted) {
-      return;
-    }
+    if (confirmed != true || !mounted) return;
 
     try {
       final response = await ApiClient.post('/integrations/start', {
@@ -121,9 +136,7 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
       });
       final data = ApiClient.decode(response) as Map<String, dynamic>;
       final authUrl = Uri.tryParse(data['authorizationUrl']?.toString() ?? '');
-      if (authUrl == null ||
-          !authUrl.hasScheme ||
-          !['https'].contains(authUrl.scheme)) {
+      if (authUrl == null || !authUrl.hasScheme || authUrl.scheme != 'https') {
         throw const ApiException(
           502,
           'El servidor no devolvió una URL de autorización válida.',
@@ -134,31 +147,20 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
         mode: LaunchMode.externalApplication,
       );
       if (!launched) {
-        throw const ApiException(
-          502,
-          'No se pudo abrir la página de autorización.',
-        );
+        throw const ApiException(502, 'No se pudo abrir la página de autorización.');
       }
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'Termina la autorización en el navegador y vuelve a Numination.',
-          ),
+          content: Text('Termina la autorización en el navegador y vuelve a Numination.'),
         ),
       );
     } catch (error) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       final message = error is ApiException
           ? error.message
           : 'No se pudo iniciar la conexión.';
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
       await _load(silent: true);
     }
   }
@@ -183,21 +185,20 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
       'github' => 'GITHUB_OAUTH_CLIENT_ID\nGITHUB_OAUTH_CLIENT_SECRET',
       _ => 'NOTION_OAUTH_CLIENT_ID\nNOTION_OAUTH_CLIENT_SECRET',
     };
-    final text =
+    final setupText =
         'Configura estos secretos en Supabase Edge Function Secrets:\n\n$env\nINTEGRATION_TOKEN_ENCRYPTION_KEY\n\nDespués registra esta URL exacta como Redirect URI en el proveedor:\n\n${_callbackUrl ?? 'Consulta GET /integrations para obtenerla.'}\n\nLa clave de cifrado debe ser aleatoria y de 32 bytes codificados en Base64. No la pegues en el código, en GitHub ni en el APK.';
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
+        backgroundColor: ref.read(appPaletteProvider).surface,
         title: const Text('OAuth pendiente de configurar'),
-        content: SingleChildScrollView(child: SelectableText(text)),
+        content: SingleChildScrollView(child: SelectableText(setupText)),
         actions: [
           TextButton(
             onPressed: () {
               Navigator.pop(dialogContext);
               if (_callbackUrl != null) {
-                unawaited(
-                  Clipboard.setData(ClipboardData(text: _callbackUrl!)),
-                );
+                unawaited(Clipboard.setData(ClipboardData(text: _callbackUrl!)));
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('URL de callback copiada.')),
                 );
@@ -218,6 +219,7 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
+        backgroundColor: ref.read(appPaletteProvider).surface,
         title: Text('Desconectar $label'),
         content: const Text(
           'Numination eliminará los tokens guardados. Para quitar también el consentimiento del proveedor, revisa las aplicaciones conectadas de esa cuenta.',
@@ -234,9 +236,7 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
         ],
       ),
     );
-    if (confirmed != true) {
-      return;
-    }
+    if (confirmed != true) return;
     try {
       final response = await ApiClient.post('/integrations/disconnect', {
         'provider': provider,
@@ -244,15 +244,11 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
       ApiClient.decode(response);
       await _load();
     } catch (error) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            error is ApiException
-                ? error.message
-                : 'No se pudo desconectar la cuenta.',
+            error is ApiException ? error.message : 'No se pudo desconectar la cuenta.',
           ),
         ),
       );
@@ -273,9 +269,7 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
           .whereType<Map>()
           .map((row) => Map<String, dynamic>.from(row))
           .toList(growable: false);
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       final palette = ref.read(appPaletteProvider);
       await showModalBottomSheet<void>(
         context: context,
@@ -289,7 +283,7 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+                  padding: const EdgeInsets.fromLTRB(20, 8, 16, 14),
                   child: Row(
                     children: [
                       Expanded(
@@ -304,7 +298,7 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
                       ),
                       IconButton(
                         onPressed: () => Navigator.pop(sheetContext),
-                        icon: const Icon(LucideIcons.x),
+                        icon: Icon(LucideIcons.x, color: palette.textPrimary),
                       ),
                     ],
                   ),
@@ -324,36 +318,18 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
                               Divider(color: palette.border, height: 1),
                           itemBuilder: (context, index) {
                             final item = items[index];
-                            final itemTitle =
-                                item['title']?.toString() ??
-                                item['subject']?.toString() ??
-                                'Elemento';
+                            final itemTitle = item['title']?.toString() ??
+                                item['subject']?.toString() ?? 'Elemento';
                             final subtitleParts = <String>[];
-                            final from = item['from']?.toString();
-                            final description = item['description']?.toString();
-                            final snippet = item['snippet']?.toString();
-                            final when =
-                                item['start']?.toString() ??
-                                item['receivedAt']?.toString() ??
-                                item['modifiedAt']?.toString() ??
-                                item['lastEditedTime']?.toString();
-                            if (from != null && from.isNotEmpty) {
-                              subtitleParts.add(from);
+                            for (final key in ['from', 'start', 'receivedAt', 'modifiedAt', 'lastEditedTime', 'description', 'snippet']) {
+                              final value = item[key]?.toString();
+                              if (value != null && value.isNotEmpty && subtitleParts.length < 4) {
+                                subtitleParts.add(value);
+                              }
                             }
-                            if (when != null && when.isNotEmpty) {
-                              subtitleParts.add(when);
-                            }
-                            if (description != null && description.isNotEmpty) {
-                              subtitleParts.add(description);
-                            }
-                            if (snippet != null && snippet.isNotEmpty) {
-                              subtitleParts.add(snippet);
-                            }
+                            final uri = _safeUrl(item['url']?.toString());
                             return ListTile(
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 4,
-                                vertical: 3,
-                              ),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
                               leading: Container(
                                 width: 38,
                                 height: 38,
@@ -361,20 +337,13 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
                                   color: palette.accent.withValues(alpha: .12),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
-                                child: Icon(
-                                  _itemIcon(resource),
-                                  color: palette.accent,
-                                  size: 19,
-                                ),
+                                child: Icon(_itemIcon(resource), color: palette.accent, size: 19),
                               ),
                               title: Text(
                                 itemTitle,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: palette.textPrimary,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                                style: TextStyle(color: palette.textPrimary, fontWeight: FontWeight.w600),
                               ),
                               subtitle: subtitleParts.isEmpty
                                   ? null
@@ -382,29 +351,14 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
                                       subtitleParts.join(' · '),
                                       maxLines: 3,
                                       overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        color: palette.textSecondary,
-                                        fontSize: 12,
-                                      ),
+                                      style: TextStyle(color: palette.textSecondary, fontSize: 12),
                                     ),
-                              trailing:
-                                  _safeUrl(item['url']?.toString()) == null
+                              trailing: uri == null
                                   ? null
-                                  : const Icon(
-                                      LucideIcons.externalLink,
-                                      size: 17,
-                                    ),
-                              onTap: () {
-                                final uri = _safeUrl(item['url']?.toString());
-                                if (uri != null) {
-                                  unawaited(
-                                    launchUrl(
-                                      uri,
-                                      mode: LaunchMode.externalApplication,
-                                    ),
-                                  );
-                                }
-                              },
+                                  : Icon(LucideIcons.externalLink, size: 17, color: palette.textSecondary),
+                              onTap: uri == null
+                                  ? null
+                                  : () => unawaited(launchUrl(uri, mode: LaunchMode.externalApplication)),
                             );
                           },
                         ),
@@ -415,15 +369,11 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
         ),
       );
     } catch (error) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            error is ApiException
-                ? error.message
-                : 'No se pudieron cargar los datos del servicio.',
+            error is ApiException ? error.message : 'No se pudieron cargar los datos del servicio.',
           ),
         ),
       );
@@ -432,9 +382,7 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
 
   Uri? _safeUrl(String? value) {
     final uri = Uri.tryParse(value ?? '');
-    if (uri == null ||
-        !uri.hasScheme ||
-        !['https', 'http'].contains(uri.scheme)) {
+    if (uri == null || !uri.hasScheme || !['https', 'http'].contains(uri.scheme)) {
       return null;
     }
     return uri;
@@ -467,16 +415,16 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
 
   IconData _brandIcon(String provider) => switch (provider) {
     'google' => SimpleIcons.google,
-    'microsoft' => LucideIcons.mail,
     'github' => SimpleIcons.github,
-    _ => SimpleIcons.notion,
+    'notion' => SimpleIcons.notion,
+    _ => LucideIcons.mail,
   };
 
-  Color _brandColor(String provider) => switch (provider) {
+  Color _brandColor(String provider, AppPalette palette) => switch (provider) {
     'google' => const Color(0xFF4285F4),
     'microsoft' => const Color(0xFF0078D4),
-    'github' => const Color(0xFFB8C3D1),
-    _ => const Color(0xFFFFFFFF),
+    'github' => palette.isDark ? const Color(0xFFB8C3D1) : const Color(0xFF24292F),
+    _ => palette.textPrimary,
   };
 
   String _label(String id) => switch (id) {
@@ -486,350 +434,415 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
     _ => 'Notion',
   };
 
-  @override
-  Widget build(BuildContext context) {
-    final palette = ref.watch(appPaletteProvider);
-    const providerIds = ['google', 'microsoft', 'github', 'notion'];
-
-    return Scaffold(
-      backgroundColor: palette.background,
-      appBar: AppBar(
-        backgroundColor: palette.background,
-        elevation: 0,
-        iconTheme: IconThemeData(color: palette.textPrimary),
-        title: Text(
-          'Conectores',
-          style: TextStyle(
-            color: palette.textPrimary,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        actions: [
-          IconButton(
-            tooltip: 'Actualizar conexiones',
-            onPressed: () => _load(),
-            icon: const Icon(LucideIcons.refreshCw),
-          ),
-        ],
-      ),
-      body: _loading && _providers.isEmpty
-          ? const Center(child: NumiLoadingAnimation())
-          : _error != null && _providers.isEmpty
-          ? Center(
-              child: Padding(
-                padding: const EdgeInsets.all(26),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(_error!, textAlign: TextAlign.center),
-                    const SizedBox(height: 12),
-                    FilledButton(
-                      onPressed: _load,
-                      child: const Text('Reintentar'),
-                    ),
-                  ],
-                ),
-              ),
-            )
-          : RefreshIndicator(
-              onRefresh: _load,
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 30),
-                children: [
-                  TweenAnimationBuilder<double>(
-                    tween: Tween(begin: 0, end: 1),
-                    duration: const Duration(milliseconds: 420),
-                    curve: Curves.easeOutCubic,
-                    builder: (_, value, child) => Opacity(
-                      opacity: value,
-                      child: Transform.translate(
-                        offset: Offset(0, (1 - value) * 12),
-                        child: child,
-                      ),
-                    ),
-                    child: Container(
-                      padding: const EdgeInsets.all(18),
-                      decoration: BoxDecoration(
-                        color: palette.surface,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: palette.border),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(LucideIcons.link2, color: palette.accent),
-                              const SizedBox(width: 10),
-                              Text(
-                                'Tu workspace, conectado',
-                                style: TextStyle(
-                                  color: palette.textPrimary,
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 17,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Conecta tus servicios para consultar correo, archivos, eventos, repositorios y páginas desde Numination. Las conexiones usan permisos de lectura en los servicios que lo permiten.',
-                            style: TextStyle(
-                              color: palette.textSecondary,
-                              height: 1.45,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              Icon(
-                                _encryptionConfigured
-                                    ? LucideIcons.shieldCheck
-                                    : LucideIcons.shieldAlert,
-                                size: 16,
-                                color: _encryptionConfigured
-                                    ? palette.accent
-                                    : palette.textSecondary,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  _encryptionConfigured
-                                      ? 'Cifrado de tokens configurado'
-                                      : 'El servidor aún necesita completar la configuración OAuth y el cifrado',
-                                  style: TextStyle(
-                                    color: palette.textSecondary,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  ...providerIds.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final id = entry.value;
-                    final provider = _providers[id] ?? <String, dynamic>{};
-                    final configured = provider['configured'] == true;
-                    final connected = provider['connected'] == true;
-                    final resources = _resources(id);
-                    return TweenAnimationBuilder<double>(
-                      key: ValueKey(id),
-                      tween: Tween(begin: .96, end: 1),
-                      duration: Duration(milliseconds: 220 + index * 80),
-                      curve: Curves.easeOutCubic,
-                      builder: (_, value, child) => Opacity(
-                        opacity: value,
-                        child: Transform.translate(
-                          offset: Offset(0, 14 * (1 - value)),
-                          child: child,
-                        ),
-                      ),
-                      child: Container(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        padding: const EdgeInsets.all(15),
-                        decoration: BoxDecoration(
-                          color: palette.surface,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: connected
-                                ? palette.accent.withValues(alpha: .55)
-                                : palette.border,
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Container(
-                                  width: 48,
-                                  height: 48,
-                                  decoration: BoxDecoration(
-                                    color: palette.background,
-                                    borderRadius: BorderRadius.circular(14),
-                                    border: Border.all(color: palette.border),
-                                  ),
-                                  child: Icon(
-                                    _brandIcon(id),
-                                    size: 23,
-                                    color: _brandColor(id),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        _label(id),
-                                        style: TextStyle(
-                                          color: palette.textPrimary,
-                                          fontWeight: FontWeight.w800,
-                                          fontSize: 16,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 3),
-                                      Text(
-                                        provider['accountEmail']
-                                                    ?.toString()
-                                                    .isNotEmpty ==
-                                                true
-                                            ? provider['accountEmail']
-                                                  .toString()
-                                            : _description(id),
-                                        style: TextStyle(
-                                          color: palette.textSecondary,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 9,
-                                          vertical: 4,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color:
-                                              (connected
-                                                      ? palette.accent
-                                                      : palette.textSecondary)
-                                                  .withValues(alpha: .12),
-                                          borderRadius: BorderRadius.circular(
-                                            30,
-                                          ),
-                                        ),
-                                        child: Text(
-                                          connected
-                                              ? 'Conectado'
-                                              : configured
-                                              ? 'Listo para conectar'
-                                              : 'OAuth por configurar',
-                                          style: TextStyle(
-                                            color: connected
-                                                ? palette.accent
-                                                : palette.textSecondary,
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 13),
-                            Wrap(
-                              spacing: 7,
-                              runSpacing: 7,
-                              children: resources
-                                  .map(
-                                    (resource) => OutlinedButton.icon(
-                                      onPressed: connected
-                                          ? () => _loadResource(
-                                              id,
-                                              resource.resource,
-                                              resource.label,
-                                            )
-                                          : null,
-                                      icon: Icon(resource.icon, size: 15),
-                                      label: Text(resource.label),
-                                      style: OutlinedButton.styleFrom(
-                                        foregroundColor: palette.textPrimary,
-                                        side: BorderSide(color: palette.border),
-                                        visualDensity: VisualDensity.compact,
-                                      ),
-                                    ),
-                                  )
-                                  .toList(),
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: TextButton.icon(
-                                    onPressed: connected
-                                        ? () => _disconnect(id, _label(id))
-                                        : configured
-                                        ? () => _startConnection(id)
-                                        : () => _showProviderSetup(id),
-                                    icon: Icon(
-                                      connected
-                                          ? LucideIcons.unlink
-                                          : configured
-                                          ? LucideIcons.link
-                                          : LucideIcons.settings2,
-                                      size: 17,
-                                    ),
-                                    label: Text(
-                                      connected
-                                          ? 'Desconectar'
-                                          : configured
-                                          ? 'Conectar'
-                                          : 'Configurar OAuth',
-                                    ),
-                                  ),
-                                ),
-                                if (id == 'github')
-                                  IconButton(
-                                    tooltip: 'Ver detalle de permisos',
-                                    onPressed: () =>
-                                        _showGithubPermissionInfo(),
-                                    icon: const Icon(
-                                      LucideIcons.info,
-                                      size: 18,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }),
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text(
-                      'Numination no muestra una cuenta como conectada hasta que el proveedor termina OAuth. Desconectar elimina las credenciales almacenadas por Numination; también puedes revocar el consentimiento desde los ajustes de la cuenta externa.',
-                      style: TextStyle(
-                        color: palette.textSecondary,
-                        fontSize: 12,
-                        height: 1.45,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-    );
-  }
-
-  String _description(String provider) => switch (provider) {
+  String _description(String id) => switch (id) {
     'google' => 'Gmail, Drive y Google Calendar',
     'microsoft' => 'Outlook, Calendar y OneDrive',
     'github' => 'Repositorios y código fuente',
     _ => 'Páginas y documentos de Notion',
   };
 
+  Widget _sectionTitle(String title, AppPalette palette, {String? count}) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 26, bottom: 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              title,
+              style: TextStyle(
+                color: palette.textSecondary,
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          if (count != null)
+            Text(count, style: TextStyle(color: palette.textSecondary, fontSize: 13)),
+          const SizedBox(width: 4),
+          Icon(LucideIcons.chevronRight, size: 19, color: palette.textSecondary),
+        ],
+      ),
+    );
+  }
+
+  Widget _brandTile(String id, AppPalette palette, {double size = 60}) {
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: palette.surface,
+        border: Border.all(color: palette.border),
+        borderRadius: BorderRadius.circular(17),
+      ),
+      child: Icon(_brandIcon(id), size: size * .43, color: _brandColor(id, palette)),
+    );
+  }
+
+  Future<void> _showConnectorActions(String id) async {
+    final palette = ref.read(appPaletteProvider);
+    final connected = _isConnected(id);
+    final configured = _isConfigured(id);
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: palette.surface,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  _brandTile(id, palette, size: 48),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(_label(id), style: TextStyle(color: palette.textPrimary, fontSize: 17, fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 3),
+                        Text(
+                          connected ? 'Conectado' : configured ? 'Listo para conectar' : 'OAuth por configurar',
+                          style: TextStyle(color: palette.textSecondary, fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              if (connected) ...[
+                ..._resources(id).map((resource) => ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(resource.icon, color: palette.textSecondary),
+                      title: Text(resource.label, style: TextStyle(color: palette.textPrimary)),
+                      trailing: Icon(LucideIcons.chevronRight, size: 18, color: palette.textSecondary),
+                      onTap: () {
+                        Navigator.pop(sheetContext);
+                        unawaited(_loadResource(id, resource.resource, resource.label));
+                      },
+                    )),
+                if (id == 'github')
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(LucideIcons.shieldAlert, color: palette.textSecondary),
+                    title: Text('Revisar permisos', style: TextStyle(color: palette.textPrimary)),
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      unawaited(_showGithubPermissionInfo());
+                    },
+                  ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(LucideIcons.unlink, color: Color(0xFFE05A5A)),
+                  title: const Text('Desconectar', style: TextStyle(color: Color(0xFFE05A5A))),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    unawaited(_disconnect(id, _label(id)));
+                  },
+                ),
+              ] else
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(configured ? LucideIcons.plus : LucideIcons.settings2, color: palette.textPrimary),
+                  title: Text(configured ? 'Conectar cuenta' : 'Configurar OAuth', style: TextStyle(color: palette.textPrimary)),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    unawaited(configured ? _startConnection(id) : _showProviderSetup(id));
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _connectorRow(String id, AppPalette palette) {
+    final connected = _isConnected(id);
+    final configured = _isConfigured(id);
+    final email = _providers[id]?['accountEmail']?.toString();
+    final subtitle = connected && email != null && email.isNotEmpty
+        ? 'Conectado · $email'
+        : connected
+            ? 'Conectado · ${_description(id)}'
+            : _description(id);
+
+    return Column(
+      children: [
+        InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () {
+            if (connected) {
+              unawaited(_showConnectorActions(id));
+            } else if (configured) {
+              unawaited(_startConnection(id));
+            } else {
+              unawaited(_showProviderSetup(id));
+            }
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 2),
+            child: Row(
+              children: [
+                _brandTile(id, palette),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _label(id),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: palette.textPrimary, fontSize: 16, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: connected ? palette.accent : palette.textSecondary,
+                          fontSize: 13,
+                          height: 1.25,
+                        ),
+                      ),
+                      if (!connected && !configured) ...[
+                        const SizedBox(height: 3),
+                        Text('OAuth por configurar', style: TextStyle(color: palette.textSecondary, fontSize: 11)),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  tooltip: connected ? 'Opciones de ${_label(id)}' : configured ? 'Conectar ${_label(id)}' : 'Configurar ${_label(id)}',
+                  onPressed: () {
+                    if (connected || !configured) {
+                      unawaited(_showConnectorActions(id));
+                    } else {
+                      unawaited(_startConnection(id));
+                    }
+                  },
+                  icon: Icon(
+                    configured && !connected ? LucideIcons.plus : LucideIcons.ellipsis,
+                    size: configured && !connected ? 27 : 23,
+                    color: palette.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        Divider(height: 1, thickness: 1, color: palette.border),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = ref.watch(appPaletteProvider);
+    final visibleIds = _visibleProviderIds;
+    final connectedIds = visibleIds.where(_isConnected).toList(growable: false);
+
+    return Scaffold(
+      backgroundColor: palette.background,
+      appBar: AppBar(
+        backgroundColor: palette.background,
+        centerTitle: true,
+        leading: IconButton(
+          tooltip: 'Volver',
+          onPressed: () => Navigator.maybePop(context),
+          icon: Container(
+            width: 42,
+            height: 42,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: palette.surfaceAlt,
+              shape: BoxShape.circle,
+              border: Border.all(color: palette.border),
+            ),
+            child: Icon(LucideIcons.arrowLeft, color: palette.textPrimary, size: 21),
+          ),
+        ),
+        title: Text(
+          'Conectores',
+          style: TextStyle(color: palette.textPrimary, fontWeight: FontWeight.w700, fontSize: 19),
+        ),
+        actions: [
+          IconButton(
+            tooltip: 'Actualizar conexiones',
+            onPressed: () => unawaited(_load()),
+            icon: Icon(LucideIcons.refreshCw, color: palette.textPrimary, size: 20),
+          ),
+        ],
+      ),
+      bottomNavigationBar: Container(
+        color: palette.background,
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 12),
+            child: Container(
+              height: 58,
+              padding: const EdgeInsets.symmetric(horizontal: 17),
+              decoration: BoxDecoration(
+                color: palette.surfaceAlt,
+                border: Border.all(color: palette.border),
+                borderRadius: BorderRadius.circular(32),
+              ),
+              child: Row(
+                children: [
+                  Icon(LucideIcons.search, color: palette.textSecondary, size: 23),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      onChanged: (value) => setState(() => _query = value.trim().toLowerCase()),
+                      style: TextStyle(color: palette.textPrimary, fontSize: 15),
+                      cursorColor: palette.accent,
+                      decoration: InputDecoration(
+                        hintText: 'Buscar conectores',
+                        hintStyle: TextStyle(color: palette.textSecondary, fontSize: 15),
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        filled: false,
+                        isDense: true,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                  ),
+                  if (_query.isNotEmpty)
+                    IconButton(
+                      tooltip: 'Limpiar búsqueda',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() => _query = '');
+                      },
+                      icon: Icon(LucideIcons.x, size: 19, color: palette.textSecondary),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+      body: _loading && _providers.isEmpty
+          ? const Center(child: NumiLoadingAnimation())
+          : _error != null && _providers.isEmpty
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(26),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(_error!, textAlign: TextAlign.center, style: TextStyle(color: palette.textPrimary)),
+                        const SizedBox(height: 12),
+                        FilledButton(onPressed: _load, child: const Text('Reintentar')),
+                      ],
+                    ),
+                  ),
+                )
+              : RefreshIndicator(
+                  onRefresh: _load,
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(28, 6, 28, 28),
+                    children: [
+                      if (connectedIds.isNotEmpty) ...[
+                        _sectionTitle('Instalados', palette, count: '${connectedIds.length}'),
+                        SizedBox(
+                          height: 91,
+                          child: ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: connectedIds.length,
+                            separatorBuilder: (_, _) => const SizedBox(width: 14),
+                            itemBuilder: (context, index) {
+                              final id = connectedIds[index];
+                              return InkWell(
+                                borderRadius: BorderRadius.circular(16),
+                                onTap: () => unawaited(_showConnectorActions(id)),
+                                child: SizedBox(
+                                  width: 66,
+                                  child: Column(
+                                    children: [
+                                      _brandTile(id, palette, size: 58),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        _label(id).replaceAll(' Workspace', '').replaceAll('Microsoft 365', 'Microsoft'),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(color: palette.textSecondary, fontSize: 10),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                      _sectionTitle('Servicios disponibles', palette, count: '${visibleIds.length}'),
+                      if (visibleIds.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 44),
+                          child: Column(
+                            children: [
+                              Icon(LucideIcons.searchX, size: 32, color: palette.textSecondary),
+                              const SizedBox(height: 10),
+                              Text('No encontramos conectores', style: TextStyle(color: palette.textPrimary, fontWeight: FontWeight.w600)),
+                              const SizedBox(height: 4),
+                              Text('Prueba con otro nombre.', style: TextStyle(color: palette.textSecondary, fontSize: 13)),
+                            ],
+                          ),
+                        )
+                      else
+                        ...visibleIds.map((id) => _connectorRow(id, palette)),
+                      const SizedBox(height: 20),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            _encryptionConfigured ? LucideIcons.shieldCheck : LucideIcons.shieldAlert,
+                            size: 17,
+                            color: _encryptionConfigured ? palette.accent : palette.textSecondary,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _encryptionConfigured
+                                  ? 'Cifrado de tokens configurado. Revisa los permisos del proveedor antes de autorizar una cuenta.'
+                                  : 'El servidor aún necesita completar la configuración OAuth y el cifrado. Una cuenta solo aparece como conectada después de terminar OAuth.',
+                              style: TextStyle(color: palette.textSecondary, fontSize: 11, height: 1.4),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+    );
+  }
+
   Future<void> _showGithubPermissionInfo() async {
+    final palette = ref.read(appPaletteProvider);
     await showDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: palette.surface,
         title: const Text('Permisos de GitHub'),
         content: const Text(
           'El OAuth clásico con alcance repo puede permitir acceso amplio a repositorios privados. Autoriza solo tu cuenta de confianza. Para un lanzamiento público, es preferible migrar a una GitHub App con permisos específicos de lectura y Pull Requests.',
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Entendido'),
           ),
         ],
