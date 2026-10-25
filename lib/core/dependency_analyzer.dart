@@ -26,7 +26,7 @@ List<String> _functionNames(String content) {
       multiLine: true,
     ),
     RegExp(
-      r'^\s*(?:static\s+)?(?:Future<[^>]+>|void|dynamic|String|int|bool|Widget|Response|Map<[^>]+>|List<[^>]+>)\s+([A-Za-z_$][\w$]*)\s*\(',
+      r'\b(?:static\s+)?(?:Future<[^>]+>|void|dynamic|String|int|bool|Widget|Response|Map<[^>]+>|List<[^>]+>)\s+([A-Za-z_$][\w$]*)\s*\(',
       multiLine: true,
     ),
   ];
