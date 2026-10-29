@@ -92,8 +92,7 @@ class ApiClient {
   static void _invalidateModuleGetCacheForMutation(String path) {
     final normalized = path.split('?').first;
 
-    if (normalized.startsWith('/ai/chat') ||
-        normalized == '/ai/coder') {
+    if (normalized.startsWith('/ai/chat') || normalized == '/ai/coder') {
       _moduleGetCache.remove('/credits');
       _moduleGetCache.remove('/chats');
     } else if (normalized.startsWith('/projects') ||
@@ -176,7 +175,10 @@ class ApiClient {
       throw ApiException(-1, AppErrorMessages.configurationError);
     }
 
-    final normalizedBase = parsedBase.toString().replaceFirst(RegExp(r'/+$'), '');
+    final normalizedBase = parsedBase.toString().replaceFirst(
+      RegExp(r'/+$'),
+      '',
+    );
     final normalizedPath = path.startsWith('/') ? path : '/$path';
 
     return Uri.parse('$normalizedBase$normalizedPath');

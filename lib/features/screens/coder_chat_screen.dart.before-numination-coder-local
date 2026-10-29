@@ -1,0 +1,2062 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_flutter/lucide_flutter.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:url_launcher/url_launcher.dart';
+
+import '../../core/api.dart';
+import '../../core/env.dart';
+import '../../core/error_messages.dart';
+import '../../core/models.dart';
+import '../../core/theme_controller.dart';
+import '../widgets/ai_response.dart';
+import '../widgets/coder_preview_screen.dart';
+import 'architect_mode_screen.dart';
+import 'dependency_map_screen.dart';
+import 'coder_editor_screen.dart';
+import '../widgets/numi_loading_animation.dart';
+
+class CoderPreviewState {
+  final bool ready;
+  final String? url;
+  final String? message;
+
+  const CoderPreviewState({this.ready = false, this.url, this.message});
+}
+
+class CoderPreviewNotifier extends Notifier<CoderPreviewState> {
+  CoderPreviewNotifier(this.projectId);
+
+  final String projectId;
+
+  @override
+  CoderPreviewState build() => const CoderPreviewState();
+
+  void setPreview({required bool ready, String? url, String? message}) {
+    state = CoderPreviewState(ready: ready, url: url, message: message);
+  }
+
+  void clear() {
+    state = const CoderPreviewState();
+  }
+}
+
+final coderPreviewProvider =
+    NotifierProvider.family<CoderPreviewNotifier, CoderPreviewState, String>(
+      CoderPreviewNotifier.new,
+    );
+
+class CoderChatScreen extends ConsumerStatefulWidget {
+  const CoderChatScreen({
+    super.key,
+    required this.projectId,
+    required this.projectName,
+    this.chatId,
+  });
+
+  final String projectId;
+  final String projectName;
+  final String? chatId;
+
+  @override
+  ConsumerState<CoderChatScreen> createState() => _CoderChatScreenState();
+}
+
+class _CoderMessage {
+  final String text;
+  final bool fromUser;
+  final String? id;
+  final bool animateCharacters;
+
+  _CoderMessage({
+    required this.text,
+    required this.fromUser,
+    this.id,
+    this.animateCharacters = false,
+  });
+}
+
+class _CoderAttachment {
+  final String name;
+  final String content;
+  final int sizeBytes;
+
+  const _CoderAttachment({
+    required this.name,
+    required this.content,
+    required this.sizeBytes,
+  });
+}
+
+class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
+  final _messageController = TextEditingController();
+  final _messageFocusNode = FocusNode();
+  final _scrollController = ScrollController();
+  final stt.SpeechToText _speech = stt.SpeechToText();
+
+  final List<_CoderMessage> _messages = [];
+  final List<_CoderAttachment> _pendingAttachments = [];
+  final Set<String> _expandedFolders = <String>{};
+
+  String _textBeforeListening = '';
+
+  List<FileItem> _files = [];
+  String? _chatId;
+  String? _errorText;
+  String? _savedZipPath;
+
+  bool _loadingFiles = true;
+  bool _loadingMessages = false;
+  int _messageLoadRevision = 0;
+  bool _isSending = false;
+  bool _openingPreview = false;
+  bool _isListening = false;
+  bool _speechAvailable = false;
+  bool _showFiles = false;
+  bool _overthink = false;
+  bool _hasChanges = false;
+  final List<String> _lastChangedPaths = [];
+  final List<String> _lastDeletedPaths = [];
+  bool _githubActionBusy = false;
+  String? _githubOwner;
+  String? _githubRepo;
+  String? _githubBaseBranch;
+  String? _publishedBranch;
+
+  ApiCancelToken? _generationToken;
+
+  @override
+  void initState() {
+    super.initState();
+    _chatId = widget.chatId;
+    _loadingMessages = _chatId != null && _chatId!.isNotEmpty;
+    _loadFiles();
+    _loadMessages();
+    _loadPreviewLink();
+    _initSpeech();
+  }
+
+  @override
+  void dispose() {
+    _generationToken?.cancel();
+    _speech.stop();
+    _messageController.dispose();
+    _messageFocusNode.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _initSpeech() async {
+    _speechAvailable = await _speech.initialize(
+      onStatus: (status) {
+        if (status == 'done' || status == 'notListening') {
+          if (mounted) {
+            setState(() => _isListening = false);
+          }
+        }
+      },
+      onError: (_) {
+        if (mounted) {
+          setState(() => _isListening = false);
+        }
+      },
+    );
+
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  Future<void> _toggleListening() async {
+    if (!_speechAvailable) {
+      await _initSpeech();
+      if (!_speechAvailable) return;
+    }
+
+    if (_isListening) {
+      await _speech.stop();
+
+      if (mounted) {
+        setState(() => _isListening = false);
+      }
+
+      return;
+    }
+
+    _textBeforeListening = _messageController.text;
+
+    setState(() => _isListening = true);
+
+    await _speech.listen(
+      onResult: (result) {
+        if (!mounted) return;
+
+        final recognized = result.recognizedWords.trim();
+        final prefix = _textBeforeListening.trim();
+
+        final combined = prefix.isEmpty
+            ? recognized
+            : (recognized.isEmpty ? prefix : '$prefix $recognized');
+
+        setState(() {
+          _messageController.text = combined;
+          _messageController.selection = TextSelection.fromPosition(
+            TextPosition(offset: _messageController.text.length),
+          );
+        });
+      },
+    );
+  }
+
+  Future<void> _loadMessages() async {
+    final requestedChatId = _chatId;
+    if (requestedChatId == null || requestedChatId.isEmpty) return;
+
+    final loadRevision = ++_messageLoadRevision;
+
+    try {
+      final response = await ApiClient.get(
+        '/chats/${Uri.encodeComponent(requestedChatId)}/messages',
+      );
+
+      final data = ApiClient.decode(response) as Map<String, dynamic>;
+
+      final loadedMessages = (data['messages'] as List? ?? [])
+          .whereType<Map>()
+          .map((row) => Map<String, dynamic>.from(row))
+          .map(
+            (row) => _CoderMessage(
+              text: '${row['content'] ?? ''}',
+              fromUser: row['role'] == 'user',
+              id: row['id']?.toString(),
+            ),
+          )
+          .where((message) => message.text.isNotEmpty)
+          .toList();
+
+      if (!mounted ||
+          loadRevision != _messageLoadRevision ||
+          _chatId != requestedChatId) {
+        return;
+      }
+
+      setState(() {
+        _messages
+          ..clear()
+          ..addAll(loadedMessages);
+        _loadingMessages = false;
+      });
+
+      _scrollToBottom();
+    } catch (_) {
+      if (!mounted ||
+          loadRevision != _messageLoadRevision ||
+          _chatId != requestedChatId) {
+        return;
+      }
+
+      setState(() {
+        _loadingMessages = false;
+        _messages.add(
+          _CoderMessage(
+            text: AppErrorMessages.historyLoadFailed,
+            fromUser: false,
+          ),
+        );
+      });
+    }
+  }
+
+  String _canonicalPreviewUrl(String value) {
+    final incoming = Uri.tryParse(value.trim());
+    if (incoming == null) return value;
+
+    final token = incoming.queryParameters['t'];
+    if (token == null || token.isEmpty) return value;
+
+    final projectId = incoming.queryParameters['projectId'] ?? widget.projectId;
+    final base = Uri.tryParse(Env.supabaseUrl);
+
+    if (base == null || base.host.isEmpty) return value;
+
+    return base
+        .replace(
+          path: '/functions/v1/api',
+          queryParameters: {
+            '__preview': '1',
+            'projectId': projectId,
+            't': token,
+          },
+        )
+        .toString();
+  }
+
+  Future<void> _loadPreviewLink() async {
+    try {
+      final response = await ApiClient.get(
+        '/projects/${Uri.encodeComponent(widget.projectId)}/preview-link',
+      );
+
+      final data = ApiClient.decode(response) as Map<String, dynamic>;
+      final ready = data['previewReady'] == true;
+      final rawUrl = data['previewUrl']?.toString().trim();
+      final serverMessage = data['message']?.toString().trim();
+
+      final available = ready && rawUrl != null && rawUrl.isNotEmpty;
+
+      if (!mounted) return;
+
+      ref
+          .read(coderPreviewProvider(widget.projectId).notifier)
+          .setPreview(
+            ready: available,
+            url: available ? _canonicalPreviewUrl(rawUrl) : null,
+            message: available
+                ? null
+                : (serverMessage != null && serverMessage.isNotEmpty
+                      ? serverMessage
+                      : AppErrorMessages.previewNotReady),
+          );
+    } catch (_) {
+      if (!mounted) return;
+
+      ref
+          .read(coderPreviewProvider(widget.projectId).notifier)
+          .setPreview(
+            ready: false,
+            url: null,
+            message: AppErrorMessages.previewLoadFailed,
+          );
+    }
+  }
+
+  Future<void> _loadFiles() async {
+    if (mounted) {
+      setState(() {
+        _loadingFiles = true;
+        _errorText = null;
+      });
+    }
+
+    try {
+      final response = await ApiClient.get(
+        '/projects/${Uri.encodeComponent(widget.projectId)}/files',
+      );
+
+      final data = ApiClient.decode(response) as Map<String, dynamic>;
+
+      final files = (data['files'] as List? ?? [])
+          .whereType<Map>()
+          .map((row) => FileItem.fromJson(Map<String, dynamic>.from(row)))
+          .toList();
+
+      if (!mounted) return;
+
+      setState(() {
+        _files = files;
+        _loadingFiles = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+
+      setState(() {
+        _loadingFiles = false;
+        _errorText = AppErrorMessages.filesLoadFailed;
+      });
+    }
+  }
+
+  Future<void> _attachFile() async {
+    final picked = await FilePicker.pickFile();
+
+    if (picked == null || picked.path == null) return;
+
+    try {
+      const extensions = <String>{
+        'txt',
+        'md',
+        'dart',
+        'py',
+        'js',
+        'jsx',
+        'ts',
+        'tsx',
+        'json',
+        'yaml',
+        'yml',
+        'html',
+        'css',
+        'xml',
+        'sql',
+        'sh',
+        'kt',
+        'java',
+        'go',
+        'rs',
+        'swift',
+        'env',
+        'toml',
+        'gradle',
+        'properties',
+        'c',
+        'h',
+        'cpp',
+        'php',
+      };
+
+      if (!extensions.contains((picked.extension ?? '').toLowerCase())) {
+        throw Exception(
+          'Por ahora Coder admite archivos de texto y código en la vista previa.',
+        );
+      }
+
+      final file = File(picked.path!);
+      final size = await file.length();
+
+      if (size <= 0 || size > 1024 * 1024) {
+        throw Exception('El archivo debe pesar entre 1 byte y 1 MB.');
+      }
+
+      final content = await file.readAsString();
+
+      if (content.length > 100000) {
+        throw Exception('El archivo es demasiado largo para adjuntarlo.');
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        _pendingAttachments.add(
+          _CoderAttachment(
+            name: picked.name,
+            content: content,
+            sizeBytes: size,
+          ),
+        );
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppErrorMessages.fromException(e))),
+      );
+    }
+  }
+
+  Future<void> _openAddMenu() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (sheetContext, setSheetState) {
+            return SafeArea(
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  ListTile(
+                    leading: const Icon(LucideIcons.paperclip),
+                    title: const Text('Añadir archivos'),
+                    subtitle: const Text(
+                      'Se mantienen como vista previa hasta enviar',
+                    ),
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      _attachFile();
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(LucideIcons.messageCircle),
+                    title: const Text('Cambiar a chat'),
+                    trailing: const Icon(LucideIcons.chevronRight),
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      Navigator.of(context).maybePop();
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(LucideIcons.link2),
+                    title: const Text('Usar GitHub en este prompt'),
+                    subtitle: const Text(
+                      'Insertar @github para leer código del repositorio',
+                    ),
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      _insertGitHubMention();
+                    },
+                  ),
+                  ListTile(
+                    enabled: _hasChanges && !_githubActionBusy,
+                    leading: const Icon(LucideIcons.gitBranch),
+                    title: const Text('Publicar cambios en GitHub'),
+                    subtitle: Text(
+                      _hasChanges
+                          ? 'Crear rama nueva; la rama base queda intacta'
+                          : 'Genera cambios en Coder primero',
+                    ),
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      _publishChangesToGitHub();
+                    },
+                  ),
+                  ListTile(
+                    enabled: _publishedBranch != null && !_githubActionBusy,
+                    leading: const Icon(LucideIcons.playCircle),
+                    title: const Text('Ejecutar pruebas en GitHub Actions'),
+                    subtitle: Text(
+                      _publishedBranch == null
+                          ? 'Publica una rama para ejecutar sus pruebas'
+                          : 'Rama: $_publishedBranch',
+                    ),
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      _runGitHubWorkflow();
+                    },
+                  ),
+                  ListTile(
+                    enabled:
+                        _githubOwner != null &&
+                        _githubRepo != null &&
+                        !_githubActionBusy,
+                    leading: const Icon(LucideIcons.activity),
+                    title: const Text('Consultar resultado de pruebas'),
+                    subtitle: const Text(
+                      'Ver estado y abrir una ejecución de GitHub Actions',
+                    ),
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      _checkGitHubRuns();
+                    },
+                  ),
+                  SwitchListTile(
+                    secondary: const Icon(LucideIcons.brain),
+                    title: const Text('Sobrepensar'),
+                    subtitle: const Text(
+                      'Revisión más profunda antes de aplicar cambios',
+                    ),
+                    value: _overthink,
+                    onChanged: (value) {
+                      setState(() => _overthink = value);
+                      setSheetState(() {});
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _cancelGeneration() {
+    _generationToken?.cancel();
+  }
+
+  Future<void> _sendMessage() async {
+    final text = _messageController.text.trim();
+    final attachments = List<_CoderAttachment>.from(_pendingAttachments);
+
+    if ((text.isEmpty && attachments.isEmpty) || _isSending) {
+      return;
+    }
+
+    final prompt = text.isEmpty
+        ? 'Revisa los archivos adjuntos y dime qué cambios recomiendas.'
+        : text;
+
+    final token = ApiCancelToken();
+    final userIndex = _messages.length;
+
+    setState(() {
+      _messages.add(
+        _CoderMessage(
+          text: attachments.isEmpty
+              ? prompt
+              : '$prompt\n\n${attachments.length} archivo(s) adjunto(s)',
+          fromUser: true,
+        ),
+      );
+
+      _pendingAttachments.clear();
+      _messageController.clear();
+      _isSending = true;
+      _generationToken = token;
+      _errorText = null;
+    });
+
+    _scrollToBottom();
+
+    try {
+      if (_chatId == null) {
+        final response = await ApiClient.post('/chats', {
+          'title': prompt.length > 60
+              ? '${prompt.substring(0, 60)}...'
+              : prompt,
+          'mode': 'coder',
+          'projectId': widget.projectId,
+        });
+
+        final data = ApiClient.decode(response) as Map<String, dynamic>;
+
+        final chat = Map<String, dynamic>.from(data['chat'] as Map);
+
+        _chatId = '${chat['id']}';
+      }
+
+      if (token.isCancelled) {
+        throw const ApiRequestCancelled();
+      }
+
+      final response = await ApiClient.postCancelable('/ai/coder', {
+        'prompt': prompt,
+        'projectId': widget.projectId,
+        'chatId': _chatId,
+        'overthink': _overthink,
+        'attachments': attachments
+            .map((file) => {'name': file.name, 'content': file.content})
+            .toList(),
+      }, token);
+
+      final data = ApiClient.decode(response) as Map<String, dynamic>;
+
+      if (!mounted || token.isCancelled) return;
+
+      final changed = data['changedFiles'] as List? ?? [];
+      final deleted = data['deletedFiles'] as List? ?? [];
+
+      final previewReady = data['previewReady'] == true;
+      final previewUrl = data['previewUrl']?.toString().trim();
+      final previewAvailable =
+          previewReady && previewUrl != null && previewUrl.isNotEmpty;
+
+      ref
+          .read(coderPreviewProvider(widget.projectId).notifier)
+          .setPreview(
+            ready: previewAvailable,
+            url: previewAvailable ? _canonicalPreviewUrl(previewUrl) : null,
+            message: previewAvailable ? null : AppErrorMessages.previewNotReady,
+          );
+
+      setState(() {
+        if (userIndex < _messages.length) {
+          final old = _messages[userIndex];
+
+          _messages[userIndex] = _CoderMessage(
+            text: old.text,
+            fromUser: true,
+            id: data['userMessageId']?.toString(),
+          );
+        }
+
+        _messages.add(
+          _CoderMessage(
+            text: '${data['response'] ?? ''}',
+            fromUser: false,
+            id: data['assistantMessageId']?.toString(),
+            animateCharacters: true,
+          ),
+        );
+
+        for (final item in changed) {
+          final changedPath = item is Map
+              ? item['path']?.toString() ?? ''
+              : item.toString();
+          if (changedPath.isEmpty) continue;
+          _lastDeletedPaths.remove(changedPath);
+          if (!_lastChangedPaths.contains(changedPath)) {
+            _lastChangedPaths.add(changedPath);
+          }
+        }
+        for (final item in deleted) {
+          final deletedPath = item.toString();
+          if (deletedPath.isEmpty) continue;
+          _lastChangedPaths.remove(deletedPath);
+          if (!_lastDeletedPaths.contains(deletedPath)) {
+            _lastDeletedPaths.add(deletedPath);
+          }
+        }
+        _hasChanges =
+            _lastChangedPaths.isNotEmpty || _lastDeletedPaths.isNotEmpty;
+        if (changed.isNotEmpty || deleted.isNotEmpty) _publishedBranch = null;
+      });
+
+      await _loadFiles();
+    } on ApiRequestCancelled {
+      return;
+    } on ApiException catch (e) {
+      if (!mounted || token.isCancelled) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${e.message}\nNo se cobra una solicitud que no terminó correctamente.',
+          ),
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    } catch (_) {
+      if (!mounted || token.isCancelled) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${AppErrorMessages.aiUnavailable}\nNo se cobra una solicitud que no terminó correctamente.',
+          ),
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSending = false;
+
+          if (identical(_generationToken, token)) {
+            _generationToken = null;
+          }
+        });
+      }
+
+      _scrollToBottom();
+    }
+  }
+
+  void _insertGitHubMention() {
+    final value = _messageController.value;
+    final text = value.text;
+    final rawCursor = value.selection.baseOffset;
+    final cursor = rawCursor < 0 || rawCursor > text.length
+        ? text.length
+        : rawCursor;
+    final needsSpace =
+        cursor > 0 &&
+        !RegExp(r'\s').hasMatch(text.substring(cursor - 1, cursor));
+    final insertion = needsSpace ? ' @github ' : '@github ';
+    final nextText =
+        text.substring(0, cursor) + insertion + text.substring(cursor);
+    _messageController.value = TextEditingValue(
+      text: nextText,
+      selection: TextSelection.collapsed(offset: cursor + insertion.length),
+    );
+    _messageFocusNode.requestFocus();
+  }
+
+  Future<void> _openGitHubUrl(String rawUrl) async {
+    final uri = Uri.tryParse(rawUrl);
+    if (uri == null || uri.scheme != 'https' || uri.host != 'github.com') {
+      return;
+    }
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  Future<void> _publishChangesToGitHub() async {
+    if (!_hasChanges || _githubActionBusy) return;
+    final fileByPath = <String, FileItem>{
+      for (final file in _files.where((file) => !file.isDirectory))
+        file.path: file,
+    };
+    final filesPayload = <Map<String, String>>[];
+    for (final changedPath in _lastChangedPaths) {
+      final file = fileByPath[changedPath];
+      if (file == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'No encontré $changedPath en el sandbox actualizado. Recarga los archivos e intenta otra vez.',
+            ),
+          ),
+        );
+        return;
+      }
+      filesPayload.add({'path': changedPath, 'content': file.content});
+    }
+
+    String initialOwner = _githubOwner ?? '';
+    String initialRepo = _githubRepo ?? '';
+    final lastUserMessage = _messages
+        .where((message) => message.fromUser)
+        .toList()
+        .reversed;
+    for (final message in lastUserMessage) {
+      final urlMatch = RegExp(
+        r'github\.com/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)',
+        caseSensitive: false,
+      ).firstMatch(message.text);
+      final mentionMatch = RegExp(
+        r'@github\s+([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)',
+        caseSensitive: false,
+      ).firstMatch(message.text);
+      final match = urlMatch ?? mentionMatch;
+      if (match != null) {
+        initialOwner = match.group(1) ?? initialOwner;
+        initialRepo = (match.group(2) ?? initialRepo).replaceFirst(
+          RegExp(r'\.git$', caseSensitive: false),
+          '',
+        );
+        break;
+      }
+    }
+
+    final ownerController = TextEditingController(text: initialOwner);
+    final repoController = TextEditingController(text: initialRepo);
+    final branchController = TextEditingController(
+      text: _githubBaseBranch ?? 'main',
+    );
+    final target = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Publicar en GitHub'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Numination creará una rama nueva y un commit remoto. No modificará la rama base ni hará merge automáticamente.',
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: ownerController,
+                decoration: const InputDecoration(
+                  labelText: 'Propietario / usuario',
+                ),
+              ),
+              TextField(
+                controller: repoController,
+                decoration: const InputDecoration(labelText: 'Repositorio'),
+              ),
+              TextField(
+                controller: branchController,
+                decoration: const InputDecoration(labelText: 'Rama base'),
+                textCapitalization: TextCapitalization.none,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(dialogContext, {
+                'owner': ownerController.text.trim(),
+                'repo': repoController.text.trim().replaceFirst(
+                  RegExp(r'\.git$', caseSensitive: false),
+                  '',
+                ),
+                'baseBranch': branchController.text.trim(),
+              });
+            },
+            child: const Text('Revisar cambios'),
+          ),
+        ],
+      ),
+    );
+    ownerController.dispose();
+    repoController.dispose();
+    branchController.dispose();
+    if (!mounted || target == null) return;
+    final owner = target['owner'] ?? '';
+    final repo = target['repo'] ?? '';
+    final baseBranch = target['baseBranch'] ?? '';
+    if (owner.isEmpty ||
+        repo.isEmpty ||
+        baseBranch.isEmpty ||
+        filesPayload.isEmpty && _lastDeletedPaths.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Completa el repositorio, la rama y asegúrate de tener cambios.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final previewLines = <String>[
+      ...filesPayload.map((file) => '+ ${file['path']}'),
+      ..._lastDeletedPaths.map((path) => '− $path'),
+    ];
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Confirmar publicación'),
+        content: SizedBox(
+          width: 420,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Repositorio: $owner/$repo'),
+                Text('Base: $baseBranch'),
+                const SizedBox(height: 8),
+                const Text('Archivos que se incluirán en la rama nueva:'),
+                const SizedBox(height: 6),
+                SelectableText(previewLines.join('\n')),
+                const SizedBox(height: 10),
+                const Text(
+                  'Revisa la rama y el diff en GitHub antes de abrir una pull request.',
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Volver'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Crear rama y commit'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || confirmed != true) return;
+
+    setState(() => _githubActionBusy = true);
+    try {
+      final response = await ApiClient.post('/integrations/github/publish', {
+        'owner': owner,
+        'repo': repo,
+        'baseBranch': baseBranch,
+        'message': 'Numination: ${widget.projectName} — cambios revisados',
+        'files': filesPayload,
+        'deleted': List<String>.from(_lastDeletedPaths),
+        'confirmed': true,
+      });
+      final data = ApiClient.decode(response) as Map<String, dynamic>;
+      final branch = data['branch']?.toString() ?? '';
+      final branchUrl = data['branchUrl']?.toString() ?? '';
+      if (branch.isEmpty || branchUrl.isEmpty) {
+        throw StateError('GitHub no devolvió el enlace de la rama.');
+      }
+      setState(() {
+        _githubOwner = owner;
+        _githubRepo = repo;
+        _githubBaseBranch = baseBranch;
+        _publishedBranch = branch;
+        _lastChangedPaths.clear();
+        _lastDeletedPaths.clear();
+        _hasChanges = false;
+      });
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Rama publicada: $branch'),
+          action: SnackBarAction(
+            label: 'Abrir rama',
+            onPressed: () => _openGitHubUrl(branchUrl),
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('No se pudo publicar: $error')));
+    } finally {
+      if (mounted) setState(() => _githubActionBusy = false);
+    }
+  }
+
+  Future<void> _runGitHubWorkflow() async {
+    final owner = _githubOwner;
+    final repo = _githubRepo;
+    final branch = _publishedBranch;
+    if (owner == null || repo == null || branch == null || _githubActionBusy) {
+      return;
+    }
+
+    setState(() => _githubActionBusy = true);
+    try {
+      final query = Uri(queryParameters: {'owner': owner, 'repo': repo}).query;
+      final response = await ApiClient.get(
+        '/integrations/github/workflows?$query',
+      );
+      final data = ApiClient.decode(response) as Map<String, dynamic>;
+      final workflows = (data['workflows'] as List? ?? const [])
+          .whereType<Map>()
+          .map((workflow) => Map<String, dynamic>.from(workflow))
+          .where((workflow) => workflow['state']?.toString() == 'active')
+          .toList();
+      if (!mounted) return;
+      if (workflows.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'No hay workflows activos en este repositorio. Para ejecutar pruebas, debe existir uno habilitado con workflow_dispatch.',
+            ),
+          ),
+        );
+        return;
+      }
+
+      final selected = await showModalBottomSheet<Map<String, dynamic>>(
+        context: context,
+        showDragHandle: true,
+        builder: (sheetContext) => SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              const ListTile(title: Text('Selecciona el workflow de pruebas')),
+              for (final workflow in workflows)
+                ListTile(
+                  leading: const Icon(LucideIcons.playCircle),
+                  title: Text(workflow['name']?.toString() ?? 'Workflow'),
+                  subtitle: Text(workflow['path']?.toString() ?? ''),
+                  onTap: () => Navigator.pop(sheetContext, workflow),
+                ),
+            ],
+          ),
+        ),
+      );
+      if (!mounted || selected == null) return;
+
+      final workflowId =
+          selected['id']?.toString() ??
+          selected['path']?.toString().split('/').last ??
+          '';
+      final dispatchResponse =
+          await ApiClient.post('/integrations/github/workflows/dispatch', {
+            'owner': owner,
+            'repo': repo,
+            'workflowId': workflowId,
+            'ref': branch,
+            'inputs': <String, String>{},
+            'confirmed': true,
+          });
+      final dispatchData =
+          ApiClient.decode(dispatchResponse) as Map<String, dynamic>;
+      final actionsUrl =
+          dispatchData['actionsUrl']?.toString() ??
+          'https://github.com/$owner/$repo/actions';
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'GitHub aceptó la ejecución de ${selected['name'] ?? 'las pruebas'}. El resultado todavía está pendiente.',
+          ),
+          action: SnackBarAction(
+            label: 'Ver Actions',
+            onPressed: () => _openGitHubUrl(actionsUrl),
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudieron iniciar las pruebas: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _githubActionBusy = false);
+    }
+  }
+
+  Future<void> _checkGitHubRuns() async {
+    final owner = _githubOwner;
+    final repo = _githubRepo;
+    if (owner == null || repo == null || _githubActionBusy) return;
+    setState(() => _githubActionBusy = true);
+    try {
+      final parameters = <String, String>{'owner': owner, 'repo': repo};
+      if (_publishedBranch != null) parameters['branch'] = _publishedBranch!;
+      final query = Uri(queryParameters: parameters).query;
+      final response = await ApiClient.get(
+        '/integrations/github/workflows/runs?$query',
+      );
+      final data = ApiClient.decode(response) as Map<String, dynamic>;
+      final runs = (data['runs'] as List? ?? const [])
+          .whereType<Map>()
+          .map((run) => Map<String, dynamic>.from(run))
+          .toList();
+      if (!mounted) return;
+      if (runs.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Todavía no hay ejecuciones registradas para esta rama.',
+            ),
+          ),
+        );
+        return;
+      }
+      await showModalBottomSheet<void>(
+        context: context,
+        showDragHandle: true,
+        builder: (sheetContext) => SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              const ListTile(title: Text('Ejecuciones recientes')),
+              for (final run in runs)
+                ListTile(
+                  leading: Icon(
+                    run['conclusion'] == 'success'
+                        ? LucideIcons.checkCircle2
+                        : run['conclusion'] == 'failure'
+                        ? LucideIcons.xCircle
+                        : LucideIcons.activity,
+                  ),
+                  title: Text(run['name']?.toString() ?? 'Workflow'),
+                  subtitle: Text(
+                    '${run['status'] ?? 'desconocido'}${run['conclusion'] == null ? '' : ' · ${run['conclusion']}'} · ${run['branch'] ?? ''}',
+                  ),
+                  trailing: const Icon(LucideIcons.externalLink),
+                  onTap: () {
+                    final url = run['url']?.toString() ?? '';
+                    Navigator.pop(sheetContext);
+                    _openGitHubUrl(url);
+                  },
+                ),
+            ],
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudieron consultar los resultados: $error'),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _githubActionBusy = false);
+    }
+  }
+
+  Future<void> _undoChanges() async {
+    try {
+      final response = await ApiClient.post(
+        '/projects/${Uri.encodeComponent(widget.projectId)}/undo',
+        {},
+      );
+
+      ApiClient.decode(response);
+
+      if (!mounted) return;
+
+      ref.read(coderPreviewProvider(widget.projectId).notifier).clear();
+
+      setState(() {
+        _hasChanges = false;
+        _lastChangedPaths.clear();
+        _lastDeletedPaths.clear();
+        _publishedBranch = null;
+      });
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Cambios revertidos')));
+
+      await _loadFiles();
+    } on ApiException catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (_) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(AppErrorMessages.undoFailed)));
+    }
+  }
+
+  Future<void> _downloadProject() async {
+    try {
+      final response = await ApiClient.get(
+        '/projects/${Uri.encodeComponent(widget.projectId)}/download',
+      );
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        ApiClient.decode(response);
+        return;
+      }
+
+      final directory = await getApplicationDocumentsDirectory();
+
+      final safeName = widget.projectName.replaceAll(
+        RegExp(r'[^A-Za-z0-9._-]'),
+        '-',
+      );
+
+      final file = File('${directory.path}/$safeName.zip');
+
+      await file.writeAsBytes(response.bodyBytes, flush: true);
+
+      if (!mounted) return;
+
+      setState(() => _savedZipPath = file.path);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Se guardo el proyecto en ${file.path}'),
+          duration: const Duration(seconds: 6),
+        ),
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (_) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(AppErrorMessages.downloadFailed)));
+    }
+  }
+
+  Future<void> _openDependencyMap() async {
+    if (_files.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No hay archivos cargados para analizar.'),
+        ),
+      );
+      return;
+    }
+
+    final selected = await Navigator.of(context).push<FileItem>(
+      MaterialPageRoute(
+        builder: (_) => DependencyMapScreen(
+          projectId: widget.projectId,
+          files: List<FileItem>.unmodifiable(_files),
+        ),
+      ),
+    );
+    if (!mounted || selected == null) return;
+    _previewFile(selected);
+  }
+
+  Future<void> _openArchitectMode() async {
+    if (_files.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Espera a que terminen de cargar los archivos.'),
+        ),
+      );
+      return;
+    }
+
+    final prompt = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (_) => ArchitectModeScreen(
+          projectName: widget.projectName,
+          projectId: widget.projectId,
+          files: List<FileItem>.unmodifiable(_files),
+        ),
+      ),
+    );
+    if (!mounted || prompt == null || prompt.trim().isEmpty) return;
+    setState(() => _messageController.text = prompt);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Plan de arquitectura cargado en Coder. Revísalo y envíalo para proponer cambios.',
+        ),
+      ),
+    );
+  }
+
+  void _previewFile(FileItem file) {
+    unawaited(_openCodeEditor(file));
+  }
+
+  Future<void> _openCodeEditor(FileItem file) async {
+    if (file.isDirectory) return;
+    final result = await Navigator.of(context).push<CoderEditorResult>(
+      MaterialPageRoute<CoderEditorResult>(
+        builder: (_) => CoderEditorScreen(
+          projectId: widget.projectId,
+          projectName: widget.projectName,
+          file: file,
+          onFileChanged: (editedFile) {
+            if (!mounted) return;
+            setState(() {
+              final index = _files.indexWhere(
+                (item) => item.id == editedFile.id,
+              );
+              if (index >= 0) {
+                _files[index] = editedFile;
+              } else {
+                _files.add(editedFile);
+              }
+              if (editedFile.content != file.content) {
+                _lastDeletedPaths.remove(editedFile.path);
+                if (!_lastChangedPaths.contains(editedFile.path)) {
+                  _lastChangedPaths.add(editedFile.path);
+                }
+                _hasChanges = true;
+                _publishedBranch = null;
+              } else {
+                _lastChangedPaths.remove(editedFile.path);
+                _hasChanges =
+                    _lastChangedPaths.isNotEmpty ||
+                    _lastDeletedPaths.isNotEmpty;
+              }
+            });
+          },
+        ),
+      ),
+    );
+    if (!mounted || result == null) return;
+
+    final editedFile = result.file;
+    final contentChanged = editedFile.content != file.content;
+    setState(() {
+      final index = _files.indexWhere((item) => item.id == editedFile.id);
+      if (index >= 0) {
+        _files[index] = editedFile;
+      } else {
+        _files.add(editedFile);
+      }
+      if (contentChanged) {
+        _lastDeletedPaths.remove(editedFile.path);
+        if (!_lastChangedPaths.contains(editedFile.path)) {
+          _lastChangedPaths.add(editedFile.path);
+        }
+        _hasChanges = true;
+        _publishedBranch = null;
+      }
+    });
+
+    if (result.requestCoderReview) {
+      final prompt =
+          'Revisa el archivo `${editedFile.path}` que adjunto y corrige los errores reales de sintaxis o lógica que encuentres. La versión adjunta es la fuente de verdad. Modifica únicamente este archivo, no elimines ni crees otros archivos y conserva el comportamiento que ya funciona. Aplica la corrección en el proyecto y explica brevemente los cambios.';
+      setState(() {
+        _pendingAttachments.removeWhere(
+          (attachment) => attachment.name == editedFile.path,
+        );
+        _pendingAttachments.add(
+          _CoderAttachment(
+            name: editedFile.path,
+            content: editedFile.content,
+            sizeBytes: editedFile.content.length,
+          ),
+        );
+        _messageController.text = prompt;
+        _messageController.selection = TextSelection.collapsed(
+          offset: prompt.length,
+        );
+      });
+      await _sendMessage();
+    }
+  }
+
+  Future<void> _feedback(_CoderMessage message, String kind) async {
+    if (message.id == null || message.id!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Este mensaje todavía no tiene un ID guardado.'),
+        ),
+      );
+
+      return;
+    }
+
+    String? note;
+    final controller = TextEditingController();
+
+    if (kind == 'negative') {
+      note = await showDialog<String>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('¿Qué falló en esta respuesta?'),
+          content: TextField(
+            controller: controller,
+            minLines: 2,
+            maxLines: 5,
+            decoration: const InputDecoration(
+              hintText: 'Describe qué salió mal...',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () =>
+                  Navigator.pop(dialogContext, controller.text.trim()),
+              child: const Text('Enviar'),
+            ),
+          ],
+        ),
+      );
+
+      if (note == null) {
+        controller.dispose();
+        return;
+      }
+    }
+
+    controller.dispose();
+
+    try {
+      await ApiClient.post('/feedback', {
+        'messageId': message.id,
+        'kind': kind,
+        if (note != null && note.isNotEmpty) 'note': note,
+      });
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Se envio tu mensaje')));
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('No se pudo enviar: $e')));
+    }
+  }
+
+  void _editMessage(_CoderMessage message) {
+    setState(() {
+      _messageController.text = message.text;
+      _messageController.selection = TextSelection.fromPosition(
+        TextPosition(offset: _messageController.text.length),
+      );
+    });
+  }
+
+  void _copyMessage(_CoderMessage message) {
+    Clipboard.setData(ClipboardData(text: message.text));
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Mensaje copiado')));
+  }
+
+  Future<void> _openPreview() async {
+    if (_openingPreview) return;
+
+    setState(() => _openingPreview = true);
+
+    try {
+      final response = await ApiClient.get(
+        '/projects/${Uri.encodeComponent(widget.projectId)}/preview-link',
+      );
+
+      final data = ApiClient.decode(response) as Map<String, dynamic>;
+      final ready = data['previewReady'] == true;
+      final rawUrl = data['previewUrl']?.toString().trim();
+      final serverMessage = data['message']?.toString().trim();
+
+      if (!ready || rawUrl == null || rawUrl.isEmpty) {
+        final reason = serverMessage != null && serverMessage.isNotEmpty
+            ? serverMessage
+            : AppErrorMessages.previewNotReady;
+
+        ref
+            .read(coderPreviewProvider(widget.projectId).notifier)
+            .setPreview(ready: false, url: null, message: reason);
+
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(reason)));
+        }
+
+        return;
+      }
+
+      final url = _canonicalPreviewUrl(rawUrl);
+
+      ref
+          .read(coderPreviewProvider(widget.projectId).notifier)
+          .setPreview(ready: true, url: url, message: null);
+
+      if (!mounted) return;
+
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => CoderPreviewScreen(
+            previewUrl: url,
+            projectName: widget.projectName,
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+
+      final userMessage = AppErrorMessages.fromException(
+        error,
+        fallback: AppErrorMessages.previewLoadFailed,
+      );
+
+      ref
+          .read(coderPreviewProvider(widget.projectId).notifier)
+          .setPreview(ready: false, url: null, message: userMessage);
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(userMessage)));
+    } finally {
+      if (mounted) {
+        setState(() => _openingPreview = false);
+      }
+    }
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+      );
+    });
+  }
+
+  List<Widget> _buildFileTree() {
+    final widgets = <Widget>[];
+
+    final rootFiles = <FileItem>[];
+    final folders = <String, List<FileItem>>{};
+
+    for (final file in _files) {
+      if (file.isDirectory) continue;
+
+      final parts = file.path.split('/');
+
+      if (parts.length > 1) {
+        folders.putIfAbsent(parts.first, () => <FileItem>[]).add(file);
+      } else {
+        rootFiles.add(file);
+      }
+    }
+
+    for (final file in rootFiles) {
+      widgets.add(
+        ListTile(
+          leading: const Icon(LucideIcons.fileCode2, size: 20),
+          title: Text(file.path),
+          onTap: () {
+            Navigator.pop(context);
+            _previewFile(file);
+          },
+        ),
+      );
+    }
+
+    for (final entry in folders.entries) {
+      final folderName = entry.key;
+      final folderFiles = entry.value;
+      final isExpanded = _expandedFolders.contains(folderName);
+
+      widgets.add(
+        ListTile(
+          leading: const Icon(LucideIcons.folder, size: 20),
+          title: Text(folderName),
+          trailing: Icon(
+            isExpanded ? LucideIcons.chevronUp : LucideIcons.chevronDown,
+            size: 18,
+          ),
+          onTap: () {
+            setState(() {
+              if (isExpanded) {
+                _expandedFolders.remove(folderName);
+              } else {
+                _expandedFolders.add(folderName);
+              }
+            });
+          },
+        ),
+      );
+
+      if (isExpanded) {
+        for (final file in folderFiles) {
+          final relative = file.path.substring(folderName.length + 1);
+
+          widgets.add(
+            Padding(
+              padding: const EdgeInsets.only(left: 22),
+              child: ListTile(
+                dense: true,
+                leading: const Icon(LucideIcons.fileCode2, size: 18),
+                title: Text(relative),
+                onTap: () {
+                  Navigator.pop(context);
+                  _previewFile(file);
+                },
+              ),
+            ),
+          );
+        }
+      }
+    }
+
+    if (widgets.isEmpty) {
+      widgets.add(
+        const Padding(
+          padding: EdgeInsets.all(16),
+          child: Text('Este proyecto aún no tiene archivos.'),
+        ),
+      );
+    }
+
+    return widgets;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = ref.watch(appPaletteProvider);
+    final previewState = ref.watch(coderPreviewProvider(widget.projectId));
+
+    return Scaffold(
+      key: _scaffoldKey,
+      backgroundColor: palette.background,
+      drawer: Drawer(
+        backgroundColor: palette.surface,
+        child: SafeArea(
+          child: ListView(
+            children: [
+              ListTile(
+                leading: const Icon(LucideIcons.arrowLeft),
+                title: const Text('Volver a tus chats'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.of(context).maybePop();
+                },
+              ),
+              const Divider(),
+              const ListTile(
+                title: Text(
+                  'Archivos del proyecto',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+              ..._buildFileTree(),
+            ],
+          ),
+        ),
+      ),
+      appBar: AppBar(
+        backgroundColor: palette.background,
+        leading: IconButton(
+          tooltip: 'Menú',
+          onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+          icon: const Icon(LucideIcons.menu),
+        ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              widget.projectName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 16),
+            ),
+            const Text('Mistral · Sandbox', style: TextStyle(fontSize: 11)),
+          ],
+        ),
+        actions: [
+          IconButton(
+            tooltip: 'Mapa de dependencias',
+            onPressed: _openDependencyMap,
+            icon: const Icon(LucideIcons.gitFork),
+          ),
+          IconButton(
+            tooltip: 'Modo Arquitecto',
+            onPressed: _openArchitectMode,
+            icon: const Icon(LucideIcons.workflow),
+          ),
+          IconButton(
+            tooltip: 'Deshacer cambios',
+            onPressed: _hasChanges ? _undoChanges : null,
+            icon: const Icon(LucideIcons.undo2),
+          ),
+          TextButton.icon(
+            onPressed: () {
+              setState(() => _showFiles = !_showFiles);
+            },
+            icon: Icon(
+              _showFiles ? LucideIcons.chevronUp : LucideIcons.chevronDown,
+            ),
+            label: const Text('Ver archivos'),
+          ),
+          IconButton(
+            tooltip: 'Descargar proyecto ZIP',
+            onPressed: _downloadProject,
+            icon: const Icon(LucideIcons.download),
+          ),
+        ],
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            if (_showFiles)
+              Container(
+                height: 190,
+                decoration: BoxDecoration(
+                  color: palette.surface,
+                  border: Border(bottom: BorderSide(color: palette.border)),
+                ),
+                child: _loadingFiles
+                    ? const Center(child: NumiLoadingAnimation())
+                    : _files.isEmpty
+                    ? Center(
+                        child: Text(
+                          _errorText ?? 'Este proyecto aún no tiene archivos.',
+                        ),
+                      )
+                    : ListView.builder(
+                        itemCount: _files.length,
+                        itemBuilder: (context, index) {
+                          final file = _files[index];
+
+                          return ListTile(
+                            dense: true,
+                            leading: Icon(
+                              file.isDirectory
+                                  ? LucideIcons.folder
+                                  : LucideIcons.fileCode2,
+                              size: 19,
+                            ),
+                            title: Text(
+                              file.path,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            onTap: () => _previewFile(file),
+                          );
+                        },
+                      ),
+              ),
+            Expanded(
+              child: ListView.builder(
+                controller: _scrollController,
+                padding: const EdgeInsets.all(14),
+                itemCount:
+                    _messages.length +
+                    ((_isSending || _loadingMessages) ? 1 : 0) +
+                    ((!_isSending && !_loadingMessages) ? 1 : 0),
+                itemBuilder: (context, index) {
+                  if (index == _messages.length) {
+                    if (_isSending || _loadingMessages) {
+                      return const _CoderThinking();
+                    }
+
+                    return CoderPreviewCard(
+                      ready: previewState.ready,
+                      openingPreview: _openingPreview,
+                      message: previewState.message,
+                      onOpen: _openPreview,
+                    );
+                  }
+
+                  final message = _messages[index];
+
+                  return _CoderMessageBubble(
+                    message: message,
+                    onCopy: _copyMessage,
+                    onEdit: _editMessage,
+                    onFeedback: _feedback,
+                  );
+                },
+              ),
+            ),
+            if (_pendingAttachments.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Wrap(
+                    spacing: 6,
+                    children: _pendingAttachments.map((file) {
+                      return InputChip(
+                        avatar: const Icon(LucideIcons.fileText, size: 16),
+                        label: Text(file.name),
+                        onDeleted: () {
+                          setState(() => _pendingAttachments.remove(file));
+                        },
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+            if (_overthink)
+              const Padding(
+                padding: EdgeInsets.only(top: 6),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    child: Chip(
+                      avatar: Icon(LucideIcons.brain, size: 16),
+                      label: Text('Sobrepensar activado'),
+                    ),
+                  ),
+                ),
+              ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 6, 10, 12),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: palette.surface,
+                  borderRadius: BorderRadius.circular(26),
+                  border: Border.all(color: palette.border),
+                ),
+                child: Row(
+                  children: [
+                    IconButton(
+                      tooltip: 'Más herramientas',
+                      onPressed: _openAddMenu,
+                      icon: const Icon(LucideIcons.plus),
+                    ),
+                    Expanded(
+                      child: TextField(
+                        controller: _messageController,
+                        focusNode: _messageFocusNode,
+                        enabled: !_isSending,
+                        minLines: 1,
+                        maxLines: 5,
+                        decoration: const InputDecoration(
+                          hintText: 'Describe qué quieres construir...',
+                          border: InputBorder.none,
+                        ),
+                        onSubmitted: (_) {
+                          if (!_isSending) {
+                            _sendMessage();
+                          }
+                        },
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: _isListening
+                          ? 'Detener dictado'
+                          : 'Dictar mensaje',
+                      onPressed: _toggleListening,
+                      icon: Icon(
+                        _isListening ? LucideIcons.micOff : LucideIcons.mic,
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(right: 5),
+                      child: IconButton.filled(
+                        tooltip: _isSending ? 'Detener' : 'Enviar',
+                        onPressed: _isSending
+                            ? _cancelGeneration
+                            : _sendMessage,
+                        icon: Icon(
+                          _isSending ? LucideIcons.square : LucideIcons.arrowUp,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (_savedZipPath != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text(
+                  'ZIP guardado: $_savedZipPath',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: palette.textSecondary, fontSize: 11),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CoderMessageBubble extends ConsumerWidget {
+  const _CoderMessageBubble({
+    required this.message,
+    required this.onCopy,
+    required this.onEdit,
+    required this.onFeedback,
+  });
+
+  final _CoderMessage message;
+  final ValueChanged<_CoderMessage> onCopy;
+  final ValueChanged<_CoderMessage> onEdit;
+  final void Function(_CoderMessage, String) onFeedback;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = ref.watch(appPaletteProvider);
+
+    return Align(
+      alignment: message.fromUser
+          ? Alignment.centerRight
+          : Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 5),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.sizeOf(context).width * .9,
+        ),
+        child: Column(
+          crossAxisAlignment: message.fromUser
+              ? CrossAxisAlignment.end
+              : CrossAxisAlignment.start,
+          children: [
+            if (message.fromUser)
+              Align(
+                alignment: Alignment.centerRight,
+                widthFactor: 1,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: MediaQuery.sizeOf(context).width * 0.78,
+                  ),
+                  child: IntrinsicWidth(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: palette.accent.withValues(alpha: 0.13),
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(18),
+                          topRight: Radius.circular(18),
+                          bottomLeft: Radius.circular(18),
+                          bottomRight: Radius.circular(5),
+                        ),
+                        border: Border.all(
+                          color: palette.accent.withValues(alpha: 0.24),
+                        ),
+                      ),
+                      child: SelectableText(
+                        message.text,
+                        style: TextStyle(
+                          color: palette.textPrimary,
+                          fontSize: 15,
+                          height: 1.45,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              )
+            else
+              Container(
+                padding: const EdgeInsets.all(13),
+                decoration: BoxDecoration(
+                  color: palette.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: palette.border),
+                ),
+                child: AiResponse(
+                  text: message.text,
+                  palette: palette,
+                  animateCharacters: message.animateCharacters,
+                ),
+              ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (message.fromUser)
+                  IconButton(
+                    tooltip: 'Editar',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => onEdit(message),
+                    icon: const Icon(LucideIcons.pencil, size: 17),
+                  ),
+                IconButton(
+                  tooltip: 'Copiar',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => onCopy(message),
+                  icon: const Icon(LucideIcons.copy, size: 17),
+                ),
+                if (!message.fromUser) ...[
+                  IconButton(
+                    tooltip: 'Buena respuesta',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => onFeedback(message, 'positive'),
+                    icon: const Icon(LucideIcons.thumbsUp, size: 17),
+                  ),
+                  IconButton(
+                    tooltip: 'Reportar respuesta',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => onFeedback(message, 'negative'),
+                    icon: const Icon(LucideIcons.thumbsDown, size: 17),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CoderThinking extends StatefulWidget {
+  const _CoderThinking();
+
+  @override
+  State<_CoderThinking> createState() => _CoderThinkingState();
+}
+
+class _CoderThinkingState extends State<_CoderThinking>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        return Align(
+          alignment: Alignment.centerLeft,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: List.generate(3, (index) {
+                final phase = (_controller.value * 3 - index).abs();
+
+                return Opacity(
+                  opacity: (1 - phase).clamp(.25, 1.0),
+                  child: Container(
+                    width: 7,
+                    height: 7,
+                    margin: const EdgeInsets.symmetric(horizontal: 3),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.onSurface,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}

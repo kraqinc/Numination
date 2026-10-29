@@ -7,18 +7,18 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_flutter/lucide_flutter.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/api.dart';
 import '../../core/env.dart';
 import '../../core/error_messages.dart';
+import '../../core/local_project_sync.dart';
 import '../../core/models.dart';
 import '../../core/theme_controller.dart';
 import '../widgets/ai_response.dart';
 import '../widgets/coder_preview_screen.dart';
-import 'architect_mode_screen.dart';
-import 'dependency_map_screen.dart';
 import 'coder_editor_screen.dart';
 import '../widgets/numi_loading_animation.dart';
 
@@ -58,11 +58,13 @@ class CoderChatScreen extends ConsumerStatefulWidget {
     required this.projectId,
     required this.projectName,
     this.chatId,
+    this.localDirectoryPath,
   });
 
   final String projectId;
   final String projectName;
   final String? chatId;
+  final String? localDirectoryPath;
 
   @override
   ConsumerState<CoderChatScreen> createState() => _CoderChatScreenState();
@@ -119,6 +121,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
   bool _openingPreview = false;
   bool _isListening = false;
   bool _speechAvailable = false;
+  String? _localDirectoryPath;
   bool _showFiles = false;
   bool _overthink = false;
   bool _hasChanges = false;
@@ -136,6 +139,8 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
   void initState() {
     super.initState();
     _chatId = widget.chatId;
+    _localDirectoryPath = widget.localDirectoryPath;
+    if (_localDirectoryPath == null) unawaited(_restoreLocalDirectory());
     _loadingMessages = _chatId != null && _chatId!.isNotEmpty;
     _loadFiles();
     _loadMessages();
@@ -334,6 +339,19 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
             url: null,
             message: AppErrorMessages.previewLoadFailed,
           );
+    }
+  }
+
+  Future<void> _restoreLocalDirectory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedPath = prefs.getString(
+        'numination.coder.localDirectory.${widget.projectId}',
+      );
+      if (!mounted || savedPath == null || savedPath.isEmpty) return;
+      setState(() => _localDirectoryPath = savedPath);
+    } catch (_) {
+      // Local sync is optional for projects not created from a local folder.
     }
   }
 
@@ -690,6 +708,52 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
       });
 
       await _loadFiles();
+      final localPath = _localDirectoryPath;
+      if (localPath != null &&
+          _errorText == null &&
+          (changed.isNotEmpty || deleted.isNotEmpty)) {
+        final changedPaths = changed
+            .map(
+              (item) => item is Map
+                  ? item['path']?.toString() ?? ''
+                  : item.toString(),
+            )
+            .where((path) => path.isNotEmpty)
+            .toList(growable: false);
+        final deletedPaths = deleted
+            .map((item) => item.toString())
+            .where((path) => path.isNotEmpty)
+            .toList(growable: false);
+        try {
+          final result = await LocalProjectSyncService.syncChangesToLocal(
+            directoryPath: localPath,
+            cloudFiles: _files,
+            changedPaths: changedPaths,
+            deletedPaths: deletedPaths,
+          );
+          if (mounted && result.writtenFiles + result.deletedFiles > 0) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Cambios integrados en la carpeta local: ${result.writtenFiles} archivo(s) actualizado(s), ${result.deletedFiles} eliminado(s).',
+                ),
+                duration: const Duration(seconds: 4),
+              ),
+            );
+          }
+        } catch (error) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Coder actualizó el sandbox, pero no se pudo sincronizar la carpeta local: $error',
+                ),
+                duration: const Duration(seconds: 6),
+              ),
+            );
+          }
+        }
+      }
     } on ApiRequestCancelled {
       return;
     } on ApiException catch (e) {
@@ -1221,58 +1285,6 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
     }
   }
 
-  Future<void> _openDependencyMap() async {
-    if (_files.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No hay archivos cargados para analizar.'),
-        ),
-      );
-      return;
-    }
-
-    final selected = await Navigator.of(context).push<FileItem>(
-      MaterialPageRoute(
-        builder: (_) => DependencyMapScreen(
-          projectId: widget.projectId,
-          files: List<FileItem>.unmodifiable(_files),
-        ),
-      ),
-    );
-    if (!mounted || selected == null) return;
-    _previewFile(selected);
-  }
-
-  Future<void> _openArchitectMode() async {
-    if (_files.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Espera a que terminen de cargar los archivos.'),
-        ),
-      );
-      return;
-    }
-
-    final prompt = await Navigator.of(context).push<String>(
-      MaterialPageRoute(
-        builder: (_) => ArchitectModeScreen(
-          projectName: widget.projectName,
-          projectId: widget.projectId,
-          files: List<FileItem>.unmodifiable(_files),
-        ),
-      ),
-    );
-    if (!mounted || prompt == null || prompt.trim().isEmpty) return;
-    setState(() => _messageController.text = prompt);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Plan de arquitectura cargado en Coder. Revísalo y envíalo para proponer cambios.',
-        ),
-      ),
-    );
-  }
-
   void _previewFile(FileItem file) {
     unawaited(_openCodeEditor(file));
   }
@@ -1667,20 +1679,15 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontSize: 16),
             ),
-            const Text('Mistral · Sandbox', style: TextStyle(fontSize: 11)),
+            Text(
+              _localDirectoryPath == null
+                  ? 'Mistral · Sandbox'
+                  : 'Mistral · Sandbox · Local',
+              style: const TextStyle(fontSize: 11),
+            ),
           ],
         ),
         actions: [
-          IconButton(
-            tooltip: 'Mapa de dependencias',
-            onPressed: _openDependencyMap,
-            icon: const Icon(LucideIcons.gitFork),
-          ),
-          IconButton(
-            tooltip: 'Modo Arquitecto',
-            onPressed: _openArchitectMode,
-            icon: const Icon(LucideIcons.workflow),
-          ),
           IconButton(
             tooltip: 'Deshacer cambios',
             onPressed: _hasChanges ? _undoChanges : null,

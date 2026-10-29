@@ -12,8 +12,6 @@ import '../../core/theme_controller.dart';
 import '../../core/theme.dart';
 import '../widgets/numi_loading_animation.dart';
 
-/// Catálogo de conectores con el estilo compacto de Complementos.
-/// Toda la superficie y el texto usan AppPalette para respetar el tema activo.
 class ConnectorsScreen extends ConsumerStatefulWidget {
   const ConnectorsScreen({super.key});
 
@@ -23,7 +21,16 @@ class ConnectorsScreen extends ConsumerStatefulWidget {
 
 class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
     with WidgetsBindingObserver {
-  static const _providerIds = ['google', 'microsoft', 'github', 'notion'];
+  static const _providerIds = [
+    'google',
+    'microsoft',
+    'github',
+    'notion',
+    'figma',
+    'vercel',
+    'supabase',
+    'linear',
+  ];
 
   final Map<String, Map<String, dynamic>> _providers = {};
   final TextEditingController _searchController = TextEditingController();
@@ -68,7 +75,7 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
       final response = await ApiClient.get('/integrations');
       final decoded = ApiClient.decode(response) as Map<String, dynamic>;
       final providers = (decoded['providers'] as List? ?? const [])
-          .whereType<Map>()
+          .whereType()
           .map((row) => Map<String, dynamic>.from(row))
           .toList(growable: false);
       if (!mounted) return;
@@ -88,7 +95,7 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
       setState(() {
         _error = error is ApiException
             ? error.message
-            : 'No pudimos consultar los conectores.';
+            : 'No pudimos consultar los conectores en este momento.';
         _loading = false;
       });
     } finally {
@@ -101,12 +108,14 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
 
   List<String> get _visibleProviderIds {
     if (_query.isEmpty) return _providerIds;
-    return _providerIds.where((id) {
-      final provider = _providers[id] ?? const <String, dynamic>{};
-      final email = provider['accountEmail']?.toString() ?? '';
-      final text = '${_label(id)} ${_description(id)} $email'.toLowerCase();
-      return text.contains(_query);
-    }).toList(growable: false);
+    return _providerIds
+        .where((id) {
+          final provider = _providers[id] ?? const <String, dynamic>{};
+          final email = provider['accountEmail']?.toString() ?? '';
+          final text = '${_label(id)} ${_description(id)} $email'.toLowerCase();
+          return text.contains(_query);
+        })
+        .toList(growable: false);
   }
 
   Future<void> _startConnection(String provider) async {
@@ -139,7 +148,7 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
       if (authUrl == null || !authUrl.hasScheme || authUrl.scheme != 'https') {
         throw const ApiException(
           502,
-          'El servidor no devolvió una URL de autorización válida.',
+          'El servidor no devolvió una dirección web de autorización válida.',
         );
       }
       final launched = await launchUrl(
@@ -147,20 +156,27 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
         mode: LaunchMode.externalApplication,
       );
       if (!launched) {
-        throw const ApiException(502, 'No se pudo abrir la página de autorización.');
+        throw const ApiException(
+          502,
+          'No se pudo abrir la página de autorización externa.',
+        );
       }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Termina la autorización en el navegador y vuelve a Numination.'),
+          content: Text(
+            'Completa la autorización en el navegador y regresa a Numination.',
+          ),
         ),
       );
     } catch (error) {
       if (!mounted) return;
       final message = error is ApiException
           ? error.message
-          : 'No se pudo iniciar la conexión.';
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+          : 'No se pudo iniciar la conexión con el servicio.';
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
       await _load(silent: true);
     }
   }
@@ -168,43 +184,54 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
   String _consentNotice(String provider) {
     switch (provider) {
       case 'google':
-        return 'Numination solicitará acceso de solo lectura a Gmail, Google Drive y Calendar. Revisa los permisos que muestra Google antes de aceptar.';
+        return 'Numination solicitará acceso de solo lectura a tus correos de Gmail, archivos de Google Drive y eventos del Calendario. Te recomendamos verificar los permisos directamente en la ventana de Google antes de aceptar.';
       case 'microsoft':
-        return 'Numination solicitará acceso de solo lectura a Outlook Mail, Calendar y archivos de OneDrive. Comprueba los permisos de Microsoft antes de aceptar.';
+        return 'Numination solicitará acceso de solo lectura a Outlook, tu calendario y documentos en OneDrive. Comprueba los permisos de Microsoft antes de aceptar.';
       case 'github':
-        return 'GitHub puede solicitar el alcance repo, que es amplio e incluye repositorios privados. Revisa cuidadosamente el permiso en GitHub y conecta solo una cuenta que estés autorizado a usar.';
+        return 'GitHub podría solicitar permisos amplios de repositorio (alcance repo) para acceder a tu código privado. Revisa cuidadosamente los alcances y conecta únicamente cuentas confiables.';
+      case 'notion':
+        return 'Numination solicitará acceso al espacio de trabajo y contenido de Notion que decidas autorizar.';
+      case 'figma':
+        return 'Revisa los permisos que Figma solicita para acceder de forma segura a tus diseños, archivos y comentarios.';
+      case 'vercel':
+        return 'Comprueba los permisos solicitados para visualizar tus proyectos, despliegues y ajustes en Vercel.';
+      case 'supabase':
+        return 'Revisa con atención los permisos solicitados sobre tus bases de datos y recursos en Supabase antes de autorizar.';
+      case 'linear':
+        return 'Comprueba los permisos solicitados para acceder a las incidencias, proyectos y equipos de Linear.';
       default:
-        return 'Numination solicitará acceso al contenido de Notion que autorices. Revisa el espacio de trabajo y los permisos antes de aceptar.';
+        return 'Numination solicitará acceso al contenido del servicio que autorices. Revisa los permisos antes de continuar.';
     }
   }
 
   Future<void> _showProviderSetup(String provider) async {
-    final env = switch (provider) {
-      'google' => 'GOOGLE_OAUTH_CLIENT_ID\nGOOGLE_OAUTH_CLIENT_SECRET',
-      'microsoft' => 'MICROSOFT_OAUTH_CLIENT_ID\nMICROSOFT_OAUTH_CLIENT_SECRET',
-      'github' => 'GITHUB_OAUTH_CLIENT_ID\nGITHUB_OAUTH_CLIENT_SECRET',
-      _ => 'NOTION_OAUTH_CLIENT_ID\nNOTION_OAUTH_CLIENT_SECRET',
-    };
-    final setupText =
-        'Configura estos secretos en Supabase Edge Function Secrets:\n\n$env\nINTEGRATION_TOKEN_ENCRYPTION_KEY\n\nDespués registra esta URL exacta como Redirect URI en el proveedor:\n\n${_callbackUrl ?? 'Consulta GET /integrations para obtenerla.'}\n\nLa clave de cifrado debe ser aleatoria y de 32 bytes codificados en Base64. No la pegues en el código, en GitHub ni en el APK.';
+    final serviceName = _label(provider);
+    final setupText = 'Para habilitar la conexión con $serviceName, es necesario configurar las credenciales de acceso (Client ID y Client Secret) junto con la clave de seguridad de cifrado en las variables del servidor.\n\n'
+        '1. Registra las credenciales de la aplicación en los secretos del servidor.\n'
+        '2. Configura la siguiente dirección web exacta como la URL de redirección (Redirect URI) en la plataforma del proveedor:\n\n'
+        '${_callbackUrl ?? 'Consulta GET /integrations para obtener la URL.'}\n\n'
+        'Asegúrate de que la clave de cifrado sea única, segura y esté protegida. Nunca la expongas en código público o repositorios.';
+
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: ref.read(appPaletteProvider).surface,
-        title: const Text('OAuth pendiente de configurar'),
+        title: Text('Configuración pendiente para $serviceName'),
         content: SingleChildScrollView(child: SelectableText(setupText)),
         actions: [
           TextButton(
             onPressed: () {
               Navigator.pop(dialogContext);
               if (_callbackUrl != null) {
-                unawaited(Clipboard.setData(ClipboardData(text: _callbackUrl!)));
+                unawaited(
+                  Clipboard.setData(ClipboardData(text: _callbackUrl!)),
+                );
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('URL de callback copiada.')),
+                  const SnackBar(content: Text('La dirección de callback se ha copiado al portapapeles.')),
                 );
               }
             },
-            child: const Text('Copiar callback'),
+            child: const Text('Copiar enlace'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext),
@@ -222,7 +249,7 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
         backgroundColor: ref.read(appPaletteProvider).surface,
         title: Text('Desconectar $label'),
         content: const Text(
-          'Numination eliminará los tokens guardados. Para quitar también el consentimiento del proveedor, revisa las aplicaciones conectadas de esa cuenta.',
+          'Numination eliminará de forma segura los accesos guardados. Si deseas revocar el permiso por completo, también puedes hacerlo desde la configuración de aplicaciones conectadas de tu cuenta.',
         ),
         actions: [
           TextButton(
@@ -248,7 +275,9 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            error is ApiException ? error.message : 'No se pudo desconectar la cuenta.',
+            error is ApiException
+                ? error.message
+                : 'No se pudo desconectar la cuenta en este momento.',
           ),
         ),
       );
@@ -266,7 +295,7 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
       );
       final data = ApiClient.decode(response) as Map<String, dynamic>;
       final items = (data['items'] as List? ?? const [])
-          .whereType<Map>()
+          .whereType()
           .map((row) => Map<String, dynamic>.from(row))
           .toList(growable: false);
       if (!mounted) return;
@@ -307,7 +336,7 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
                   child: items.isEmpty
                       ? Center(
                           child: Text(
-                            'No hay elementos para mostrar.',
+                            'No hay elementos disponibles para mostrar.',
                             style: TextStyle(color: palette.textSecondary),
                           ),
                         )
@@ -318,18 +347,33 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
                               Divider(color: palette.border, height: 1),
                           itemBuilder: (context, index) {
                             final item = items[index];
-                            final itemTitle = item['title']?.toString() ??
-                                item['subject']?.toString() ?? 'Elemento';
+                            final itemTitle =
+                                item['title']?.toString() ??
+                                item['subject']?.toString() ??
+                                'Elemento sin título';
                             final subtitleParts = <String>[];
-                            for (final key in ['from', 'start', 'receivedAt', 'modifiedAt', 'lastEditedTime', 'description', 'snippet']) {
+                            for (final key in [
+                              'from',
+                              'start',
+                              'receivedAt',
+                              'modifiedAt',
+                              'lastEditedTime',
+                              'description',
+                              'snippet',
+                            ]) {
                               final value = item[key]?.toString();
-                              if (value != null && value.isNotEmpty && subtitleParts.length < 4) {
+                              if (value != null &&
+                                  value.isNotEmpty &&
+                                  subtitleParts.length < 4) {
                                 subtitleParts.add(value);
                               }
                             }
                             final uri = _safeUrl(item['url']?.toString());
                             return ListTile(
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 3,
+                              ),
                               leading: Container(
                                 width: 38,
                                 height: 38,
@@ -337,13 +381,20 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
                                   color: palette.accent.withValues(alpha: .12),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
-                                child: Icon(_itemIcon(resource), color: palette.accent, size: 19),
+                                child: Icon(
+                                  _itemIcon(resource),
+                                  color: palette.accent,
+                                  size: 19,
+                                ),
                               ),
                               title: Text(
                                 itemTitle,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
-                                style: TextStyle(color: palette.textPrimary, fontWeight: FontWeight.w600),
+                                style: TextStyle(
+                                  color: palette.textPrimary,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                               subtitle: subtitleParts.isEmpty
                                   ? null
@@ -351,14 +402,26 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
                                       subtitleParts.join(' · '),
                                       maxLines: 3,
                                       overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(color: palette.textSecondary, fontSize: 12),
+                                      style: TextStyle(
+                                        color: palette.textSecondary,
+                                        fontSize: 12,
+                                      ),
                                     ),
                               trailing: uri == null
                                   ? null
-                                  : Icon(LucideIcons.externalLink, size: 17, color: palette.textSecondary),
+                                  : Icon(
+                                      LucideIcons.externalLink,
+                                      size: 17,
+                                      color: palette.textSecondary,
+                                    ),
                               onTap: uri == null
                                   ? null
-                                  : () => unawaited(launchUrl(uri, mode: LaunchMode.externalApplication)),
+                                  : () => unawaited(
+                                      launchUrl(
+                                        uri,
+                                        mode: LaunchMode.externalApplication,
+                                      ),
+                                    ),
                             );
                           },
                         ),
@@ -373,7 +436,9 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            error is ApiException ? error.message : 'No se pudieron cargar los datos del servicio.',
+            error is ApiException
+                ? error.message
+                : 'No se pudieron consultar los datos de este servicio.',
           ),
         ),
       );
@@ -382,7 +447,9 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
 
   Uri? _safeUrl(String? value) {
     final uri = Uri.tryParse(value ?? '');
-    if (uri == null || !uri.hasScheme || !['https', 'http'].contains(uri.scheme)) {
+    if (uri == null ||
+        !uri.hasScheme ||
+        !['https', 'http'].contains(uri.scheme)) {
       return null;
     }
     return uri;
@@ -393,6 +460,18 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
     'drive' => LucideIcons.fileText,
     'repositories' => LucideIcons.gitBranch,
     'pages' => LucideIcons.blocks,
+    'files' => LucideIcons.fileText,
+    'comments' => LucideIcons.mail,
+    'versions' => LucideIcons.gitBranch,
+    'projects' => LucideIcons.folderOpen,
+    'deployments' => LucideIcons.gitBranch,
+    'domains' => LucideIcons.blocks,
+    'logs' => LucideIcons.fileText,
+    'sql' => LucideIcons.fileText,
+    'auth' => LucideIcons.shieldAlert,
+    'storage' => LucideIcons.folderOpen,
+    'issues' => LucideIcons.gitBranch,
+    'teams' => LucideIcons.blocks,
     _ => LucideIcons.mail,
   };
 
@@ -410,20 +489,55 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
     'github' => const [
       _ConnectorResource('Repositorios', 'repositories', LucideIcons.gitBranch),
     ],
-    _ => const [_ConnectorResource('Páginas', 'pages', LucideIcons.blocks)],
+    'notion' => const [
+      _ConnectorResource('Páginas', 'pages', LucideIcons.blocks),
+    ],
+    'figma' => const [
+      _ConnectorResource('Archivos', 'files', LucideIcons.fileText),
+      _ConnectorResource('Comentarios', 'comments', LucideIcons.mail),
+      _ConnectorResource('Versiones', 'versions', LucideIcons.gitBranch),
+    ],
+    'vercel' => const [
+      _ConnectorResource('Proyectos', 'projects', LucideIcons.folderOpen),
+      _ConnectorResource('Despliegues', 'deployments', LucideIcons.gitBranch),
+      _ConnectorResource('Dominios', 'domains', LucideIcons.blocks),
+      _ConnectorResource('Logs', 'logs', LucideIcons.fileText),
+    ],
+    'supabase' => const [
+      _ConnectorResource('Proyectos', 'projects', LucideIcons.folderOpen),
+      _ConnectorResource('SQL', 'sql', LucideIcons.fileText),
+      _ConnectorResource('Auth', 'auth', LucideIcons.shieldAlert),
+      _ConnectorResource('Storage', 'storage', LucideIcons.folderOpen),
+    ],
+    'linear' => const [
+      _ConnectorResource('Incidencias', 'issues', LucideIcons.gitBranch),
+      _ConnectorResource('Proyectos', 'projects', LucideIcons.folderOpen),
+      _ConnectorResource('Equipos', 'teams', LucideIcons.blocks),
+    ],
+    _ => const [],
   };
 
   IconData _brandIcon(String provider) => switch (provider) {
     'google' => SimpleIcons.google,
     'github' => SimpleIcons.github,
     'notion' => SimpleIcons.notion,
+    'figma' => SimpleIcons.figma,
+    'supabase' => SimpleIcons.supabase,
+    'linear' => SimpleIcons.linear, // Corregido el error tipográfico anterior ('liear')
+    'vercel' => SimpleIcons.vercel,
     _ => LucideIcons.mail,
   };
 
   Color _brandColor(String provider, AppPalette palette) => switch (provider) {
     'google' => const Color(0xFF4285F4),
     'microsoft' => const Color(0xFF0078D4),
-    'github' => palette.isDark ? const Color(0xFFB8C3D1) : const Color(0xFF24292F),
+    'github' =>
+      palette.isDark ? const Color(0xFFB8C3D1) : const Color(0xFF24292F),
+    'figma' => const Color(0xFFF24E1E),
+    'vercel' =>
+      palette.isDark ? const Color(0xFFFFFFFF) : const Color(0xFF111111),
+    'supabase' => const Color(0xFF3ECF8E),
+    'linear' => const Color(0xFF8B69FF),
     _ => palette.textPrimary,
   };
 
@@ -431,14 +545,24 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
     'google' => 'Google Workspace',
     'microsoft' => 'Microsoft 365',
     'github' => 'GitHub',
-    _ => 'Notion',
+    'notion' => 'Notion',
+    'figma' => 'Figma',
+    'vercel' => 'Vercel',
+    'supabase' => 'Supabase',
+    'linear' => 'Linear',
+    _ => id,
   };
 
   String _description(String id) => switch (id) {
     'google' => 'Gmail, Drive y Google Calendar',
     'microsoft' => 'Outlook, Calendar y OneDrive',
     'github' => 'Repositorios y código fuente',
-    _ => 'Páginas y documentos de Notion',
+    'notion' => 'Páginas y documentos de Notion',
+    'figma' => 'Diseños, archivos y comentarios',
+    'vercel' => 'Proyectos y despliegues',
+    'supabase' => 'Bases de datos, Auth y proyectos',
+    'linear' => 'Tareas, incidencias y proyectos',
+    _ => 'Conecta tu cuenta de $id',
   };
 
   Widget _sectionTitle(String title, AppPalette palette, {String? count}) {
@@ -457,9 +581,16 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
             ),
           ),
           if (count != null)
-            Text(count, style: TextStyle(color: palette.textSecondary, fontSize: 13)),
+            Text(
+              count,
+              style: TextStyle(color: palette.textSecondary, fontSize: 13),
+            ),
           const SizedBox(width: 4),
-          Icon(LucideIcons.chevronRight, size: 19, color: palette.textSecondary),
+          Icon(
+            LucideIcons.chevronRight,
+            size: 19,
+            color: palette.textSecondary,
+          ),
         ],
       ),
     );
@@ -475,7 +606,11 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
         border: Border.all(color: palette.border),
         borderRadius: BorderRadius.circular(17),
       ),
-      child: Icon(_brandIcon(id), size: size * .43, color: _brandColor(id, palette)),
+      child: Icon(
+        _brandIcon(id),
+        size: size * .43,
+        color: _brandColor(id, palette),
+      ),
     );
   }
 
@@ -502,11 +637,25 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(_label(id), style: TextStyle(color: palette.textPrimary, fontSize: 17, fontWeight: FontWeight.w700)),
+                        Text(
+                          _label(id),
+                          style: TextStyle(
+                            color: palette.textPrimary,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                         const SizedBox(height: 3),
                         Text(
-                          connected ? 'Conectado' : configured ? 'Listo para conectar' : 'OAuth por configurar',
-                          style: TextStyle(color: palette.textSecondary, fontSize: 13),
+                          connected
+                              ? 'Conectado exitosamente'
+                              : configured
+                              ? 'Listo para conectar'
+                              : 'Configuración pendiente',
+                          style: TextStyle(
+                            color: palette.textSecondary,
+                            fontSize: 13,
+                          ),
                         ),
                       ],
                     ),
@@ -515,21 +664,38 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
               ),
               const SizedBox(height: 16),
               if (connected) ...[
-                ..._resources(id).map((resource) => ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: Icon(resource.icon, color: palette.textSecondary),
-                      title: Text(resource.label, style: TextStyle(color: palette.textPrimary)),
-                      trailing: Icon(LucideIcons.chevronRight, size: 18, color: palette.textSecondary),
-                      onTap: () {
-                        Navigator.pop(sheetContext);
-                        unawaited(_loadResource(id, resource.resource, resource.label));
-                      },
-                    )),
+                ..._resources(id).map(
+                  (resource) => ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(resource.icon, color: palette.textSecondary),
+                    title: Text(
+                      resource.label,
+                      style: TextStyle(color: palette.textPrimary),
+                    ),
+                    trailing: Icon(
+                      LucideIcons.chevronRight,
+                      size: 18,
+                      color: palette.textSecondary,
+                    ),
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      unawaited(
+                        _loadResource(id, resource.resource, resource.label),
+                      );
+                    },
+                  ),
+                ),
                 if (id == 'github')
                   ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: Icon(LucideIcons.shieldAlert, color: palette.textSecondary),
-                    title: Text('Revisar permisos', style: TextStyle(color: palette.textPrimary)),
+                    leading: Icon(
+                      LucideIcons.shieldAlert,
+                      color: palette.textSecondary,
+                    ),
+                    title: Text(
+                      'Revisar permisos de acceso',
+                      style: TextStyle(color: palette.textPrimary),
+                    ),
                     onTap: () {
                       Navigator.pop(sheetContext);
                       unawaited(_showGithubPermissionInfo());
@@ -537,8 +703,14 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
                   ),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: const Icon(LucideIcons.unlink, color: Color(0xFFE05A5A)),
-                  title: const Text('Desconectar', style: TextStyle(color: Color(0xFFE05A5A))),
+                  leading: const Icon(
+                    LucideIcons.unlink,
+                    color: Color(0xFFE05A5A),
+                  ),
+                  title: const Text(
+                    'Desconectar cuenta',
+                    style: TextStyle(color: Color(0xFFE05A5A)),
+                  ),
                   onTap: () {
                     Navigator.pop(sheetContext);
                     unawaited(_disconnect(id, _label(id)));
@@ -547,11 +719,21 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
               ] else
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: Icon(configured ? LucideIcons.plus : LucideIcons.settings2, color: palette.textPrimary),
-                  title: Text(configured ? 'Conectar cuenta' : 'Configurar OAuth', style: TextStyle(color: palette.textPrimary)),
+                  leading: Icon(
+                    configured ? LucideIcons.plus : LucideIcons.settings2,
+                    color: palette.textPrimary,
+                  ),
+                  title: Text(
+                    configured ? 'Conectar cuenta' : 'Configurar acceso',
+                    style: TextStyle(color: palette.textPrimary),
+                  ),
                   onTap: () {
                     Navigator.pop(sheetContext);
-                    unawaited(configured ? _startConnection(id) : _showProviderSetup(id));
+                    unawaited(
+                      configured
+                          ? _startConnection(id)
+                          : _showProviderSetup(id),
+                    );
                   },
                 ),
             ],
@@ -568,8 +750,8 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
     final subtitle = connected && email != null && email.isNotEmpty
         ? 'Conectado · $email'
         : connected
-            ? 'Conectado · ${_description(id)}'
-            : _description(id);
+        ? 'Conectado · ${_description(id)}'
+        : _description(id);
 
     return Column(
       children: [
@@ -598,7 +780,11 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
                         _label(id),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: palette.textPrimary, fontSize: 16, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                          color: palette.textPrimary,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -606,21 +792,33 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: connected ? palette.accent : palette.textSecondary,
+                          color: connected
+                              ? palette.accent
+                              : palette.textSecondary,
                           fontSize: 13,
                           height: 1.25,
                         ),
                       ),
                       if (!connected && !configured) ...[
                         const SizedBox(height: 3),
-                        Text('OAuth por configurar', style: TextStyle(color: palette.textSecondary, fontSize: 11)),
+                        Text(
+                          'Requiere configuración previa',
+                          style: TextStyle(
+                            color: palette.textSecondary,
+                            fontSize: 11,
+                          ),
+                        ),
                       ],
                     ],
                   ),
                 ),
                 const SizedBox(width: 8),
                 IconButton(
-                  tooltip: connected ? 'Opciones de ${_label(id)}' : configured ? 'Conectar ${_label(id)}' : 'Configurar ${_label(id)}',
+                  tooltip: connected
+                      ? 'Opciones de ${_label(id)}'
+                      : configured
+                      ? 'Conectar ${_label(id)}'
+                      : 'Configurar ${_label(id)}',
                   onPressed: () {
                     if (connected || !configured) {
                       unawaited(_showConnectorActions(id));
@@ -629,7 +827,9 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
                     }
                   },
                   icon: Icon(
-                    configured && !connected ? LucideIcons.plus : LucideIcons.ellipsis,
+                    configured && !connected
+                        ? LucideIcons.plus
+                        : LucideIcons.ellipsis,
                     size: configured && !connected ? 27 : 23,
                     color: palette.textSecondary,
                   ),
@@ -666,18 +866,30 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
               shape: BoxShape.circle,
               border: Border.all(color: palette.border),
             ),
-            child: Icon(LucideIcons.arrowLeft, color: palette.textPrimary, size: 21),
+            child: Icon(
+              LucideIcons.arrowLeft,
+              color: palette.textPrimary,
+              size: 21,
+            ),
           ),
         ),
         title: Text(
           'Conectores',
-          style: TextStyle(color: palette.textPrimary, fontWeight: FontWeight.w700, fontSize: 19),
+          style: TextStyle(
+            color: palette.textPrimary,
+            fontWeight: FontWeight.w700,
+            fontSize: 19,
+          ),
         ),
         actions: [
           IconButton(
             tooltip: 'Actualizar conexiones',
             onPressed: () => unawaited(_load()),
-            icon: Icon(LucideIcons.refreshCw, color: palette.textPrimary, size: 20),
+            icon: Icon(
+              LucideIcons.refreshCw,
+              color: palette.textPrimary,
+              size: 20,
+            ),
           ),
         ],
       ),
@@ -697,17 +909,28 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
               ),
               child: Row(
                 children: [
-                  Icon(LucideIcons.search, color: palette.textSecondary, size: 23),
+                  Icon(
+                    LucideIcons.search,
+                    color: palette.textSecondary,
+                    size: 23,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: TextField(
                       controller: _searchController,
-                      onChanged: (value) => setState(() => _query = value.trim().toLowerCase()),
-                      style: TextStyle(color: palette.textPrimary, fontSize: 15),
+                      onChanged: (value) =>
+                          setState(() => _query = value.trim().toLowerCase()),
+                      style: TextStyle(
+                        color: palette.textPrimary,
+                        fontSize: 15,
+                      ),
                       cursorColor: palette.accent,
                       decoration: InputDecoration(
                         hintText: 'Buscar conectores',
-                        hintStyle: TextStyle(color: palette.textSecondary, fontSize: 15),
+                        hintStyle: TextStyle(
+                          color: palette.textSecondary,
+                          fontSize: 15,
+                        ),
                         border: InputBorder.none,
                         enabledBorder: InputBorder.none,
                         focusedBorder: InputBorder.none,
@@ -725,7 +948,11 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
                         _searchController.clear();
                         setState(() => _query = '');
                       },
-                      icon: Icon(LucideIcons.x, size: 19, color: palette.textSecondary),
+                      icon: Icon(
+                        LucideIcons.x,
+                        size: 19,
+                        color: palette.textSecondary,
+                      ),
                     ),
                 ],
               ),
@@ -736,97 +963,144 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
       body: _loading && _providers.isEmpty
           ? const Center(child: NumiLoadingAnimation())
           : _error != null && _providers.isEmpty
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(26),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(_error!, textAlign: TextAlign.center, style: TextStyle(color: palette.textPrimary)),
-                        const SizedBox(height: 12),
-                        FilledButton(onPressed: _load, child: const Text('Reintentar')),
-                      ],
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(26),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _error!,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: palette.textPrimary),
                     ),
-                  ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _load,
-                  child: ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(28, 6, 28, 28),
-                    children: [
-                      if (connectedIds.isNotEmpty) ...[
-                        _sectionTitle('Instalados', palette, count: '${connectedIds.length}'),
-                        SizedBox(
-                          height: 91,
-                          child: ListView.separated(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: connectedIds.length,
-                            separatorBuilder: (_, _) => const SizedBox(width: 14),
-                            itemBuilder: (context, index) {
-                              final id = connectedIds[index];
-                              return InkWell(
-                                borderRadius: BorderRadius.circular(16),
-                                onTap: () => unawaited(_showConnectorActions(id)),
-                                child: SizedBox(
-                                  width: 66,
-                                  child: Column(
-                                    children: [
-                                      _brandTile(id, palette, size: 58),
-                                      const SizedBox(height: 6),
-                                      Text(
-                                        _label(id).replaceAll(' Workspace', '').replaceAll('Microsoft 365', 'Microsoft'),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(color: palette.textSecondary, fontSize: 10),
-                                      ),
-                                    ],
+                    const SizedBox(height: 12),
+                    FilledButton(
+                      onPressed: _load,
+                      child: const Text('Reintentar'),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(28, 6, 28, 28),
+                children: [
+                  if (connectedIds.isNotEmpty) ...[
+                    _sectionTitle(
+                      'Instalados',
+                      palette,
+                      count: '${connectedIds.length}',
+                    ),
+                    SizedBox(
+                      height: 91,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: connectedIds.length,
+                        separatorBuilder: (_, _) => const SizedBox(width: 14),
+                        itemBuilder: (context, index) {
+                          final id = connectedIds[index];
+                          return InkWell(
+                            borderRadius: BorderRadius.circular(16),
+                            onTap: () => unawaited(_showConnectorActions(id)),
+                            child: SizedBox(
+                              width: 66,
+                              child: Column(
+                                children: [
+                                  _brandTile(id, palette, size: 58),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    _label(id)
+                                        .replaceAll(' Workspace', '')
+                                        .replaceAll(
+                                          'Microsoft 365',
+                                          'Microsoft',
+                                        ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: palette.textSecondary,
+                                      fontSize: 10,
+                                    ),
                                   ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ],
-                      _sectionTitle('Servicios disponibles', palette, count: '${visibleIds.length}'),
-                      if (visibleIds.isEmpty)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 44),
-                          child: Column(
-                            children: [
-                              Icon(LucideIcons.searchX, size: 32, color: palette.textSecondary),
-                              const SizedBox(height: 10),
-                              Text('No encontramos conectores', style: TextStyle(color: palette.textPrimary, fontWeight: FontWeight.w600)),
-                              const SizedBox(height: 4),
-                              Text('Prueba con otro nombre.', style: TextStyle(color: palette.textSecondary, fontSize: 13)),
-                            ],
-                          ),
-                        )
-                      else
-                        ...visibleIds.map((id) => _connectorRow(id, palette)),
-                      const SizedBox(height: 20),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                  _sectionTitle(
+                    'Servicios disponibles',
+                    palette,
+                    count: '${visibleIds.length}',
+                  ),
+                  if (visibleIds.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 44),
+                      child: Column(
                         children: [
                           Icon(
-                            _encryptionConfigured ? LucideIcons.shieldCheck : LucideIcons.shieldAlert,
-                            size: 17,
-                            color: _encryptionConfigured ? palette.accent : palette.textSecondary,
+                            LucideIcons.searchX,
+                            size: 32,
+                            color: palette.textSecondary,
                           ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              _encryptionConfigured
-                                  ? 'Cifrado de tokens configurado. Revisa los permisos del proveedor antes de autorizar una cuenta.'
-                                  : 'El servidor aún necesita completar la configuración OAuth y el cifrado. Una cuenta solo aparece como conectada después de terminar OAuth.',
-                              style: TextStyle(color: palette.textSecondary, fontSize: 11, height: 1.4),
+                          const SizedBox(height: 10),
+                          Text(
+                            'No encontramos ningún conector',
+                            style: TextStyle(
+                              color: palette.textPrimary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Prueba escribiendo otro nombre.',
+                            style: TextStyle(
+                              color: palette.textSecondary,
+                              fontSize: 13,
                             ),
                           ),
                         ],
                       ),
+                    )
+                  else
+                    ...visibleIds.map((id) => _connectorRow(id, palette)),
+                  const SizedBox(height: 20),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        _encryptionConfigured
+                            ? LucideIcons.shieldCheck
+                            : LucideIcons.shieldAlert,
+                        size: 17,
+                        color: _encryptionConfigured
+                            ? palette.accent
+                            : palette.textSecondary,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _encryptionConfigured
+                              ? 'El sistema de cifrado está configurado correctamente. Recuerda revisar los permisos del servicio antes de autorizar.'
+                              : 'El servidor requiere finalizar la configuración de seguridad y autenticación. Una cuenta aparecerá como conectada únicamente al completar el acceso.',
+                          style: TextStyle(
+                            color: palette.textSecondary,
+                            fontSize: 11,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
-                ),
+                ],
+              ),
+            ),
     );
   }
 
@@ -836,9 +1110,9 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: palette.surface,
-        title: const Text('Permisos de GitHub'),
+        title: const Text('Información de permisos de GitHub'),
         content: const Text(
-          'El OAuth clásico con alcance repo puede permitir acceso amplio a repositorios privados. Autoriza solo tu cuenta de confianza. Para un lanzamiento público, es preferible migrar a una GitHub App con permisos específicos de lectura y Pull Requests.',
+          'La autenticación tradicional con acceso total a repositorios otorga permisos amplios sobre tus proyectos privados. Asegúrate de conectar exclusivamente cuentas de confianza.',
         ),
         actions: [
           TextButton(
