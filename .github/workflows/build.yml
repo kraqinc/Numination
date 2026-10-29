@@ -315,7 +315,7 @@ jobs:
           echo "SHA-256: $APK_SHA256"
 
   ios:
-    name: iOS build (unsigned)
+    name: Build iOS IPA (unsigned)
     needs: flutter
     runs-on: macos-latest
 
@@ -329,9 +329,6 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Generate iOS platform
-        run: flutter create --platforms=ios --project-name numination .
-
       - name: Create CI environment
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -339,6 +336,7 @@ jobs:
           SUPABASE_AUTH_GOOGLE_CLIENT_ID: ${{ secrets.SUPABASE_AUTH_GOOGLE_CLIENT_ID }}
           API_BASE_URL: ${{ secrets.API_BASE_URL }}
         run: |
+          set -euo pipefail
           cat > .env <<ENV
           SUPABASE_URL=$SUPABASE_URL
           SUPABASE_PUBLISHABLE_KEY=$SUPABASE_PUBLISHABLE_KEY
@@ -351,11 +349,106 @@ jobs:
       - name: Get dependencies
         run: flutter pub get --enforce-lockfile
 
-      - name: Build iOS
-        run: flutter build ios --release --no-codesign
+      - name: Build iOS app
+        run: |
+          set -euo pipefail
 
-      - name: Upload unsigned build
+          flutter build ios \
+            --release \
+            --no-codesign \
+            --build-name "1.0.${{ github.run_number }}" \
+            --build-number "${{ github.run_number }}"
+
+      - name: Package IPA
+        run: |
+          set -euo pipefail
+
+          APP_SOURCE="build/ios/iphoneos/Runner.app"
+          IPA_DIR="build/ios/ipa"
+          IPA_NAME="Numination-unsigned.ipa"
+
+          test -d "$APP_SOURCE"
+
+          rm -rf "$IPA_DIR"
+          mkdir -p "$IPA_DIR/Payload"
+
+          /usr/bin/ditto \
+            "$APP_SOURCE" \
+            "$IPA_DIR/Payload/Runner.app"
+
+          (
+            cd "$IPA_DIR"
+            /usr/bin/ditto -c -k \
+              --sequesterRsrc \
+              --keepParent \
+              Payload \
+              "$IPA_NAME"
+          )
+
+          test -s "$IPA_DIR/$IPA_NAME"
+          /usr/bin/unzip -t "$IPA_DIR/$IPA_NAME"
+
+          SHA256="$(
+            shasum -a 256 "$IPA_DIR/$IPA_NAME" |
+            awk '{print $1}'
+          )"
+
+          printf '%s  %s\n' \
+            "$SHA256" "$IPA_NAME" \
+            > "$IPA_DIR/SHA256SUMS-ios.txt"
+
+          echo "IPA SHA-256: $SHA256"
+          echo "IPA package: VERIFIED"
+          echo "Code signing: NOT APPLIED"
+
+      - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Numination-ios-unsigned-build
-          path: build/ios/iphoneos/Runner.app
+          name: Numination-ios-unsigned-ipa
+          if-no-files-found: error
+          path: |
+            build/ios/ipa/Numination-unsigned.ipa
+            build/ios/ipa/SHA256SUMS-ios.txt
+
+  publish-ios-ipa:
+    name: Attach IPA to GitHub Release
+    needs:
+      - android
+      - ios
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download IPA artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: Numination-ios-unsigned-ipa
+          path: release-assets
+
+      - name: Verify IPA
+        run: |
+          set -euo pipefail
+
+          test -s release-assets/Numination-unsigned.ipa
+
+          (
+            cd release-assets
+            sha256sum -c SHA256SUMS-ios.txt
+          )
+
+          unzip -t release-assets/Numination-unsigned.ipa
+
+      - name: Publish IPA to existing release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          TAG="v1.0.${{ github.run_number }}"
+
+          gh release upload "$TAG" \
+            release-assets/Numination-unsigned.ipa \
+            release-assets/SHA256SUMS-ios.txt \
+            --clobber
