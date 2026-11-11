@@ -32,6 +32,29 @@ import 'ghost_chat.dart';
 import 'plans_screen.dart';
 import '../widgets/numi_loading_animation.dart';
 
+class ChatPlace {
+  final String name;
+  final String address;
+  final String mapImageUrl;
+  final String googleMapsUri;
+
+  const ChatPlace({
+    required this.name,
+    required this.address,
+    required this.mapImageUrl,
+    required this.googleMapsUri,
+  });
+
+  factory ChatPlace.fromJson(Map<String, dynamic> json) {
+    return ChatPlace(
+      name: json['name']?.toString() ?? '',
+      address: json['address']?.toString() ?? '',
+      mapImageUrl: json['mapImageUrl']?.toString() ?? '',
+      googleMapsUri: json['googleMapsUri']?.toString() ?? '',
+    );
+  }
+}
+
 class ChatMessage {
   final String text;
   final bool fromUser;
@@ -43,6 +66,7 @@ class ChatMessage {
   final String? memoryTitle;
   final String? memoryContent;
   final List<Map<String, dynamic>> activities;
+  final List<ChatPlace> places;
 
   const ChatMessage({
     required this.text,
@@ -55,9 +79,9 @@ class ChatMessage {
     this.memoryTitle,
     this.memoryContent,
     this.activities = const [],
+    this.places = const [],
   });
 }
-
 class PendingAttachment {
   final String name;
   final String content;
@@ -1095,6 +1119,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     var responseText = '';
     var streamCompleted = false;
 
+    List<ChatPlace> responsePlaces = const [];
     try {
       if (requestChatId == null) {
         final createRes = await ApiClient.post('/chats', {
@@ -1300,7 +1325,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           if (completeText != null && completeText.isNotEmpty) {
             responseText = completeText;
           }
+ // 67
+           final rawPlaces = payload['places'];
 
+           if (rawPlaces is List) {
+             responsePlaces = rawPlaces
+                 .whereType<Map>()
+                 .map(
+                   (item) => ChatPlace.fromJson(
+                     Map<String, dynamic>.from(item),
+                   ),
+                 )
+                 .where((place) => place.name.trim().isNotEmpty)
+                 .take(3)
+                 .toList(growable: false);
+           }
           final userId = payload['userMessageId']?.toString();
           final assistantId = payload['assistantMessageId']?.toString();
 
@@ -1334,6 +1373,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   activities: List<Map<String, dynamic>>.from(
                     _currentActivities,
                   ),
+                  places: responsePlaces,
                 );
               }
 
@@ -1516,7 +1556,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Todavía no podemos guardar tu opinión sobre este mensaje.',
+            'No se pudo guardar tu opinion, intenta de nuevo.',
           ),
         ),
       );
@@ -2090,6 +2130,12 @@ class _MessageBubble extends ConsumerWidget {
                   animateCharacters: animateCharacters,
                 ),
               ),
+              if (!isUser && message.places.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                ...message.places.map(
+                  (place) => _PlacePreviewCard(place: place),
+                ),
+              ],
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -2123,6 +2169,193 @@ class _MessageBubble extends ConsumerWidget {
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PlacePreviewCard extends StatelessWidget {
+  const _PlacePreviewCard({
+    required this.place,
+  });
+
+  final ChatPlace place;
+
+  Future<void> _openMaps() async {
+    final name = place.name.trim();
+    final address = place.address.trim();
+
+    final originalUri = Uri.tryParse(place.googleMapsUri);
+
+    final isGoogleMapsUrl = originalUri != null &&
+        originalUri.scheme == 'https' &&
+        (
+          originalUri.host == 'google.com' ||
+          originalUri.host.endsWith('.google.com') ||
+          originalUri.host == 'maps.app.goo.gl' ||
+          originalUri.host == 'goo.gl'
+        );
+
+    final uri = isGoogleMapsUrl
+        ? originalUri
+        : Uri.https(
+            'www.google.com',
+            '/maps/search/',
+            {
+              'api': '1',
+              'query': '$name, $address',
+            },
+          );
+
+    await launchUrl(
+      uri,
+      mode: LaunchMode.externalApplication,
+    );
+  }
+
+  Widget _mapPlaceholder(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return Container(
+      color: colors.surfaceContainerHighest,
+      child: Center(
+        child: Icon(
+          Icons.map_outlined,
+          size: 32,
+          color: colors.onSurfaceVariant,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    final imageUri = Uri.tryParse(place.mapImageUrl);
+
+    final hasMapImage = imageUri != null &&
+        imageUri.scheme == 'https';
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(
+        top: 5,
+        bottom: 7,
+      ),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainer,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(
+          color: colors.outlineVariant.withValues(alpha: 0.65),
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: _openMaps,
+          borderRadius: BorderRadius.circular(15),
+          child: Padding(
+            padding: const EdgeInsets.all(9),
+            child: Row(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: SizedBox(
+                    width: 116,
+                    height: 94,
+                    child: hasMapImage
+                        ? Image.network(
+                            place.mapImageUrl,
+                            fit: BoxFit.cover,
+                            loadingBuilder: (
+                              context,
+                              child,
+                              progress,
+                            ) {
+                              if (progress == null) {
+                                return child;
+                              }
+
+                              return _mapPlaceholder(context);
+                            },
+                            errorBuilder: (
+                              context,
+                              error,
+                              stackTrace,
+                            ) {
+                              return _mapPlaceholder(context);
+                            },
+                          )
+                        : _mapPlaceholder(context),
+                  ),
+                ),
+
+                const SizedBox(width: 12),
+
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        place.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: colors.onSurface,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+
+                      if (place.address.isNotEmpty) ...[
+                        const SizedBox(height: 5),
+                        Text(
+                          place.address,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: colors.onSurfaceVariant,
+                            fontSize: 11.5,
+                            height: 1.3,
+                          ),
+                        ),
+                      ],
+
+                      const SizedBox(height: 9),
+
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.location_on_outlined,
+                            size: 14,
+                            color: colors.primary,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Abrir ubicación',
+                            style: TextStyle(
+                              color: colors.primary,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                Icon(
+                  Icons.open_in_new,
+                  size: 16,
+                  color: colors.onSurfaceVariant,
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
