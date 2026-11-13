@@ -671,7 +671,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                         : ListView.separated(
                             padding: const EdgeInsets.only(bottom: 8),
                             itemCount: _chats.length,
-                            separatorBuilder: (_, __) => const SizedBox(height: 4),
+                            separatorBuilder: (_, _) => const SizedBox(height: 4),
                             itemBuilder: (context, index) {
                               final chat = _chats[index];
                               return Material(

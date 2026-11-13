@@ -161,7 +161,7 @@ class _ImageViewerScreenState extends State<ImageViewerScreen> {
                 const Text('¿Qué problema encontraste?'),
                 const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
-                  value: category,
+                  initialValue: category,
                   isExpanded: true,
                   items: const [
                     DropdownMenuItem(value: 'inappropriate', child: Text('Contenido inapropiado')),
