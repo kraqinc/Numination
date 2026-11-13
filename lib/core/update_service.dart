@@ -36,7 +36,7 @@ class UpdateService {
   static const String _lastCheckKey = 'last_update_check';
   static const String _pendingApkPathKey = 'pending_apk_path';
 
-  static const Duration _minimumCheckInterval = Duration(minutes: 30);
+  static const Duration _minimumCheckInterval = Duration(minutes: 5);
 
   static const int _maximumApkBytes = 250 * 1024 * 1024;
 
@@ -45,10 +45,10 @@ class UpdateService {
   static bool _permissionPromptedThisLaunch = false;
   static Timer? _automaticCheckTimer;
 
-  /// Comprueba nuevas Releases cada 30 minutos mientras HomeScreen siga activo.
+  /// Una comprobación como máximo cada cinco minutos.
   static void startAutomaticChecks() {
     _automaticCheckTimer ??= Timer.periodic(
-      const Duration(minutes: 30),
+      _minimumCheckInterval,
       (_) => unawaited(checkAndInstallIfEnabled()),
     );
   }
@@ -209,18 +209,19 @@ class UpdateService {
   /// Consulta la última Release estable y prepara la instalación
   /// únicamente si existe una versión más reciente.
   static Future<void> checkAndInstallIfEnabled() async {
-    if (!Platform.isAndroid || kDebugMode || _checkInFlight) {
+    if ((!Platform.isAndroid && !Platform.isIOS) ||
+        kDebugMode ||
+        _checkInFlight) {
       return;
     }
-
-    if (!await _enabled()) return;
 
     _checkInFlight = true;
 
     try {
+      if (!await _enabled()) return;
       // Recupera primero una descarga pendiente de una ejecución
       // anterior, si existe.
-      if (await _resumePendingInstall()) {
+      if (Platform.isAndroid && await _resumePendingInstall()) {
         return;
       }
 
@@ -233,16 +234,26 @@ class UpdateService {
         return;
       }
 
-      final update = await _checkLatest();
-
-      // Registrar el momento solo después de una respuesta válida.
+      // Registrar antes de la petición para evitar reintentos duplicados,
+      // incluso si la red falla.
       await prefs.setInt(_lastCheckKey, now);
+
+      final update = await _checkLatest();
 
       if (update == null) return;
 
       final installed = await PackageInfo.fromPlatform();
 
       if (!_isNewerVersion(update.version, installed.version)) {
+        return;
+      }
+
+      // iOS comprueba la versión, pero instala mediante App Store/TestFlight.
+      if (Platform.isIOS) {
+        await prefs.setString(
+          'ios_update_available_version',
+          update.version,
+        );
         return;
       }
 
@@ -482,6 +493,8 @@ class UpdateService {
 
   /// Reintenta una instalación pendiente al regresar de Ajustes.
   static Future<void> resumeAfterInstallPermission() async {
+    if (!Platform.isAndroid) return;
+
     try {
       await _resumePendingInstall();
     } catch (error, stackTrace) {
