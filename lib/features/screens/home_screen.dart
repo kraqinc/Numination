@@ -219,6 +219,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   AppUser? _profile;
   int _chatRevision = 0;
+  double _newChatSwipeProgress = 0.0;
+  bool _newChatSwipeTracking = false;
 
   // Créditos
   int? _creditsBalance;
@@ -708,6 +710,44 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     });
 
     _scrollToBottom();
+  }
+
+  void _onNewChatSwipeStart(DragStartDetails details) {
+    _newChatSwipeTracking = true;
+    if (_newChatSwipeProgress != 0) {
+      setState(() => _newChatSwipeProgress = 0);
+    }
+  }
+
+  void _onNewChatSwipeUpdate(DragUpdateDetails details) {
+    if (!_newChatSwipeTracking || details.delta.dx <= 0) return;
+    setState(() {
+      _newChatSwipeProgress =
+          (_newChatSwipeProgress + details.delta.dx / 150).clamp(0.0, 1.0).toDouble();
+    });
+  }
+
+  void _onNewChatSwipeEnd(DragEndDetails details) {
+    _newChatSwipeTracking = false;
+    final completed = _newChatSwipeProgress >= 0.92;
+
+    if (!completed) {
+      setState(() => _newChatSwipeProgress = 0);
+      return;
+    }
+
+    HapticFeedback.mediumImpact();
+    _startNewChat();
+    setState(() => _newChatSwipeProgress = 1);
+
+    Future<void>.delayed(const Duration(milliseconds: 320), () {
+      if (mounted) setState(() => _newChatSwipeProgress = 0);
+    });
+  }
+
+  void _onNewChatSwipeCancel() {
+    _newChatSwipeTracking = false;
+    if (mounted) setState(() => _newChatSwipeProgress = 0);
   }
 
   void _onChatDeleted(ChatSession chat) {
@@ -1713,42 +1753,137 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               onGhostTap: _openGhostChat,
             ),
             Expanded(
-              child: _isLoadingHistory
-                  ? const Center(child: NumiLoadingAnimation())
-                  : _messages.isEmpty
-                  ? const _EmptyState()
-                  : ListView.builder(
-                      controller: _scrollController,
-                      padding: const EdgeInsets.fromLTRB(0, 8, 0, 18),
-                      itemCount: _messages.length + (_isSending ? 1 : 0),
-                      itemBuilder: (context, index) {
-                        if (_isSending && index == _messages.length) {
-                          return _ThinkingMessage(
-                            activities: _currentActivities,
-                            expanded: _activityExpanded,
-                            isSearching: _isSearchingWebForCurrentRequest,
-                            onToggle: () => setState(
-                              () => _activityExpanded = !_activityExpanded,
-                            ),
-                          );
-                        }
+              child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onHorizontalDragStart: _onNewChatSwipeStart,
+                onHorizontalDragUpdate: _onNewChatSwipeUpdate,
+                onHorizontalDragEnd: _onNewChatSwipeEnd,
+                onHorizontalDragCancel: _onNewChatSwipeCancel,
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: _isLoadingHistory
+                          ? const Center(child: NumiLoadingAnimation())
+                          : _messages.isEmpty
+                              ? const _EmptyState()
+                              : ListView.builder(
+                                  controller: _scrollController,
+                                  padding: const EdgeInsets.fromLTRB(0, 8, 0, 18),
+                                  itemCount: _messages.length + (_isSending ? 1 : 0),
+                                  itemBuilder: (context, index) {
+                                    if (_isSending && index == _messages.length) {
+                                      return _ThinkingMessage(
+                                        activities: _currentActivities,
+                                        expanded: _activityExpanded,
+                                        isSearching: _isSearchingWebForCurrentRequest,
+                                        onToggle: () => setState(
+                                          () => _activityExpanded = !_activityExpanded,
+                                        ),
+                                      );
+                                    }
 
-                        final message = _messages[index];
-
-                        return _MessageBubble(
-                          message: message,
-                          showActivityDisclosure: !_isSending,
-                          animateCharacters:
-                              !message.fromUser &&
-                              (message.id == null ||
-                                  message.id == _animatedAssistantMessageId),
-                          onCopy: _copyMessage,
-                          onEdit: _editMessage,
-                          onFeedback: _sendFeedback,
-                          onOpenImage: _openGeneratedImage,
-                        );
-                      },
+                                    final message = _messages[index];
+                                    return _MessageBubble(
+                                      message: message,
+                                      showActivityDisclosure: !_isSending,
+                                      animateCharacters: !message.fromUser &&
+                                          (message.id == null ||
+                                              message.id == _animatedAssistantMessageId),
+                                      onCopy: _copyMessage,
+                                      onEdit: _editMessage,
+                                      onFeedback: _sendFeedback,
+                                      onOpenImage: _openGeneratedImage,
+                                    );
+                                  },
+                                ),
                     ),
+                    if (_newChatSwipeProgress > 0.02)
+                      Positioned(
+                        top: 10,
+                        left: 12,
+                        right: 12,
+                        child: IgnorePointer(
+                          child: Center(
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 320),
+                              child: Container(
+                                padding: const EdgeInsets.fromLTRB(14, 10, 14, 9),
+                                decoration: BoxDecoration(
+                                  color: palette.surface,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: palette.border),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.16),
+                                      blurRadius: 18,
+                                      offset: const Offset(0, 6),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          LucideIcons.messageSquare,
+                                          size: 15,
+                                          color: palette.accent,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'Chat',
+                                          style: TextStyle(
+                                            color: palette.textSecondary,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                                          child: Container(
+                                            width: 1,
+                                            height: 15,
+                                            color: palette.border,
+                                          ),
+                                        ),
+                                        Text(
+                                          'Crear nuevo chat',
+                                          style: TextStyle(
+                                            color: palette.textPrimary,
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Icon(
+                                          LucideIcons.arrowRight,
+                                          size: 15,
+                                          color: palette.accent,
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(4),
+                                      child: LinearProgressIndicator(
+                                        value: _newChatSwipeProgress,
+                                        minHeight: 3,
+                                        backgroundColor: palette.border,
+                                        valueColor: AlwaysStoppedAnimation<Color>(palette.accent),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
             ),
             if (_hasNoCredits)
               NoCreditsWidged(resetAt: _creditsResetAt, onViewPlans: _openPlans)

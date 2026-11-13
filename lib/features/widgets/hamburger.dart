@@ -442,6 +442,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
   @override
   Widget build(BuildContext context) {
     final palette = ref.watch(appPaletteProvider);
+    final english = AppErrorMessages.isEnglish;
     final username = widget.email.isNotEmpty
         ? widget.email.split('@').first
         : 'Usuario';
@@ -450,57 +451,127 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
       backgroundColor: palette.surface,
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  IconButton(
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const SettingsScreen(),
-                        ),
-                      );
-                    },
-                    icon: CircleAvatar(
-                      radius: 14,
-                      backgroundColor: palette.surfaceAlt,
-                      backgroundImage: _resolvedAvatarUrl != null
-                          ? NetworkImage(_resolvedAvatarUrl!)
-                          : null,
-                      child: _resolvedAvatarUrl == null
-                          ? Icon(
-                              NumiIcons.person,
-                              size: 16,
-                              color: palette.textSecondary,
-                            )
-                          : null,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      username,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: palette.textPrimary,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w600,
+              Container(
+                padding: const EdgeInsets.fromLTRB(10, 10, 6, 10),
+                decoration: BoxDecoration(
+                  color: palette.surfaceAlt,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: palette.border),
+                ),
+                child: Row(
+                  children: [
+                    InkWell(
+                      borderRadius: BorderRadius.circular(22),
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                        );
+                      },
+                      child: CircleAvatar(
+                        radius: 20,
+                        backgroundColor: palette.surface,
+                        backgroundImage: _resolvedAvatarUrl != null
+                            ? NetworkImage(_resolvedAvatarUrl!)
+                            : null,
+                        child: _resolvedAvatarUrl == null
+                            ? Icon(NumiIcons.person, size: 19, color: palette.textSecondary)
+                            : null,
                       ),
                     ),
-                  ),
-                  IconButton(
-                    onPressed: () async {
-                      await ref.read(authControllerProvider.notifier).signOut();
-                    },
-                    icon: Icon(NumiIcons.logout, color: palette.textPrimary),
-                  ),
-                ],
+                    const SizedBox(width: 11),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            username,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: palette.textPrimary,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          if (widget.email.isNotEmpty)
+                            Text(
+                              widget.email,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: palette.textSecondary,
+                                fontSize: 11,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: english ? 'Sign out' : 'Cerrar sesión',
+                      onPressed: () async {
+                        await ref.read(authControllerProvider.notifier).signOut();
+                      },
+                      icon: Icon(NumiIcons.logout, color: palette.textSecondary, size: 19),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 11),
+              Material(
+                color: palette.accent.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(16),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    widget.onNewChat();
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: palette.accent.withValues(alpha: 0.16),
+                            borderRadius: BorderRadius.circular(11),
+                          ),
+                          child: Icon(NumiIcons.add, color: palette.accent, size: 20),
+                        ),
+                        const SizedBox(width: 11),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                english ? 'New chat' : 'Crear nuevo chat',
+                                style: TextStyle(
+                                  color: palette.textPrimary,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                english ? 'Start a new conversation' : 'Empieza una conversación nueva',
+                                style: TextStyle(color: palette.textSecondary, fontSize: 11),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(LucideIcons.arrowRight, size: 17, color: palette.accent),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
               _DrawerItem(
                 icon: NumiIcons.folder_copy_outlined,
                 label: context.l10n.projects,
@@ -508,90 +579,77 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                 onTap: () {
                   Navigator.of(context).pop();
                   Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) =>
-                          ProjectsScreen(onOpenChat: widget.onSelectChat),
-                    ),
+                    MaterialPageRoute(builder: (_) => ProjectsScreen(onOpenChat: widget.onSelectChat)),
                   );
                 },
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 4),
               _DrawerItem(
                 icon: NumiIcons.description_outlined,
                 label: context.l10n.artifacts,
                 color: palette.textPrimary,
                 onTap: () {
                   Navigator.of(context).pop();
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const ArtifactsScreen()),
-                  );
+                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ArtifactsScreen()));
                 },
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 4),
               _DrawerItem(
                 icon: NumiIcons.power_off_outlined,
                 label: context.l10n.connectors,
                 color: palette.textPrimary,
                 onTap: () {
                   Navigator.of(context).pop();
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const ConnectorsScreen()),
-                  );
+                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ConnectorsScreen()));
                 },
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 4),
               _DrawerItem(
                 icon: NumiIcons.notifications_outlined,
                 label: context.l10n.notifications,
                 color: palette.textPrimary,
                 onTap: () {
                   Navigator.of(context).pop();
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const NotificationScreen(),
-                    ),
-                  );
+                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NotificationScreen()));
                 },
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 4),
               _DrawerItem(
                 icon: LucideIcons.creditCard,
-                label: AppErrorMessages.isEnglish ? 'Credits' : 'Créditos',
+                label: english ? 'Credits' : 'Créditos',
                 color: palette.textPrimary,
                 trailing: _creditsLoading
-                    ? SizedBox(
-                        width: 15,
-                        height: 15,
-                        child: NumiLoadingAnimation(),
-                      )
+                    ? const SizedBox(width: 15, height: 15, child: CircularProgressIndicator(strokeWidth: 2))
                     : _creditBalance == null
-                    ? null
-                    : Text(
-                        _formatCreditBalance(_creditBalance!),
-                        style: TextStyle(
-                          color: palette.accent,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
+                        ? null
+                        : Text(
+                            _formatCreditBalance(_creditBalance!),
+                            style: TextStyle(color: palette.accent, fontSize: 13, fontWeight: FontWeight.w700),
+                          ),
                 onTap: () {
                   final navigator = Navigator.of(context);
                   navigator.pop();
-                  navigator.push(
-                    MaterialPageRoute(builder: (_) => const CreditsHubScreen()),
-                  );
+                  navigator.push(MaterialPageRoute(builder: (_) => const CreditsHubScreen()));
                 },
               ),
-              const SizedBox(height: 16),
-              Divider(color: palette.border),
-              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.only(top: 8, bottom: 8),
+                child: Divider(color: palette.border, height: 1),
+              ),
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    context.l10n.sessions,
-                    style: TextStyle(color: palette.textPrimary, fontSize: 18),
+                  Expanded(
+                    child: Text(
+                      english ? 'Chats' : 'Chats',
+                      style: TextStyle(color: palette.textPrimary, fontSize: 16, fontWeight: FontWeight.w700),
+                    ),
                   ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(color: palette.surfaceAlt, borderRadius: BorderRadius.circular(20)),
+                    child: Text('${_chats.length}', style: TextStyle(color: palette.textSecondary, fontSize: 11, fontWeight: FontWeight.w700)),
+                  ),
+                  const SizedBox(width: 8),
                   ModePillDropdown(
                     modeId: widget.modeId,
                     availableModes: widget.availableModes,
@@ -599,60 +657,59 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 9),
               Expanded(
                 child: _isLoading
                     ? Center(child: NumiLoadingAnimation())
                     : _chats.isEmpty
-                    ? Center(
-                        child: Text(
-                          context.l10n.noResults,
-                          style: TextStyle(
-                            color: palette.textSecondary,
-                            fontSize: 15,
-                          ),
-                        ),
-                      )
-                    : ListView.builder(
-                        itemCount: _chats.length,
-                        itemBuilder: (context, index) {
-                          final chat = _chats[index];
-                          return ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            leading: Icon(
-                              chat.mode == 'coder'
-                                  ? NumiIcons.code_rounded
-                                  : NumiIcons.chat_bubble_outline,
-                              color: palette.accent,
-                              size: 20,
+                        ? Center(
+                            child: Text(
+                              context.l10n.noResults,
+                              style: TextStyle(color: palette.textSecondary, fontSize: 13),
                             ),
-                            title: Text(
-                              chat.title,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: palette.textPrimary,
-                                fontSize: 15,
-                              ),
-                            ),
-                            onTap: () {
-                              Navigator.of(context).pop();
-                              widget.onSelectChat(chat);
+                          )
+                        : ListView.separated(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            itemCount: _chats.length,
+                            separatorBuilder: (_, __) => const SizedBox(height: 4),
+                            itemBuilder: (context, index) {
+                              final chat = _chats[index];
+                              return Material(
+                                color: palette.surfaceAlt.withValues(alpha: 0.48),
+                                borderRadius: BorderRadius.circular(12),
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(12),
+                                  onTap: () {
+                                    Navigator.of(context).pop();
+                                    widget.onSelectChat(chat);
+                                  },
+                                  onLongPress: () => _showChatActions(chat),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          chat.mode == 'coder' ? NumiIcons.code_rounded : NumiIcons.chat_bubble_outline,
+                                          color: palette.textSecondary,
+                                          size: 18,
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Text(
+                                            chat.title,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(color: palette.textPrimary, fontSize: 13, fontWeight: FontWeight.w500),
+                                          ),
+                                        ),
+                                        Icon(LucideIcons.chevronRight, size: 15, color: palette.textSecondary.withValues(alpha: 0.7)),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
                             },
-                            onLongPress: () => _showChatActions(chat),
-                          );
-                        },
-                      ),
-              ),
-              Align(
-                alignment: Alignment.centerRight,
-                child: FloatingActionButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    widget.onNewChat();
-                  },
-                  backgroundColor: palette.accent,
-                  child: const Icon(NumiIcons.add, color: Colors.black),
-                ),
+                          ),
               ),
             ],
           ),
@@ -678,15 +735,30 @@ class _DrawerItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Row(
-        children: [
-          Icon(icon, color: color, size: 22),
-          const SizedBox(width: 16),
-          Text(label, style: TextStyle(color: color, fontSize: 17)),
-          if (trailing != null) ...[const Spacer(), trailing!],
-        ],
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 9),
+          child: Row(
+            children: [
+              Icon(icon, color: color.withValues(alpha: 0.88), size: 19),
+              const SizedBox(width: 13),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: color, fontSize: 14, fontWeight: FontWeight.w500),
+                ),
+              ),
+              if (trailing != null) ...[const SizedBox(width: 8), trailing!],
+            ],
+          ),
+        ),
       ),
     );
   }

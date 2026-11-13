@@ -1641,24 +1641,67 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
       drawer: Drawer(
         backgroundColor: palette.surface,
         child: SafeArea(
-          child: ListView(
+          child: Column(
             children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                child: Container(
+                  padding: const EdgeInsets.all(13),
+                  decoration: BoxDecoration(
+                    color: palette.surfaceAlt,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: palette.border),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: palette.accent.withValues(alpha: 0.13),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(LucideIcons.code2, color: palette.accent),
+                      ),
+                      const SizedBox(width: 11),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('PROJECT EXPLORER', style: TextStyle(color: palette.textSecondary, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 1.0)),
+                            const SizedBox(height: 3),
+                            Text(widget.projectName, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: palette.textPrimary, fontSize: 14, fontWeight: FontWeight.w700)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 5),
+                child: Row(
+                  children: [
+                    Expanded(child: Text('ARCHIVOS', style: TextStyle(color: palette.textSecondary, fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 1.0))),
+                    Text('${_files.length}', style: TextStyle(color: palette.textSecondary, fontSize: 11)),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(10, 4, 10, 12),
+                  children: _buildFileTree(),
+                ),
+              ),
+              Divider(color: palette.border, height: 1),
               ListTile(
-                leading: const Icon(LucideIcons.arrowLeft),
-                title: const Text('Volver a tus chats'),
+                leading: Icon(LucideIcons.arrowLeft, color: palette.textSecondary, size: 19),
+                title: Text('Volver a tus chats', style: TextStyle(color: palette.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.of(context).maybePop();
                 },
               ),
-              const Divider(),
-              const ListTile(
-                title: Text(
-                  'Archivos del proyecto',
-                  style: TextStyle(fontWeight: FontWeight.w700),
-                ),
-              ),
-              ..._buildFileTree(),
             ],
           ),
         ),
@@ -1693,14 +1736,10 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
             onPressed: _hasChanges ? _undoChanges : null,
             icon: const Icon(LucideIcons.undo2),
           ),
-          TextButton.icon(
-            onPressed: () {
-              setState(() => _showFiles = !_showFiles);
-            },
-            icon: Icon(
-              _showFiles ? LucideIcons.chevronUp : LucideIcons.chevronDown,
-            ),
-            label: const Text('Ver archivos'),
+          IconButton(
+            tooltip: _showFiles ? 'Ocultar archivos' : 'Mostrar archivos',
+            onPressed: () => setState(() => _showFiles = !_showFiles),
+            icon: Icon(_showFiles ? LucideIcons.folderOpen : LucideIcons.folder),
           ),
           IconButton(
             tooltip: 'Descargar proyecto ZIP',
@@ -1714,41 +1753,63 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
           children: [
             if (_showFiles)
               Container(
-                height: 190,
+                height: 196,
                 decoration: BoxDecoration(
                   color: palette.surface,
                   border: Border(bottom: BorderSide(color: palette.border)),
                 ),
-                child: _loadingFiles
-                    ? const Center(child: NumiLoadingAnimation())
-                    : _files.isEmpty
-                    ? Center(
-                        child: Text(
-                          _errorText ?? 'Este proyecto aún no tiene archivos.',
+                child: Column(
+                  children: [
+                    SizedBox(
+                      height: 38,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        child: Row(
+                          children: [
+                            Icon(LucideIcons.folderOpen, size: 15, color: palette.accent),
+                            const SizedBox(width: 8),
+                            Text('ARCHIVOS DEL PROYECTO', style: TextStyle(color: palette.textSecondary, fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 0.8)),
+                            const Spacer(),
+                            Text('${_files.length}', style: TextStyle(color: palette.textSecondary, fontSize: 11)),
+                          ],
                         ),
-                      )
-                    : ListView.builder(
-                        itemCount: _files.length,
-                        itemBuilder: (context, index) {
-                          final file = _files[index];
-
-                          return ListTile(
-                            dense: true,
-                            leading: Icon(
-                              file.isDirectory
-                                  ? LucideIcons.folder
-                                  : LucideIcons.fileCode2,
-                              size: 19,
-                            ),
-                            title: Text(
-                              file.path,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            onTap: () => _previewFile(file),
-                          );
-                        },
                       ),
+                    ),
+                    Expanded(
+                      child: _loadingFiles
+                          ? const Center(child: NumiLoadingAnimation())
+                          : _files.isEmpty
+                              ? Center(
+                                  child: Text(
+                                    _errorText ?? 'Este proyecto aún no tiene archivos.',
+                                    style: TextStyle(color: palette.textSecondary, fontSize: 12),
+                                  ),
+                                )
+                              : ListView.builder(
+                                  itemCount: _files.length,
+                                  itemBuilder: (context, index) {
+                                    final file = _files[index];
+                                    return ListTile(
+                                      dense: true,
+                                      visualDensity: VisualDensity.compact,
+                                      leading: Icon(
+                                        file.isDirectory ? LucideIcons.folder : LucideIcons.fileCode2,
+                                        color: palette.textSecondary,
+                                        size: 18,
+                                      ),
+                                      title: Text(
+                                        file.path,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(color: palette.textPrimary, fontSize: 12),
+                                      ),
+                                      onTap: () => _previewFile(file),
+                                    );
+                                  },
+                                ),
+                    ),
+                  ],
+                ),
               ),
             Expanded(
               child: ListView.builder(
@@ -1817,57 +1878,83 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
                 ),
               ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(10, 6, 10, 12),
+              padding: const EdgeInsets.fromLTRB(12, 7, 12, 12),
               child: Container(
+                padding: const EdgeInsets.fromLTRB(5, 4, 5, 4),
                 decoration: BoxDecoration(
                   color: palette.surface,
-                  borderRadius: BorderRadius.circular(26),
+                  borderRadius: BorderRadius.circular(25),
                   border: Border.all(color: palette.border),
                 ),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    IconButton(
-                      tooltip: 'Más herramientas',
-                      onPressed: _openAddMenu,
-                      icon: const Icon(LucideIcons.plus),
-                    ),
-                    Expanded(
-                      child: TextField(
-                        controller: _messageController,
-                        focusNode: _messageFocusNode,
-                        enabled: !_isSending,
-                        minLines: 1,
-                        maxLines: 5,
-                        decoration: const InputDecoration(
-                          hintText: 'Describe qué quieres construir...',
-                          border: InputBorder.none,
-                        ),
-                        onSubmitted: (_) {
-                          if (!_isSending) {
-                            _sendMessage();
-                          }
-                        },
+                    SizedBox(
+                      width: 42,
+                      height: 44,
+                      child: IconButton(
+                        tooltip: 'Más herramientas',
+                        onPressed: _isSending ? null : _openAddMenu,
+                        padding: EdgeInsets.zero,
+                        icon: Icon(LucideIcons.plus, color: palette.textSecondary, size: 21),
                       ),
                     ),
-                    IconButton(
-                      tooltip: _isListening
-                          ? 'Detener dictado'
-                          : 'Dictar mensaje',
-                      onPressed: _toggleListening,
-                      icon: Icon(
-                        _isListening ? LucideIcons.micOff : LucideIcons.mic,
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(3, 10, 3, 10),
+                        child: TextField(
+                          controller: _messageController,
+                          focusNode: _messageFocusNode,
+                          enabled: !_isSending,
+                          minLines: 1,
+                          maxLines: 5,
+                          textCapitalization: TextCapitalization.sentences,
+                          keyboardType: TextInputType.multiline,
+                          cursorColor: palette.accent,
+                          style: TextStyle(color: palette.textPrimary, fontSize: 14, height: 1.35),
+                          decoration: InputDecoration(
+                            hintText: 'Describe qué quieres construir...',
+                            hintStyle: TextStyle(color: palette.textSecondary.withValues(alpha: 0.78), fontSize: 14),
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            isCollapsed: true,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                          onSubmitted: (_) {
+                            if (!_isSending) _sendMessage();
+                          },
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      width: 42,
+                      height: 44,
+                      child: IconButton(
+                        tooltip: _isListening ? 'Detener dictado' : 'Dictar mensaje',
+                        onPressed: _isSending ? null : _toggleListening,
+                        padding: EdgeInsets.zero,
+                        icon: Icon(
+                          _isListening ? LucideIcons.micOff : LucideIcons.mic,
+                          color: _isListening ? palette.accent : palette.textSecondary,
+                          size: 21,
+                        ),
                       ),
                     ),
                     Padding(
-                      padding: const EdgeInsets.only(right: 5),
+                      padding: const EdgeInsets.only(left: 2, right: 1, bottom: 1),
                       child: IconButton.filled(
                         tooltip: _isSending ? 'Detener' : 'Enviar',
-                        onPressed: _isSending
-                            ? _cancelGeneration
-                            : _sendMessage,
-                        icon: Icon(
-                          _isSending ? LucideIcons.square : LucideIcons.arrowUp,
+                        style: IconButton.styleFrom(
+                          minimumSize: const Size(42, 42),
+                          fixedSize: const Size(42, 42),
+                          padding: EdgeInsets.zero,
+                          backgroundColor: palette.accent,
+                          foregroundColor: Colors.white,
+                          shape: const CircleBorder(),
                         ),
+                        onPressed: _isSending ? _cancelGeneration : _sendMessage,
+                        icon: Icon(_isSending ? LucideIcons.square : LucideIcons.arrowUp, size: 19),
                       ),
                     ),
                   ],

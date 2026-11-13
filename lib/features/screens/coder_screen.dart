@@ -291,6 +291,41 @@ class _CoderScreenState extends ConsumerState<CoderScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
           children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: palette.surfaceAlt,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: palette.border),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: palette.accent.withValues(alpha: 0.13),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(LucideIcons.code2, color: palette.accent, size: 21),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('CODER WORKSPACE', style: TextStyle(color: palette.accent, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 1.1)),
+                        const SizedBox(height: 4),
+                        Text('Tu espacio para construir', style: TextStyle(color: palette.textPrimary, fontSize: 14, fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 2),
+                        Text('Proyecto, archivos y cambios en un solo lugar.', style: TextStyle(color: palette.textSecondary, fontSize: 11)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 18),
             Row(
               children: [
                 _stepIndicator(
