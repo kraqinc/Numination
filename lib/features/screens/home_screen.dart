@@ -21,6 +21,7 @@ import '../../core/models.dart';
 import '../../core/theme_controller.dart';
 import '../../core/update_service.dart';
 import '../widgets/ai_response.dart';
+import 'image_viewer_screen.dart';
 import '../widgets/hamburger.dart';
 import '../widgets/no_credits_widget.dart';
 import '../widgets/search_chats.dart';
@@ -62,6 +63,7 @@ class ChatMessage {
   final String? chatId;
   final bool memorySaved;
   final String? imageUrl;
+  final String? imagePrompt;
   final String? memoryId;
   final String? memoryTitle;
   final String? memoryContent;
@@ -75,6 +77,7 @@ class ChatMessage {
     this.chatId,
     this.memorySaved = false,
     this.imageUrl,
+    this.imagePrompt,
     this.memoryId,
     this.memoryTitle,
     this.memoryContent,
@@ -820,23 +823,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         _messages
           ..clear()
           ..addAll(
-            list.map((message) {
+            list.asMap().entries.map((entry) {
+              final index = entry.key;
+              final message = entry.value;
               const imageMarker = '[[NUMINATION_IMAGE]]\n';
-              final isGeneratedImage =
-                  message.role != 'user' &&
+              final isGeneratedImage = message.role != 'user' &&
                   message.content.startsWith(imageMarker);
               final imageUrl = isGeneratedImage
                   ? message.content.substring(imageMarker.length).trim()
                   : null;
-
+              final imagePrompt = isGeneratedImage && index > 0 &&
+                      list[index - 1].role == 'user'
+                  ? list[index - 1].content
+                  : null;
               return ChatMessage(
                 text: isGeneratedImage ? '' : message.content,
                 fromUser: message.role == 'user',
                 id: message.id,
                 chatId: message.chatId,
-                imageUrl: imageUrl != null && imageUrl.isNotEmpty
-                    ? imageUrl
-                    : null,
+                imageUrl: imageUrl != null && imageUrl.isNotEmpty ? imageUrl : null,
+                imagePrompt: imagePrompt,
               );
             }),
           );
@@ -1217,6 +1223,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               id: assistantMessageId,
               chatId: chatId,
               imageUrl: generatedImageUrl,
+              imagePrompt: visibleText,
             ),
           );
 
@@ -1549,6 +1556,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     _messageFocusNode.requestFocus();
   }
 
+  Future<void> _openGeneratedImage(ChatMessage message) async {
+    final url = message.imageUrl;
+    if (url == null || url.isEmpty) return;
+    final prompt = await Navigator.of(context).push<String>(
+      MaterialPageRoute<String>(
+        builder: (_) => ImageViewerScreen(
+          imageUrl: url,
+          originalPrompt: message.imagePrompt ?? '',
+          messageId: message.id,
+          chatId: message.chatId ?? _activeChatId,
+        ),
+      ),
+    );
+    if (!mounted || prompt == null || prompt.trim().isEmpty) return;
+    setState(() {
+      _messageController.text = prompt;
+      _messageController.selection = TextSelection.fromPosition(
+        TextPosition(offset: prompt.length),
+      );
+      _imageGenerationForNextMessage = true;
+      _webSearchForNextMessage = false;
+      _overthink = false;
+    });
+    _messageFocusNode.requestFocus();
+  }
+
   Future<void> _sendFeedback(ChatMessage message, String kind) async {
     final messageId = message.id;
 
@@ -1712,6 +1745,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                           onCopy: _copyMessage,
                           onEdit: _editMessage,
                           onFeedback: _sendFeedback,
+                          onOpenImage: _openGeneratedImage,
                         );
                       },
                     ),
@@ -2011,6 +2045,7 @@ class _MessageBubble extends ConsumerWidget {
     required this.onCopy,
     required this.onEdit,
     required this.onFeedback,
+    required this.onOpenImage,
   });
 
   final ChatMessage message;
@@ -2019,6 +2054,7 @@ class _MessageBubble extends ConsumerWidget {
   final ValueChanged<ChatMessage> onCopy;
   final ValueChanged<ChatMessage> onEdit;
   final void Function(ChatMessage, String) onFeedback;
+  final ValueChanged<ChatMessage> onOpenImage;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -2051,25 +2087,28 @@ class _MessageBubble extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(16),
                 child: Container(
                   color: palette.surface,
-                  child: Image.network(
-                    message.imageUrl!,
-                    width: MediaQuery.of(context).size.width * 0.82,
-                    fit: BoxFit.contain,
-                    loadingBuilder: (context, child, progress) {
-                      if (progress == null) return child;
-                      return SizedBox(
-                        height: 220,
-                        child: Center(child: NumiLoadingAnimation()),
-                      );
-                    },
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      width: MediaQuery.of(context).size.width * 0.82,
-                      padding: const EdgeInsets.all(20),
-                      child: Text(
-                        AppErrorMessages.isEnglish
-                            ? 'This image could not be loaded. Try generating it again.'
-                            : 'No pudimos cargar esta imagen. Intenta generarla de nuevo.',
-                        style: TextStyle(color: palette.textSecondary),
+                  child: GestureDetector(
+                    onTap: () => onOpenImage(message),
+                    child: Hero(
+                      tag: 'numi-image-${message.id ?? message.imageUrl}',
+                      child: Image.network(
+                        message.imageUrl!,
+                        width: MediaQuery.of(context).size.width * 0.82,
+                        fit: BoxFit.contain,
+                        loadingBuilder: (context, child, progress) {
+                          if (progress == null) return child;
+                          return SizedBox(height: 220, child: Center(child: NumiLoadingAnimation()));
+                        },
+                        errorBuilder: (context, error, stackTrace) => Container(
+                          width: MediaQuery.of(context).size.width * 0.82,
+                          padding: const EdgeInsets.all(20),
+                          child: Text(
+                            AppErrorMessages.isEnglish
+                                ? 'This image could not be loaded. Try generating it again.'
+                                : 'No pudimos cargar esta imagen. Intenta generarla de nuevo.',
+                            style: TextStyle(color: palette.textSecondary),
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -2941,9 +2980,20 @@ class _BottomInputBar extends ConsumerWidget {
                       : const SizedBox.shrink(),
                 ),
 
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
+                ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: controller,
+                  builder: (context, editingValue, _) {
+                    final hasComposerContent = editingValue.text.trim().isNotEmpty || pendingAttachments.isNotEmpty;
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: palette.surface,
+                        borderRadius: BorderRadius.circular(36),
+                        border: Border.all(color: palette.border),
+                      ),
+                      child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
                     SizedBox(
                       width: 42,
                       height: 44,
@@ -3035,11 +3085,13 @@ class _BottomInputBar extends ConsumerWidget {
                           minimumSize: const Size(44, 44),
                           fixedSize: const Size(44, 44),
                           padding: EdgeInsets.zero,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(13),
-                          ),
+                          shape: const CircleBorder(),
+                          backgroundColor: const Color(0xFFFF806E),
+                          foregroundColor: Colors.white,
                         ),
-                        onPressed: isSending ? onCancel : onSend,
+                        onPressed: isSending
+                            ? onCancel
+                            : hasComposerContent ? onSend : onMicTap,
                         icon: AnimatedSwitcher(
                           duration: const Duration(milliseconds: 180),
                           transitionBuilder: (child, animation) {
@@ -3054,14 +3106,19 @@ class _BottomInputBar extends ConsumerWidget {
                           child: Icon(
                             isSending
                                 ? LucideIcons.square
-                                : LucideIcons.arrowUp,
-                            key: ValueKey(isSending),
-                            size: 20,
+                                : hasComposerContent
+                                    ? LucideIcons.arrowUp
+                                    : Icons.graphic_eq_rounded,
+                            key: ValueKey((isSending, hasComposerContent)),
+                            size: 21,
                           ),
                         ),
                       ),
                     ),
-                  ],
+                      ],
+                    ),
+                    );
+                  },
                 ),
               ],
             ),
