@@ -199,6 +199,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   bool _isSending = false;
   bool _isListening = false;
   bool _speechAvailable = false;
+  bool _speechStartInProgress = false;
+  bool _speechReceivedWords = false;
   bool _isAttaching = false;
   bool _overthink = false;
 
@@ -381,78 +383,62 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     _messageFocusNode.requestFocus();
   }
 
+
   Future<void> _initSpeech() async {
-    _speechAvailable = await _speech.initialize(
-      onStatus: (status) async {
-        if (!_isListening) return;
+    try {
+      _speechAvailable = await _speech.initialize(
+        onStatus: (status) {
+          if (!mounted || !_isListening) return;
 
-        if (status == 'done' || status == 'notListening') {
-          await _restartSpeechListening();
-        }
-      },
-      onError: (_) async {
-        if (!_isListening) return;
+          if (status == 'done' || status == 'notListening') {
+            final noSpeechDetected = !_speechReceivedWords;
 
-        await _restartSpeechListening();
-      },
-    );
+            setState(() => _isListening = false);
 
-    if (_speechAvailable) {
-      try {
-        final locales = await _speech.locales();
-        const preferred = <String>['es_CO', 'es_ES', 'es_MX', 'es_US'];
-
-        for (final wanted in preferred) {
-          if (locales.any((locale) => locale.localeId == wanted)) {
-            _speechLocaleId = wanted;
-            break;
+            if (noSpeechDetected) {
+              _showSpeechMessage(
+                'No se detectó voz. El micrófono se ha detenido.',
+              );
+            }
           }
-        }
-      } catch (_) {}
+        },
+        onError: (_) {
+          if (!mounted || !_isListening) return;
+
+          setState(() => _isListening = false);
+          _showSpeechMessage('Tenemos problemas para iniciar tu voz.');
+        },
+      );
+
+      if (_speechAvailable) {
+        try {
+          final locales = await _speech.locales();
+          const preferred = <String>['es_CO', 'es_ES', 'es_MX', 'es_US'];
+
+          for (final wanted in preferred) {
+            if (locales.any((locale) => locale.localeId == wanted)) {
+              _speechLocaleId = wanted;
+              break;
+            }
+          }
+        } catch (_) {}
+      }
+    } catch (_) {
+      _speechAvailable = false;
     }
 
     if (mounted) setState(() {});
   }
 
-  Future<void> _restartSpeechListening() async {
-    if (!_isListening || !_speechAvailable) return;
+  void _showSpeechMessage(String message) {
+    if (!mounted) return;
 
-    try {
-      await _speech.listen(
-        listenOptions: stt.SpeechListenOptions(
-          localeId: _speechLocaleId,
-          partialResults: true,
-          listenFor: const Duration(minutes: 5),
-          pauseFor: const Duration(seconds: 3),
-        ),
-        onResult: (result) {
-          if (!mounted || !_isListening) return;
-
-          final spoken = result.recognizedWords.trim();
-          if (spoken.isEmpty) return;
-
-          final merged = [
-            if (_speechBaseText.isNotEmpty) _speechBaseText,
-            spoken,
-          ].join(_speechBaseText.isNotEmpty ? ' ' : '');
-
-          setState(() {
-            _messageController.text = merged;
-            _messageController.selection = TextSelection.fromPosition(
-              TextPosition(offset: merged.length),
-            );
-          });
-        },
+    final messenger = ScaffoldMessenger.of(context);
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(content: Text(message)),
       );
-    } catch (_) {
-      if (!mounted || !_isListening) return;
-
-      await Future<void>.delayed(const Duration(milliseconds: 250));
-
-      if (_isListening) {
-        await _restartSpeechListening();
-      }
-    }
   }
 
   void _onComposerChanged() {
@@ -924,35 +910,40 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     ).push(MaterialPageRoute<void>(builder: (_) => const GhostChatScreen()));
   }
 
+
   Future<void> _toggleListening() async {
-    if (!_speechAvailable) {
-      await _initSpeech();
+    if (_speechStartInProgress) return;
 
-      if (!_speechAvailable) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'El dictado no está disponible. Revisa el permiso del micrófono.',
-              ),
-            ),
-          );
-        }
-        return;
-      }
-    }
-
+    // El botón cuadrado detiene la sesión sin reiniciarla.
     if (_isListening) {
-      if (mounted) setState(() => _isListening = false);
-      await _speech.stop();
+      setState(() => _isListening = false);
+
+      try {
+        await _speech.stop();
+      } catch (_) {}
+
       return;
     }
 
-    _speechBaseText = _messageController.text.trimRight();
-
-    if (mounted) setState(() => _isListening = true);
+    _speechStartInProgress = true;
 
     try {
+      if (!_speechAvailable) {
+        await _initSpeech();
+      }
+
+      if (!mounted) return;
+
+      if (!_speechAvailable) {
+        _showSpeechMessage('Tenemos problemas para iniciar tu voz.');
+        return;
+      }
+
+      _speechBaseText = _messageController.text.trimRight();
+      _speechReceivedWords = false;
+
+      setState(() => _isListening = true);
+
       await _speech.listen(
         listenOptions: stt.SpeechListenOptions(
           localeId: _speechLocaleId,
@@ -961,13 +952,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           pauseFor: const Duration(seconds: 3),
         ),
         onResult: (result) {
-          if (!mounted) return;
+          if (!mounted || !_isListening) return;
 
           final spoken = result.recognizedWords.trim();
+          if (spoken.isNotEmpty) {
+            _speechReceivedWords = true;
+          }
+
           final merged = [
             if (_speechBaseText.isNotEmpty) _speechBaseText,
             if (spoken.isNotEmpty) spoken,
           ].join(_speechBaseText.isNotEmpty ? ' ' : '');
+
+          if (spoken.isEmpty) return;
 
           setState(() {
             _messageController.text = merged;
@@ -978,17 +975,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         },
       );
     } catch (_) {
-      if (mounted) {
+      if (mounted && _isListening) {
         setState(() => _isListening = false);
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'No pudimos iniciar el micrófono. Revisa el permiso e inténtalo de nuevo.',
-            ),
-          ),
-        );
       }
+
+      try {
+        await _speech.stop();
+      } catch (_) {}
+
+      _showSpeechMessage('Tenemos problemas para iniciar tu voz.');
+    } finally {
+      _speechStartInProgress = false;
     }
   }
 
@@ -3202,21 +3199,27 @@ class _BottomInputBar extends ConsumerWidget {
                       padding: const EdgeInsets.only(bottom: 2),
                       child: IconButton.filled(
                         tooltip: isSending
-                            ? (english
-                                  ? 'Stop generation'
-                                  : 'Detener generación')
-                            : (english ? 'Send message' : 'Enviar mensaje'),
+                            ? (english ? 'Stop generation' : 'Detener generación')
+                            : isListening
+                                ? (english ? 'Stop voice input' : 'Detener micrófono')
+                                : (english ? 'Send message' : 'Enviar mensaje'),
                         style: IconButton.styleFrom(
                           minimumSize: const Size(44, 44),
                           fixedSize: const Size(44, 44),
                           padding: EdgeInsets.zero,
                           shape: const CircleBorder(),
-                          backgroundColor: const Color(0xFFFF806E),
-                          foregroundColor: Colors.white,
+                          backgroundColor: isListening
+                              ? const Color(0xFFE05252)
+                              : palette.accent,
+                          foregroundColor: palette.accent.computeLuminance() > 0.42
+                              ? const Color(0xFF101820)
+                              : Colors.white,
                         ),
                         onPressed: isSending
                             ? onCancel
-                            : hasComposerContent ? onSend : onMicTap,
+                            : isListening
+                                ? onMicTap
+                                : hasComposerContent ? onSend : onMicTap,
                         icon: AnimatedSwitcher(
                           duration: const Duration(milliseconds: 180),
                           transitionBuilder: (child, animation) {
@@ -3229,12 +3232,12 @@ class _BottomInputBar extends ConsumerWidget {
                             );
                           },
                           child: Icon(
-                            isSending
+                            isSending || isListening
                                 ? LucideIcons.square
                                 : hasComposerContent
                                     ? LucideIcons.arrowUp
                                     : Icons.graphic_eq_rounded,
-                            key: ValueKey((isSending, hasComposerContent)),
+                            key: ValueKey((isSending, isListening, hasComposerContent)),
                             size: 21,
                           ),
                         ),

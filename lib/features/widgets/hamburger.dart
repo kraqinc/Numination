@@ -522,56 +522,58 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                 ),
               ),
               const SizedBox(height: 11),
+
               Material(
-                color: palette.accent.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(16),
+                color: palette.surfaceAlt,
+                borderRadius: BorderRadius.circular(14),
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(14),
                   onTap: () {
                     Navigator.of(context).pop();
                     widget.onNewChat();
                   },
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 9,
+                    ),
                     child: Row(
                       children: [
                         Container(
-                          width: 36,
-                          height: 36,
+                          width: 32,
+                          height: 32,
                           decoration: BoxDecoration(
-                            color: palette.accent.withValues(alpha: 0.16),
-                            borderRadius: BorderRadius.circular(11),
+                            color: palette.accent.withValues(alpha: 0.13),
+                            borderRadius: BorderRadius.circular(10),
                           ),
-                          child: Icon(NumiIcons.add, color: palette.accent, size: 20),
+                          child: Icon(
+                            NumiIcons.add,
+                            color: palette.accent,
+                            size: 19,
+                          ),
                         ),
-                        const SizedBox(width: 11),
+                        const SizedBox(width: 10),
                         Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                english ? 'New chat' : 'Crear nuevo chat',
-                                style: TextStyle(
-                                  color: palette.textPrimary,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                english ? 'Start a new conversation' : 'Empieza una conversación nueva',
-                                style: TextStyle(color: palette.textSecondary, fontSize: 11),
-                              ),
-                            ],
+                          child: Text(
+                            english ? 'New chat' : 'Nuevo chat',
+                            style: TextStyle(
+                              color: palette.textPrimary,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
-                        Icon(LucideIcons.arrowRight, size: 17, color: palette.accent),
+                        Icon(
+                          LucideIcons.chevronRight,
+                          size: 16,
+                          color: palette.textSecondary,
+                        ),
                       ],
                     ),
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               _DrawerItem(
                 icon: NumiIcons.folder_copy_outlined,
                 label: context.l10n.projects,

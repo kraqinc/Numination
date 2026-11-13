@@ -136,8 +136,84 @@ ThemeData buildTheme(AppPalette palette) {
 
   final textPrimary = palette.textPrimary;
   final textSecondary = palette.textSecondary;
+  final accentForeground = palette.accent.computeLuminance() > 0.42
+      ? const Color(0xFF101820)
+      : Colors.white;
 
   return base.copyWith(
+    visualDensity: VisualDensity.standard,
+
+    dividerTheme: DividerThemeData(
+      color: palette.border.withValues(alpha: 0.88),
+      thickness: 1,
+      space: 1,
+    ),
+
+    textSelectionTheme: TextSelectionThemeData(
+      cursorColor: palette.accent,
+      selectionColor: palette.accent.withValues(alpha: 0.24),
+      selectionHandleColor: palette.accent,
+    ),
+
+    progressIndicatorTheme: ProgressIndicatorThemeData(
+      color: palette.accent,
+      linearTrackColor: palette.border.withValues(alpha: 0.55),
+    ),
+
+    listTileTheme: ListTileThemeData(
+      iconColor: textSecondary,
+      textColor: textPrimary,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+    ),
+
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        backgroundColor: palette.accent,
+        foregroundColor: accentForeground,
+        minimumSize: const Size(44, 44),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
+        textStyle: const TextStyle(fontWeight: FontWeight.w600),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+      ),
+    ),
+
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: textPrimary,
+        side: BorderSide(color: palette.border),
+        minimumSize: const Size(44, 44),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
+        textStyle: const TextStyle(fontWeight: FontWeight.w600),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+      ),
+    ),
+
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        foregroundColor: palette.accent,
+        minimumSize: const Size(44, 40),
+        textStyle: const TextStyle(fontWeight: FontWeight.w600),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    ),
+
+    floatingActionButtonTheme: FloatingActionButtonThemeData(
+      backgroundColor: palette.accent,
+      foregroundColor: accentForeground,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+    ),
+
     scaffoldBackgroundColor: palette.background,
 
     colorScheme: base.colorScheme.copyWith(
@@ -156,8 +232,16 @@ ThemeData buildTheme(AppPalette palette) {
     appBarTheme: AppBarTheme(
       backgroundColor: palette.background,
       elevation: 0,
+      scrolledUnderElevation: 0,
+      surfaceTintColor: Colors.transparent,
+      centerTitle: false,
       foregroundColor: textPrimary,
       iconTheme: IconThemeData(color: textPrimary),
+      titleTextStyle: TextStyle(
+        color: textPrimary,
+        fontSize: 18,
+        fontWeight: FontWeight.w700,
+      ),
     ),
 
     inputDecorationTheme: InputDecorationTheme(
@@ -174,32 +258,43 @@ ThemeData buildTheme(AppPalette palette) {
       suffixIconColor: textSecondary,
 
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         borderSide: BorderSide(color: palette.border),
       ),
 
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         borderSide: BorderSide(color: palette.border),
       ),
 
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         borderSide: BorderSide(color: palette.accent, width: 1.4),
       ),
 
       errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         borderSide: BorderSide(color: AppColors.red),
       ),
 
       focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         borderSide: BorderSide(color: AppColors.red, width: 1.4),
       ),
     ),
 
-    snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),
+    snackBarTheme: SnackBarThemeData(
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: palette.surfaceAlt,
+      contentTextStyle: TextStyle(
+        color: textPrimary,
+        fontSize: 13.5,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      insetPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+    ),
   );
 }
 
