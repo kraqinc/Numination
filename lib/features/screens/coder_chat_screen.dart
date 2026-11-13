@@ -12,7 +12,6 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/api.dart';
-import '../../core/env.dart';
 import '../../core/error_messages.dart';
 import '../../core/local_project_sync.dart';
 import '../../core/models.dart';
@@ -279,37 +278,59 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
     }
   }
 
-  String _canonicalPreviewUrl(String value) {
-    final incoming = Uri.tryParse(value.trim());
-    if (incoming == null) return value;
+  String _canonicalPreviewUrl(String value) => value.trim();
 
-    final token = incoming.queryParameters['t'];
-    if (token == null || token.isEmpty) return value;
+  Future<Map<String, dynamic>> _requestPreview({
+    bool waitForReady = false,
+  }) async {
+    final response = await ApiClient.postFunction(
+      'visual-integ-preview',
+      {
+        'action': 'start',
+        'projectId': widget.projectId,
+      },
+    );
 
-    final projectId = incoming.queryParameters['projectId'] ?? widget.projectId;
-    final base = Uri.tryParse(Env.supabaseUrl);
+    var data = Map<String, dynamic>.from(
+      ApiClient.decode(response) as Map,
+    );
 
-    if (base == null || base.host.isEmpty) return value;
+    if (!waitForReady ||
+        data['previewReady'] == true ||
+        data['status'] != 'starting') {
+      return data;
+    }
 
-    return base
-        .replace(
-          path: '/functions/v1/api',
-          queryParameters: {
-            '__preview': '1',
-            'projectId': projectId,
-            't': token,
-          },
-        )
-        .toString();
+    final deadline = DateTime.now().add(const Duration(seconds: 70));
+    while (DateTime.now().isBefore(deadline)) {
+      await Future<void>.delayed(const Duration(seconds: 2));
+      if (!mounted) return data;
+
+      final statusResponse = await ApiClient.postFunction(
+        'visual-integ-preview',
+        {
+          'action': 'status',
+          'projectId': widget.projectId,
+        },
+      );
+
+      data = Map<String, dynamic>.from(
+        ApiClient.decode(statusResponse) as Map,
+      );
+
+      if (data['previewReady'] == true ||
+          data['status'] == 'failed' ||
+          data['status'] == 'stopped') {
+        return data;
+      }
+    }
+
+    return data;
   }
 
   Future<void> _loadPreviewLink() async {
     try {
-      final response = await ApiClient.get(
-        '/projects/${Uri.encodeComponent(widget.projectId)}/preview-link',
-      );
-
-      final data = ApiClient.decode(response) as Map<String, dynamic>;
+      final data = await _requestPreview();
       final ready = data['previewReady'] == true;
       final rawUrl = data['previewUrl']?.toString().trim();
       final serverMessage = data['message']?.toString().trim();
@@ -651,18 +672,8 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
       final changed = data['changedFiles'] as List? ?? [];
       final deleted = data['deletedFiles'] as List? ?? [];
 
-      final previewReady = data['previewReady'] == true;
-      final previewUrl = data['previewUrl']?.toString().trim();
-      final previewAvailable =
-          previewReady && previewUrl != null && previewUrl.isNotEmpty;
-
-      ref
-          .read(coderPreviewProvider(widget.projectId).notifier)
-          .setPreview(
-            ready: previewAvailable,
-            url: previewAvailable ? _canonicalPreviewUrl(previewUrl) : null,
-            message: previewAvailable ? null : AppErrorMessages.previewNotReady,
-          );
+      // Los archivos ya fueron guardados por Coder; crea/actualiza el runtime aparte.
+      unawaited(_loadPreviewLink());
 
       setState(() {
         if (userIndex < _messages.length) {
@@ -1463,11 +1474,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
     setState(() => _openingPreview = true);
 
     try {
-      final response = await ApiClient.get(
-        '/projects/${Uri.encodeComponent(widget.projectId)}/preview-link',
-      );
-
-      final data = ApiClient.decode(response) as Map<String, dynamic>;
+      final data = await _requestPreview(waitForReady: true);
       final ready = data['previewReady'] == true;
       final rawUrl = data['previewUrl']?.toString().trim();
       final serverMessage = data['message']?.toString().trim();

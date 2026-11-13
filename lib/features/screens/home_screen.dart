@@ -25,7 +25,6 @@ import 'image_viewer_screen.dart';
 import '../widgets/hamburger.dart';
 import '../widgets/no_credits_widget.dart';
 import '../widgets/search_chats.dart';
-import '../widgets/voice_input_button.dart';
 import 'coder_chat_screen.dart' as coder_chat;
 import 'coder_screen.dart' as coder;
 import 'connectors_screen.dart';
@@ -3198,16 +3197,7 @@ class _BottomInputBar extends ConsumerWidget {
                         ),
                       ),
                     ),
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 2),
-                      child: VoiceInputButton(
-                        isListening: isListening,
-                        enabled: !isSending,
-                        color: palette.accent,
-                        onTap: onMicTap,
-                      ),
-                    ),
-                    const SizedBox(width: 3),
+                    const SizedBox(width: 6),
                     Padding(
                       padding: const EdgeInsets.only(bottom: 2),
                       child: IconButton.filled(

@@ -242,6 +242,57 @@ class ApiClient {
     );
   }
 
+  static Uri _functionUri(String functionName) {
+    if (!RegExp(r'^[a-z0-9-]{1,64}$').hasMatch(functionName)) {
+      throw const ApiException(-1, 'Nombre de función no válido.');
+    }
+
+    final base = Uri.tryParse(Env.supabaseUrl.trim());
+    if (base == null ||
+        base.scheme != 'https' ||
+        base.host.isEmpty ||
+        base.userInfo.isNotEmpty ||
+        base.hasQuery ||
+        base.hasFragment) {
+      throw ApiException(-1, AppErrorMessages.configurationError);
+    }
+
+    return base.replace(
+      path: '/functions/v1/$functionName',
+      query: null,
+      fragment: null,
+    );
+  }
+
+  /// Invoca una Edge Function Supabase independiente del router /api.
+  /// No reintenta porque la operación puede crear o modificar recursos.
+  static Future<http.Response> postFunction(
+    String functionName,
+    Map<String, dynamic> body, {
+    Duration timeout = const Duration(seconds: 120),
+  }) {
+    final publishableKey = Env.supabasePublishableKey.trim();
+    if (publishableKey.isEmpty) {
+      throw ApiException(-1, AppErrorMessages.configurationError);
+    }
+
+    final uri = _functionUri(functionName);
+    final headers = <String, String>{
+      ..._headers,
+      'apikey': publishableKey,
+    };
+
+    return _send(
+      (client) => client.post(
+        uri,
+        headers: headers,
+        body: jsonEncode(body),
+      ),
+      retryable: false,
+      timeout: timeout,
+    );
+  }
+
   static Future<http.Response> get(String path) {
     if (!_moduleGetCacheablePaths.contains(path)) {
       return _send(
