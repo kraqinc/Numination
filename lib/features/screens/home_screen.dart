@@ -134,6 +134,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   bool _webSearchForNextMessage = false;
   bool _toolsExpanded = false;
   bool _imageGenerationForNextMessage = false;
+  String? _pendingImageEditSourceUrl;
   final List<Map<String, dynamic>> _currentActivities = [];
   bool _activityExpanded = false;
   bool _isSearchingWebForCurrentRequest = false;
@@ -1084,6 +1085,44 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     _generationToken?.cancel();
   }
 
+  String _normalizeImageIntentText(String value) {
+    return value
+        .toLowerCase()
+        .replaceAll('á', 'a')
+        .replaceAll('é', 'e')
+        .replaceAll('í', 'i')
+        .replaceAll('ó', 'o')
+        .replaceAll('ú', 'u')
+        .replaceAll('ü', 'u')
+        .replaceAll('ñ', 'n')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+  }
+
+  bool _isGreetingOnly(String value) {
+    final normalized = _normalizeImageIntentText(value);
+    return RegExp(
+      r'^(?:hola|holi|hey|hello|hi|buenos dias|buenas tardes|buenas noches|saludos|que tal|como estas|como vas)[.!?,\s]*$',
+    ).hasMatch(normalized);
+  }
+
+  bool _isExplicitImageRequest(String value) {
+    final normalized = _normalizeImageIntentText(value);
+    if (normalized.isEmpty || _isGreetingOnly(normalized)) return false;
+
+    final hasAction = RegExp(
+      r'\b(?:genera(?:r|me)?|crea(?:r|me)?|haz(?:me)?|hacer|dibuja(?:r|me)?|ilustra(?:r|me)?|pinta(?:r|me)?|edita(?:r|me)?|convierte|transforma|disena|make|generate|create|draw|illustrate|paint|edit|turn)\b',
+    ).hasMatch(normalized);
+    final hasVisualTarget = RegExp(
+      r'\b(?:imagen(?:es)?|foto(?:grafia|grafias|s)?|dibujo|ilustracion|retrato|paisaje|escena|logo|icono|avatar|wallpaper|fondo|portada|poster|cartel|banner|thumbnail|miniatura|pixel art|picture|image|photo|drawing|illustration|portrait|landscape|background|artwork|gato|perro|robot|personaje|ciudad|casa|arbol|flor)\b',
+    ).hasMatch(normalized);
+    final directImagePhrase = RegExp(
+      r'\b(?:una imagen|un dibujo|una foto|una ilustracion|un retrato|a picture|an image|a photo|a drawing)\b',
+    ).hasMatch(normalized);
+
+    return (hasAction && hasVisualTarget) || directImagePhrase;
+  }
+
   Future<void> _sendMessage() async {
     final text = _messageController.text.trim();
     final attachments = List<PendingAttachment>.from(_pendingAttachments);
@@ -1096,7 +1135,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       return;
     }
 
-    final useImageGeneration = _imageGenerationForNextMessage;
+    final useImageGeneration = !_isGreetingOnly(text) &&
+        (_imageGenerationForNextMessage || _isExplicitImageRequest(text));
+    final sourceImageUrl = _pendingImageEditSourceUrl;
     final useWebSearch = _webSearchForNextMessage && !useImageGeneration;
     final visibleText = text.isEmpty ? 'Revisa los archivos adjuntos.' : text;
 
@@ -1148,6 +1189,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       _animatedAssistantMessageId = null;
       _webSearchForNextMessage = false;
       _imageGenerationForNextMessage = false;
+      _pendingImageEditSourceUrl = null;
       _currentActivities.clear();
       _activityExpanded = false;
       _isSearchingWebForCurrentRequest = useWebSearch;
@@ -1204,7 +1246,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       if (useImageGeneration) {
         final imageResponse = await ApiClient.postCancelable(
           '/ai/images/generate',
-          {'prompt': visibleText, 'chatId': chatId},
+          {
+            'prompt': visibleText,
+            'chatId': chatId,
+            if (sourceImageUrl != null && sourceImageUrl.isNotEmpty)
+              'sourceImageUrl': sourceImageUrl,
+          },
           token,
           timeout: const Duration(seconds: 110),
         );
@@ -1595,8 +1642,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   Future<void> _openGeneratedImage(ChatMessage message) async {
     final url = message.imageUrl;
     if (url == null || url.isEmpty) return;
-    final prompt = await Navigator.of(context).push<String>(
-      MaterialPageRoute<String>(
+    final editRequest = await Navigator.of(context).push<Map<String, String>>(
+      MaterialPageRoute<Map<String, String>>(
         builder: (_) => ImageViewerScreen(
           imageUrl: url,
           originalPrompt: message.imagePrompt ?? '',
@@ -1605,12 +1652,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         ),
       ),
     );
+    final prompt = editRequest?['prompt'];
+    final sourceImageUrl = editRequest?['sourceImageUrl'];
     if (!mounted || prompt == null || prompt.trim().isEmpty) return;
     setState(() {
       _messageController.text = prompt;
       _messageController.selection = TextSelection.fromPosition(
         TextPosition(offset: prompt.length),
       );
+      _pendingImageEditSourceUrl = sourceImageUrl;
       _imageGenerationForNextMessage = true;
       _webSearchForNextMessage = false;
       _overthink = false;

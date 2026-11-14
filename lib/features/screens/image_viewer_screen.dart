@@ -105,7 +105,7 @@ class _ImageViewerScreenState extends State<ImageViewerScreen> {
               )),
               const SizedBox(height: 6),
               const Text(
-                'Se preparará un prompt automáticamente para generar otra versión.',
+                'Se enviará esta imagen como referencia para editarla con el estilo elegido.',
                 style: TextStyle(color: Colors.white70, fontSize: 13),
               ),
               const SizedBox(height: 12),
@@ -124,19 +124,22 @@ class _ImageViewerScreenState extends State<ImageViewerScreen> {
 
     if (style == null || !mounted) return;
     final sourceDescription = widget.originalPrompt.trim().isEmpty
-        ? 'Conserva el tema principal de la imagen de referencia.'
-        : 'Descripción original: ${widget.originalPrompt.trim()}';
+        ? 'Usa la imagen adjunta como referencia principal.'
+        : 'Contexto de la imagen original: ${widget.originalPrompt.trim()}.';
     final automaticPrompt = [
-      'Genera una nueva imagen basada en esta descripción.',
+      'EDITA LA IMAGEN DE REFERENCIA ADJUNTA; no generes una escena nueva desde cero.',
       sourceDescription,
-      'Aplica este estilo visual: ${style.prompt}.',
-      'Mantén el sujeto principal, los objetos importantes y la intención de la escena.',
-      'Formato panorámico horizontal con relación de aspecto exacta 19:6.',
-      'No añadas texto, marcas de agua ni logotipos ajenos a la descripción.',
+      'Aplica este estilo visual a la imagen existente: ${style.prompt}.',
+      'Conserva los mismos sujetos, identidades visuales, cantidad de personas y objetos, posiciones, encuadre y composición.',
+      'Cambia el acabado visual solicitado, pero no inventes personas, conversaciones, objetos ni escenas que no estén en la referencia.',
+      'Respeta la relación de aspecto y el contenido reconocible de la imagen original.',
+      'No añadas texto, marcas de agua ni logotipos salvo que se soliciten.',
     ].join(' ');
 
-    // Devuelve el prompt al chat para que el usuario pueda revisarlo antes de enviarlo.
-    Navigator.of(context).pop(automaticPrompt);
+    Navigator.of(context).pop(<String, String>{
+      'prompt': automaticPrompt,
+      'sourceImageUrl': widget.imageUrl,
+    });
   }
 
   Future<void> _reportImage() async {
