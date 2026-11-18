@@ -18,6 +18,7 @@ import '../screens/settings_screen.dart';
 import 'package:numination/core/numi_icons.dart';
 import 'numi_loading_animation.dart';
 
+import 'numi_skeleton.dart';
 class AppDrawer extends ConsumerStatefulWidget {
   const AppDrawer({
     super.key,
@@ -621,7 +622,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                 label: english ? 'Credits' : 'Créditos',
                 color: palette.textPrimary,
                 trailing: _creditsLoading
-                    ? const SizedBox(width: 15, height: 15, child: CircularProgressIndicator(strokeWidth: 2))
+                    ? const SizedBox(width: 15, height: 15, child: NumiLoadingAnimation(size: 18))
                     : _creditBalance == null
                         ? null
                         : Text(
@@ -662,7 +663,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
               const SizedBox(height: 9),
               Expanded(
                 child: _isLoading
-                    ? Center(child: NumiLoadingAnimation())
+                    ? Center(child: const NumiSkeleton(kind: NumiSkeletonKind.homeHistory, dense: true))
                     : _chats.isEmpty
                         ? Center(
                             child: Text(

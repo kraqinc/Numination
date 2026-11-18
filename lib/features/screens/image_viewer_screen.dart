@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import '../../core/api.dart';
 
+import '../widgets/numi_loading_animation.dart';
 class ImageViewerScreen extends StatefulWidget {
   const ImageViewerScreen({
     super.key,
@@ -289,9 +290,7 @@ class _ImageViewerScreenState extends State<ImageViewerScreen> {
                           : const SizedBox(
                               width: 44,
                               height: 44,
-                              child: CircularProgressIndicator(
-                                color: Color(0xFFFF806E), strokeWidth: 2.5,
-                              ),
+                              child: NumiLoadingAnimation(size: 44),
                             ),
                       errorBuilder: (context, error, stackTrace) => const Padding(
                         padding: EdgeInsets.all(24),

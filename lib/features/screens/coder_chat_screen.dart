@@ -14,13 +14,13 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/api.dart';
 import '../../core/error_messages.dart';
 import '../../core/local_project_sync.dart';
+import '../../core/i18n.dart';
 import '../../core/models.dart';
 import '../../core/theme_controller.dart';
 import '../widgets/ai_response.dart';
 import '../widgets/coder_preview_screen.dart';
 import 'coder_editor_screen.dart';
-import '../widgets/numi_loading_animation.dart';
-
+import '../widgets/numi_skeleton.dart';
 class CoderPreviewState {
   final bool ready;
   final String? url;
@@ -746,7 +746,9 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                  'Cambios integrados en la carpeta local: ${result.writtenFiles} archivo(s) actualizado(s), ${result.deletedFiles} eliminado(s).',
+                  AppLocale.t('local_sync_success')
+                      .replaceAll('{written}', '${result.writtenFiles}')
+                      .replaceAll('{deleted}', '${result.deletedFiles}'),
                 ),
                 duration: const Duration(seconds: 4),
               ),
@@ -757,7 +759,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                  'Coder actualizó el sandbox, pero no se pudo sincronizar la carpeta local: $error',
+                  '${AppLocale.t('local_sync_error')} $error',
                 ),
                 duration: const Duration(seconds: 6),
               ),
@@ -1703,7 +1705,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
               Divider(color: palette.border, height: 1),
               ListTile(
                 leading: Icon(LucideIcons.arrowLeft, color: palette.textSecondary, size: 19),
-                title: Text('Volver a tus chats', style: TextStyle(color: palette.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
+                title: Text(AppLocale.t('back_to_chats'), style: TextStyle(color: palette.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.of(context).maybePop();
@@ -1716,7 +1718,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
       appBar: AppBar(
         backgroundColor: palette.background,
         leading: IconButton(
-          tooltip: 'Menú',
+          tooltip: AppLocale.t('menu'),
           onPressed: () => _scaffoldKey.currentState?.openDrawer(),
           icon: const Icon(LucideIcons.menu),
         ),
@@ -1739,17 +1741,17 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
         ),
         actions: [
           IconButton(
-            tooltip: 'Deshacer cambios',
+            tooltip: AppLocale.t('undo_changes'),
             onPressed: _hasChanges ? _undoChanges : null,
             icon: const Icon(LucideIcons.undo2),
           ),
           IconButton(
-            tooltip: _showFiles ? 'Ocultar archivos' : 'Mostrar archivos',
+            tooltip: _showFiles ? AppLocale.t('hide_files') : AppLocale.t('show_files'),
             onPressed: () => setState(() => _showFiles = !_showFiles),
             icon: Icon(_showFiles ? LucideIcons.folderOpen : LucideIcons.folder),
           ),
           IconButton(
-            tooltip: 'Descargar proyecto ZIP',
+            tooltip: AppLocale.t('download_project_zip'),
             onPressed: _downloadProject,
             icon: const Icon(LucideIcons.download),
           ),
@@ -1775,7 +1777,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
                           children: [
                             Icon(LucideIcons.folderOpen, size: 15, color: palette.accent),
                             const SizedBox(width: 8),
-                            Text('ARCHIVOS DEL PROYECTO', style: TextStyle(color: palette.textSecondary, fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 0.8)),
+                            Text(AppLocale.t('project_files'), style: TextStyle(color: palette.textSecondary, fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 0.8)),
                             const Spacer(),
                             Text('${_files.length}', style: TextStyle(color: palette.textSecondary, fontSize: 11)),
                           ],
@@ -1784,11 +1786,11 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
                     ),
                     Expanded(
                       child: _loadingFiles
-                          ? const Center(child: NumiLoadingAnimation())
+                          ? const Center(child: const NumiSkeleton(kind: NumiSkeletonKind.files, dense: true))
                           : _files.isEmpty
                               ? Center(
                                   child: Text(
-                                    _errorText ?? 'Este proyecto aún no tiene archivos.',
+                                    _errorText ?? AppLocale.t('project_no_files'),
                                     style: TextStyle(color: palette.textSecondary, fontSize: 12),
                                   ),
                                 )
@@ -1920,7 +1922,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
                           cursorColor: palette.accent,
                           style: TextStyle(color: palette.textPrimary, fontSize: 14, height: 1.35),
                           decoration: InputDecoration(
-                            hintText: 'Describe qué quieres construir...',
+                            hintText: AppLocale.t('coder_prompt'),
                             hintStyle: TextStyle(color: palette.textSecondary.withValues(alpha: 0.78), fontSize: 14),
                             border: InputBorder.none,
                             enabledBorder: InputBorder.none,
@@ -1938,7 +1940,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
                       width: 42,
                       height: 44,
                       child: IconButton(
-                        tooltip: _isListening ? 'Detener dictado' : 'Dictar mensaje',
+                        tooltip: _isListening ? AppLocale.t('stop_dictation') : AppLocale.t('dictate_message'),
                         onPressed: _isSending ? null : _toggleListening,
                         padding: EdgeInsets.zero,
                         icon: Icon(
@@ -1951,7 +1953,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
                     Padding(
                       padding: const EdgeInsets.only(left: 2, right: 1, bottom: 1),
                       child: IconButton.filled(
-                        tooltip: _isSending ? 'Detener' : 'Enviar',
+                        tooltip: _isSending ? AppLocale.t('stop') : AppLocale.t('send'),
                         style: IconButton.styleFrom(
                           minimumSize: const Size(42, 42),
                           fixedSize: const Size(42, 42),
@@ -1972,7 +1974,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
               Padding(
                 padding: const EdgeInsets.only(bottom: 6),
                 child: Text(
-                  'ZIP guardado: $_savedZipPath',
+                  '${AppLocale.t('zip_saved')} $_savedZipPath',
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(color: palette.textSecondary, fontSize: 11),

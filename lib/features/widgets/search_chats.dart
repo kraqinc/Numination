@@ -6,8 +6,7 @@ import '../../core/i18n.dart';
 import '../../core/models.dart';
 import '../../core/theme_controller.dart';
 import 'package:numination/core/numi_icons.dart';
-import 'numi_loading_animation.dart';
-
+import 'numi_skeleton.dart';
 Future<ChatSession?> showSearchChats(BuildContext context) {
   return showModalBottomSheet<ChatSession>(
     context: context,
@@ -126,7 +125,7 @@ class _SearchChatsSheetState extends ConsumerState<SearchChatsSheet> {
               child: _isLoading
                   ? Padding(
                       padding: const EdgeInsets.all(24),
-                      child: NumiLoadingAnimation(),
+                      child: const NumiSkeleton(kind: NumiSkeletonKind.searchResults, dense: true),
                     )
                   : _filtered.isEmpty
                   ? Padding(

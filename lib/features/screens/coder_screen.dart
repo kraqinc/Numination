@@ -5,6 +5,7 @@ import 'package:lucide_flutter/lucide_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/api.dart';
+import '../../core/i18n.dart';
 import '../../core/local_project_sync.dart';
 import '../../core/theme.dart';
 import '../../core/theme_controller.dart';
@@ -36,7 +37,7 @@ class _CoderScreenState extends ConsumerState<CoderScreen> {
 
   void _nextStep() {
     if (_nameController.text.trim().isEmpty) {
-      setState(() => _errorText = 'Escribe un nombre para el proyecto.');
+      setState(() => _errorText = AppLocale.t('project_name_required'));
       return;
     }
     FocusManager.instance.primaryFocus?.unfocus();
@@ -49,7 +50,7 @@ class _CoderScreenState extends ConsumerState<CoderScreen> {
   Future<void> _chooseLocalFolder() async {
     try {
       final path = await FilePicker.getDirectoryPath(
-        dialogTitle: 'Selecciona la carpeta del proyecto',
+        dialogTitle: AppLocale.t('folder_dialog_title'),
       );
       if (!mounted || path == null || path.trim().isEmpty) return;
       setState(() {
@@ -59,7 +60,7 @@ class _CoderScreenState extends ConsumerState<CoderScreen> {
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _errorText = 'No se pudo abrir la carpeta seleccionada: $error';
+        _errorText = '${AppLocale.t('folder_open_error')} $error';
       });
     }
   }
@@ -68,7 +69,7 @@ class _CoderScreenState extends ConsumerState<CoderScreen> {
     final name = _nameController.text.trim();
     if (name.isEmpty || _isCreating) return;
     if (_projectType == 'local' && _localDirectoryPath == null) {
-      setState(() => _errorText = 'Selecciona primero la carpeta local.');
+      setState(() => _errorText = AppLocale.t('local_folder_required'));
       return;
     }
 
@@ -131,9 +132,7 @@ class _CoderScreenState extends ConsumerState<CoderScreen> {
         messenger?.showSnackBar(
           SnackBar(
             content: Text(
-              'El proyecto se creó, pero la importación quedó incompleta. '
-              'Revisa la conexión y vuelve a importar los archivos necesarios. '
-              'Detalle: $importError',
+              '${AppLocale.t('local_import_partial')} $importError',
             ),
             duration: const Duration(seconds: 7),
           ),
@@ -142,9 +141,9 @@ class _CoderScreenState extends ConsumerState<CoderScreen> {
         messenger?.showSnackBar(
           SnackBar(
             content: Text(
-              'Se importaron ${importResult.importedFiles} archivos. '
-              'Se omitieron ${importResult.skippedFiles} archivos binarios, '
-              'sensibles o fuera de los límites de tamaño.',
+              AppLocale.t('import_summary')
+                  .replaceAll('{imported}', '${importResult.importedFiles}')
+                  .replaceAll('{skipped}', '${importResult.skippedFiles}'),
             ),
             duration: const Duration(seconds: 6),
           ),
@@ -269,7 +268,7 @@ class _CoderScreenState extends ConsumerState<CoderScreen> {
         backgroundColor: palette.background,
         elevation: 0,
         leading: IconButton(
-          tooltip: _step == 0 ? 'Volver' : 'Paso anterior',
+          tooltip: _step == 0 ? AppLocale.t('back') : AppLocale.t('previous_step'),
           onPressed: () {
             if (_step == 1) {
               setState(() => _step = 0);
@@ -280,7 +279,7 @@ class _CoderScreenState extends ConsumerState<CoderScreen> {
           icon: Icon(LucideIcons.arrowLeft, color: palette.textPrimary),
         ),
         title: Text(
-          'Coder · Nuevo proyecto',
+          AppLocale.t('coder_new_project'),
           style: TextStyle(
             color: palette.textPrimary,
             fontWeight: FontWeight.w700,
@@ -314,11 +313,11 @@ class _CoderScreenState extends ConsumerState<CoderScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('CODER WORKSPACE', style: TextStyle(color: palette.accent, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 1.1)),
+                        Text(AppLocale.t('workspace_eyebrow'), style: TextStyle(color: palette.accent, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 1.1)),
                         const SizedBox(height: 4),
-                        Text('Tu espacio para construir', style: TextStyle(color: palette.textPrimary, fontSize: 14, fontWeight: FontWeight.w700)),
+                        Text(AppLocale.t('workspace_title'), style: TextStyle(color: palette.textPrimary, fontSize: 14, fontWeight: FontWeight.w700)),
                         const SizedBox(height: 2),
-                        Text('Proyecto, archivos y cambios en un solo lugar.', style: TextStyle(color: palette.textSecondary, fontSize: 11)),
+                        Text(AppLocale.t('workspace_subtitle'), style: TextStyle(color: palette.textSecondary, fontSize: 11)),
                       ],
                     ),
                   ),
@@ -331,7 +330,7 @@ class _CoderScreenState extends ConsumerState<CoderScreen> {
                 _stepIndicator(
                   palette,
                   number: '1',
-                  label: 'Nombre',
+                  label: AppLocale.t('step_name'),
                   selected: _step == 0,
                   complete: _step > 0,
                 ),
@@ -339,7 +338,7 @@ class _CoderScreenState extends ConsumerState<CoderScreen> {
                 _stepIndicator(
                   palette,
                   number: '2',
-                  label: 'Tipo',
+                  label: AppLocale.t('step_type'),
                   selected: _step == 1,
                   complete: false,
                 ),
@@ -375,7 +374,7 @@ class _CoderScreenState extends ConsumerState<CoderScreen> {
                           ),
                           const SizedBox(height: 20),
                           Text(
-                            'Nombre del proyecto',
+                            AppLocale.t('project_name_title'),
                             style: TextStyle(
                               color: palette.textPrimary,
                               fontSize: 22,
@@ -384,7 +383,7 @@ class _CoderScreenState extends ConsumerState<CoderScreen> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Elige un nombre. Después selecciona dónde trabajará Coder.',
+                            AppLocale.t('project_name_description'),
                             style: TextStyle(
                               color: palette.textSecondary,
                               fontSize: 14,
@@ -401,8 +400,8 @@ class _CoderScreenState extends ConsumerState<CoderScreen> {
                             cursorColor: palette.accent,
                             style: TextStyle(color: palette.textPrimary),
                             decoration: InputDecoration(
-                              hintText: 'XX',
-                              labelText: 'Nombre',
+                              hintText: AppLocale.t('project_name_hint'),
+                              labelText: AppLocale.t('project_name_label'),
                               hintStyle: TextStyle(
                                 color: palette.textSecondary,
                               ),
@@ -428,7 +427,7 @@ class _CoderScreenState extends ConsumerState<CoderScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Tipo de proyecto',
+                            AppLocale.t('project_type_title'),
                             style: TextStyle(
                               color: palette.textPrimary,
                               fontSize: 22,
@@ -437,7 +436,7 @@ class _CoderScreenState extends ConsumerState<CoderScreen> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Selecciona cómo quieres trabajar en ${_nameController.text.trim()}.',
+                            AppLocale.t('project_type_description'),
                             style: TextStyle(
                               color: palette.textSecondary,
                               fontSize: 14,
@@ -448,17 +447,17 @@ class _CoderScreenState extends ConsumerState<CoderScreen> {
                           projectTypeCard(
                             value: 'cloud',
                             icon: LucideIcons.cloud,
-                            title: 'En la nube',
+                            title: AppLocale.t('cloud_project'),
                             description:
-                                'Lo crearás desde cero con Coder en Numination.',
+                                AppLocale.t('cloud_project_description'),
                           ),
                           const SizedBox(height: 12),
                           projectTypeCard(
                             value: 'local',
                             icon: LucideIcons.folderOpen,
-                            title: 'Local',
+                            title: AppLocale.t('local_project'),
                             description:
-                                'Coder trabajará en la nube con tu proyecto local.',
+                                AppLocale.t('local_project_description'),
                           ),
                           if (isLocal) ...[
                             const SizedBox(height: 14),
@@ -469,8 +468,8 @@ class _CoderScreenState extends ConsumerState<CoderScreen> {
                               icon: const Icon(LucideIcons.folderOpen),
                               label: Text(
                                 _localDirectoryPath == null
-                                    ? 'Elegir carpeta local'
-                                    : 'Cambiar carpeta',
+                                    ? AppLocale.t('choose_local_folder')
+                                    : AppLocale.t('change_folder'),
                               ),
                             ),
                             if (_localDirectoryPath != null) ...[
@@ -531,7 +530,7 @@ class _CoderScreenState extends ConsumerState<CoderScreen> {
                                   const SizedBox(width: 10),
                                   Expanded(
                                     child: Text(
-                                      'Los cambios se integrarán inmediatamente. Revisa lo importante.',
+                                      AppLocale.t('local_folder_warning'),
                                       style: TextStyle(
                                         color: palette.textPrimary,
                                         fontSize: 13,
@@ -545,7 +544,7 @@ class _CoderScreenState extends ConsumerState<CoderScreen> {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              'Los archivos seleccionados se copiarán al sandbox en la nube. Al responder Coder, los archivos modificados y eliminados se sincronizarán con esta carpeta.',
+                              AppLocale.t('local_sync_description'),
                               style: TextStyle(
                                 color: palette.textSecondary,
                                 fontSize: 12,
@@ -596,8 +595,8 @@ class _CoderScreenState extends ConsumerState<CoderScreen> {
                           const SizedBox(width: 10),
                           Text(
                             _projectType == 'local'
-                                ? 'Importando $_importProgress archivos…'
-                                : 'Creando proyecto…',
+                                ? AppLocale.t('importing_files').replaceAll('{count}', '$_importProgress')
+                                : AppLocale.t('creating_project'),
                             style: const TextStyle(
                               fontWeight: FontWeight.w800,
                               fontSize: 14,
@@ -609,7 +608,7 @@ class _CoderScreenState extends ConsumerState<CoderScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
-                            _step == 0 ? 'Siguiente' : 'Crear proyecto',
+                            _step == 0 ? AppLocale.t('next') : AppLocale.t('create_project'),
                             style: const TextStyle(
                               fontWeight: FontWeight.w800,
                               fontSize: 15,
@@ -628,7 +627,7 @@ class _CoderScreenState extends ConsumerState<CoderScreen> {
             ),
             const SizedBox(height: 12),
             Text(
-              'No se mostrarán los árboles de dependencias ni arquitectura en este flujo. Coder trabajará con los archivos que tenga el sandbox.',
+              AppLocale.t('wizard_footer'),
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: palette.textSecondary,

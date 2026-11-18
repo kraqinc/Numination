@@ -28,5 +28,116 @@
   "cancel": "Cancel",
   "create": "Create",
   "name": "Name",
-  "pronouns": "Pronouns"
+  "pronouns": "Pronouns",
+  "project_name_required": "Enter a name for your project.",
+  "folder_dialog_title": "Choose the project folder",
+  "folder_open_error": "Could not open the selected folder:",
+  "local_folder_required": "Choose a local folder first.",
+  "local_import_partial": "The project was created, but some files could not be imported. Check your connection and import them again. Details:",
+  "import_summary": "Imported {imported} files. Skipped {skipped} binary, sensitive, or oversized files.",
+  "back": "Back",
+  "previous_step": "Previous step",
+  "coder_new_project": "Coder · New project",
+  "workspace_eyebrow": "CODER WORKSPACE",
+  "workspace_title": "Your space to build",
+  "workspace_subtitle": "Project, files, and changes in one place.",
+  "step_name": "Name",
+  "step_type": "Type",
+  "project_name_title": "Project name",
+  "project_name_description": "Choose a name, then select where Coder should work.",
+  "project_name_label": "Name",
+  "project_name_hint": "My project",
+  "project_type_title": "Project type",
+  "project_type_description": "Choose where you want Coder to work.",
+  "cloud_project": "In the cloud",
+  "cloud_project_description": "Start a cloud project from scratch and open its Coder chat.",
+  "local_project": "Local folder",
+  "local_project_description": "Choose a folder that Numination can read and update.",
+  "choose_local_folder": "Choose local folder",
+  "change_folder": "Change folder",
+  "local_folder_warning": "Coder can create, edit, and delete files inside this folder. Back up important files before continuing.",
+  "local_sync_description": "Supported text files are copied into the workspace. Files Coder creates, updates, or deletes are synchronized back to this folder.",
+  "create_project": "Create project",
+  "next": "Next",
+  "creating_project": "Creating project…",
+  "importing_files": "Importing {count} files…",
+  "wizard_footer": "Coder works with the files in its project workspace. You can manage them from the file panel.",
+  "chat_one": "{count} chat",
+  "chat_many": "{count} chats",
+  "open_in_coder": "Open in Coder",
+  "project_no_chats": "This project does not have any chats yet.",
+  "memory_subtitle": "What Numination remembers from your chats",
+  "email_preferences": "Numination emails",
+  "email_preferences_subtitle": "Security alerts, product updates, and newsletter",
+  "terms_of_use": "Terms of use",
+  "terms_subtitle": "Conditions for using Numination",
+  "privacy_web_policy": "Website privacy policy",
+  "privacy_web_subtitle": "How we handle your data",
+  "automatic_updates": "Automatic updates",
+  "automatic_updates_subtitle": "Automatically check for and download new Numination versions",
+  "credits": "Credits",
+  "credits_subtitle": "Check your balance and get more credits",
+  "subscriptions": "Subscriptions",
+  "subscriptions_subtitle": "Plans, weekly credits, and benefits",
+  "refresh_plans": "Refresh plans",
+  "choose_plan": "Choose your plan",
+  "plans_intro": "More credits for your conversations, projects, and AI tools.",
+  "plans_load_failed": "We could not load the plans. Check your connection and try again.",
+  "back_to_chats": "Back to your chats",
+  "menu": "Menu",
+  "undo_changes": "Undo changes",
+  "hide_files": "Hide files",
+  "show_files": "Show files",
+  "download_project_zip": "Download project ZIP",
+  "project_files": "PROJECT FILES",
+  "project_no_files": "This project does not have any files yet.",
+  "coder_prompt": "Describe what you want to build…",
+  "stop_dictation": "Stop dictation",
+  "dictate_message": "Dictate message",
+  "stop": "Stop",
+  "send": "Send",
+  "local_sync_success": "Changes synced to the local folder: {written} file(s) updated, {deleted} deleted.",
+  "local_sync_error": "Coder updated the workspace, but the local folder could not be synchronized:",
+  "zip_saved": "ZIP saved:",
+  "@import_summary": {
+    "placeholders": {
+      "imported": {
+        "type": "String"
+      },
+      "skipped": {
+        "type": "String"
+      }
+    }
+  },
+  "@importing_files": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "@chat_one": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "@chat_many": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "@local_sync_success": {
+    "placeholders": {
+      "written": {
+        "type": "String"
+      },
+      "deleted": {
+        "type": "String"
+      }
+    }
+  }
 }

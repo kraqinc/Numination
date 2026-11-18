@@ -28,5 +28,116 @@
   "cancel": "Annuler",
   "create": "Créer",
   "name": "Nom",
-  "pronouns": "Pronoms"
+  "pronouns": "Pronoms",
+  "project_name_required": "Saisissez un nom pour votre projet.",
+  "folder_dialog_title": "Choisissez le dossier du projet",
+  "folder_open_error": "Impossible d’ouvrir le dossier sélectionné :",
+  "local_folder_required": "Choisissez d’abord un dossier local.",
+  "local_import_partial": "Le projet a été créé, mais certains fichiers n’ont pas été importés. Vérifiez votre connexion et réessayez. Détails :",
+  "import_summary": "{imported} fichiers importés. {skipped} fichiers binaires, sensibles ou trop volumineux ignorés.",
+  "back": "Retour",
+  "previous_step": "Étape précédente",
+  "coder_new_project": "Coder · Nouveau projet",
+  "workspace_eyebrow": "ESPACE DE TRAVAIL CODER",
+  "workspace_title": "Votre espace de création",
+  "workspace_subtitle": "Projet, fichiers et modifications au même endroit.",
+  "step_name": "Nom",
+  "step_type": "Type",
+  "project_name_title": "Nom du projet",
+  "project_name_description": "Choisissez un nom, puis l’emplacement de travail de Coder.",
+  "project_name_label": "Nom",
+  "project_name_hint": "Mon projet",
+  "project_type_title": "Type de projet",
+  "project_type_description": "Choisissez l’emplacement de travail de Coder.",
+  "cloud_project": "Dans le cloud",
+  "cloud_project_description": "Créez un projet cloud et ouvrez sa discussion Coder.",
+  "local_project": "Dossier local",
+  "local_project_description": "Choisissez un dossier que Numination peut lire et mettre à jour.",
+  "choose_local_folder": "Choisir un dossier local",
+  "change_folder": "Changer de dossier",
+  "local_folder_warning": "Coder peut créer, modifier et supprimer des fichiers dans ce dossier. Sauvegardez les fichiers importants avant de continuer.",
+  "local_sync_description": "Les fichiers texte compatibles sont copiés dans l’espace de travail. Les fichiers créés, modifiés ou supprimés par Coder sont synchronisés dans ce dossier.",
+  "create_project": "Créer le projet",
+  "next": "Suivant",
+  "creating_project": "Création du projet…",
+  "importing_files": "Importation de {count} fichiers…",
+  "wizard_footer": "Coder travaille avec les fichiers de son espace de projet. Gérez-les depuis le panneau des fichiers.",
+  "chat_one": "{count} discussion",
+  "chat_many": "{count} discussions",
+  "open_in_coder": "Ouvrir dans Coder",
+  "project_no_chats": "Ce projet ne contient pas encore de discussions.",
+  "memory_subtitle": "Ce que Numination retient de vos discussions",
+  "email_preferences": "E-mails de Numination",
+  "email_preferences_subtitle": "Alertes de sécurité, actualités et newsletter",
+  "terms_of_use": "Conditions d’utilisation",
+  "terms_subtitle": "Conditions d’utilisation de Numination",
+  "privacy_web_policy": "Politique de confidentialité du site",
+  "privacy_web_subtitle": "Comment nous traitons vos données",
+  "automatic_updates": "Mises à jour automatiques",
+  "automatic_updates_subtitle": "Rechercher et télécharger automatiquement les nouvelles versions",
+  "credits": "Crédits",
+  "credits_subtitle": "Consultez votre solde et obtenez plus de crédits",
+  "subscriptions": "Abonnements",
+  "subscriptions_subtitle": "Offres, crédits hebdomadaires et avantages",
+  "refresh_plans": "Actualiser les offres",
+  "choose_plan": "Choisissez votre offre",
+  "plans_intro": "Plus de crédits pour vos conversations, projets et outils d’IA.",
+  "plans_load_failed": "Impossible de charger les offres. Vérifiez votre connexion et réessayez.",
+  "back_to_chats": "Retour aux discussions",
+  "menu": "Menu",
+  "undo_changes": "Annuler les modifications",
+  "hide_files": "Masquer les fichiers",
+  "show_files": "Afficher les fichiers",
+  "download_project_zip": "Télécharger le ZIP du projet",
+  "project_files": "FICHIERS DU PROJET",
+  "project_no_files": "Ce projet ne contient pas encore de fichiers.",
+  "coder_prompt": "Décrivez ce que vous souhaitez créer…",
+  "stop_dictation": "Arrêter la dictée",
+  "dictate_message": "Dicter le message",
+  "stop": "Arrêter",
+  "send": "Envoyer",
+  "local_sync_success": "Modifications synchronisées : {written} fichier(s) mis à jour, {deleted} supprimé(s).",
+  "local_sync_error": "Coder a mis à jour l’espace de travail, mais le dossier local n’a pas pu être synchronisé :",
+  "zip_saved": "ZIP enregistré :",
+  "@import_summary": {
+    "placeholders": {
+      "imported": {
+        "type": "String"
+      },
+      "skipped": {
+        "type": "String"
+      }
+    }
+  },
+  "@importing_files": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "@chat_one": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "@chat_many": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "@local_sync_success": {
+    "placeholders": {
+      "written": {
+        "type": "String"
+      },
+      "deleted": {
+        "type": "String"
+      }
+    }
+  }
 }

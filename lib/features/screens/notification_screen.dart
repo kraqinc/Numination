@@ -6,8 +6,7 @@ import 'package:lucide_flutter/lucide_flutter.dart';
 
 import '../../core/api.dart';
 import '../../core/theme_controller.dart';
-import '../widgets/numi_loading_animation.dart';
-
+import '../widgets/numi_skeleton.dart';
 class NotificationScreen extends ConsumerStatefulWidget {
   const NotificationScreen({super.key});
 
@@ -255,7 +254,7 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen>
         child: _loading && _items.isEmpty
             ? const Center(
                 key: ValueKey('loading'),
-                child: NumiLoadingAnimation(),
+                child: const NumiSkeleton(kind: NumiSkeletonKind.notifications),
               )
             : _error != null && _items.isEmpty
             ? Center(

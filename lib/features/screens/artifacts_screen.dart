@@ -11,8 +11,7 @@ import '../../core/models.dart';
 import '../../core/theme.dart';
 import '../../core/theme_controller.dart';
 import 'package:numination/core/numi_icons.dart';
-import '../widgets/numi_loading_animation.dart';
-
+import '../widgets/numi_skeleton.dart';
 class ArtifactsScreen extends ConsumerStatefulWidget {
   const ArtifactsScreen({super.key});
 
@@ -230,7 +229,7 @@ class _ArtifactsScreenState extends ConsumerState<ArtifactsScreen> {
       body: RefreshIndicator(
         onRefresh: _load,
         child: _isLoading
-            ? Center(child: NumiLoadingAnimation())
+            ? Center(child: const NumiSkeleton(kind: NumiSkeletonKind.artifacts))
             : _artifacts.isEmpty
             ? _EmptyArtifactsState(errorText: _errorText, palette: palette)
             : ListView.separated(

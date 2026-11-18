@@ -28,6 +28,7 @@ import 'package:lucide_flutter/lucide_flutter.dart';
 import '../../core/api.dart';
 import '../../core/models.dart';
 import '../../core/theme_controller.dart';
+import '../widgets/numi_loading_animation.dart';
 
 /// Returned to CoderChatScreen when the editor closes.
 class CoderEditorResult {
@@ -516,7 +517,7 @@ class _CoderEditorScreenState extends ConsumerState<CoderEditorScreen> {
                     ? const SizedBox(
                         width: 18,
                         height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: NumiLoadingAnimation(size: 18),
                       )
                     : const Icon(LucideIcons.save),
               ),

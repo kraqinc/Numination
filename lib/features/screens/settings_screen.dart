@@ -10,7 +10,6 @@ import 'custom_strings.dart';
 import 'memory_screen.dart';
 import 'notification_screen.dart';
 import 'privacy_screen.dart';
-import 'subscription_coder_screen.dart';
 import 'credits_hub_screen.dart';
 import 'email_preferences_screen.dart';
 import 'plans_screen.dart';
@@ -53,7 +52,7 @@ class SettingsScreen extends ConsumerWidget {
           _SettingsTile(
             icon: NumiIcons.memory_outlined,
             label: AppLocale.t('memory'),
-            subtitle: 'Lo que Numination recuerda de tus chats',
+            subtitle: AppLocale.t('memory_subtitle'),
             onTap: () => Navigator.of(
               context,
             ).push(MaterialPageRoute(builder: (_) => const MemoryScreen())),
@@ -67,8 +66,8 @@ class SettingsScreen extends ConsumerWidget {
           ),
           _SettingsTile(
             icon: Icons.mark_email_unread_outlined,
-            label: 'Correos de Numination',
-            subtitle: 'Alertas de seguridad, novedades y newsletter',
+            label: AppLocale.t('email_preferences'),
+            subtitle: AppLocale.t('email_preferences_subtitle'),
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const EmailPreferencesScreen()),
             ),
@@ -82,8 +81,8 @@ class SettingsScreen extends ConsumerWidget {
           ),
           _SettingsTile(
             icon: NumiIcons.info_outline,
-            label: 'Términos de uso',
-            subtitle: 'Condiciones para usar Numination',
+            label: AppLocale.t('terms_of_use'),
+            subtitle: AppLocale.t('terms_subtitle'),
             onTap: () async {
               await launchUrl(
                 Uri.parse('https://numination-swart.vercel.app/terminos'),
@@ -93,8 +92,8 @@ class SettingsScreen extends ConsumerWidget {
           ),
           _SettingsTile(
             icon: NumiIcons.privacy_tip_outlined,
-            label: 'Política de privacidad web',
-            subtitle: 'Cómo tratamos tus datos',
+            label: AppLocale.t('privacy_web_policy'),
+            subtitle: AppLocale.t('privacy_web_subtitle'),
             onTap: () async {
               await launchUrl(
                 Uri.parse('https://numination-swart.vercel.app/privacidad'),
@@ -119,41 +118,31 @@ class SettingsScreen extends ConsumerWidget {
             },
             activeThumbColor: palette.accent,
             title: Text(
-              'Actualizaciones automáticas',
+              AppLocale.t('automatic_updates'),
               style: TextStyle(color: palette.textPrimary, fontSize: 16),
             ),
             subtitle: Text(
-              'Detecta y descarga nuevas versiones de Numination automáticamente',
+              AppLocale.t('automatic_updates_subtitle'),
               style: TextStyle(color: palette.textSecondary, fontSize: 12),
             ),
           ),
           _SettingsTile(
             icon: Icons.bolt_rounded,
-            label: 'Créditos',
-            subtitle: 'Consulta tu saldo y consigue más créditos',
+            label: AppLocale.t('credits'),
+            subtitle: AppLocale.t('credits_subtitle'),
             onTap: () => Navigator.of(
               context,
             ).push(MaterialPageRoute(builder: (_) => const CreditsHubScreen())),
           ),
           _SettingsTile(
             icon: Icons.workspace_premium_outlined,
-            label: 'Suscripciones',
-            subtitle: 'Planes, créditos semanales y beneficios',
+            label: AppLocale.t('subscriptions'),
+            subtitle: AppLocale.t('subscriptions_subtitle'),
             onTap: () => Navigator.of(
               context,
             ).push(MaterialPageRoute(builder: (_) => const PlansScreen())),
           ),
           _SettingsSectionDivider(color: palette.border),
-          _SettingsSectionDivider(color: palette.border),
-          _SettingsTile(
-            icon: NumiIcons.workspace_premium_outlined,
-            label: AppLocale.t('coder_subscription'),
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => const SubscriptionCoderScreen(),
-              ),
-            ),
-          ),
           _SettingsSectionDivider(color: palette.border),
           _SettingsTile(
             icon: NumiIcons.logout,

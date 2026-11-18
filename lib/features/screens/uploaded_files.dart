@@ -6,8 +6,7 @@ import '../../core/i18n.dart';
 import '../../core/theme.dart';
 import '../../core/theme_controller.dart';
 import 'package:numination/core/numi_icons.dart';
-import '../widgets/numi_loading_animation.dart';
-
+import '../widgets/numi_skeleton.dart';
 class UploadedFile {
   final String id;
   final String key;
@@ -108,7 +107,7 @@ class _UploadedFilesScreenState extends ConsumerState<UploadedFilesScreen> {
         ),
       ),
       body: _isLoading
-          ? Center(child: NumiLoadingAnimation())
+          ? Center(child: const NumiSkeleton(kind: NumiSkeletonKind.files))
           : _files.isEmpty
           ? _EmptyFilesState(errorText: _errorText, palette: palette)
           : ListView.separated(

@@ -11,7 +11,6 @@ environment:
   flutter: '>=3.47.0'
 
 dependencies:
-  lottie: ^3.6.1
   flutter:
     sdk: flutter
   flutter_localizations:
@@ -63,7 +62,6 @@ flutter:
     - assets/images/microphone.png
     - assets/images/ghost.png
     - assets/images/add_files.png
-    - loading.json
     - assets/images/logo/logo_n.png
     - assets/images/copy_icon.png
 

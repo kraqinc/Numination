@@ -32,6 +32,7 @@ import 'ghost_chat.dart';
 import 'plans_screen.dart';
 import '../widgets/numi_loading_animation.dart';
 
+import '../widgets/numi_skeleton.dart';
 class ChatPlace {
   final String name;
   final String address;
@@ -1809,7 +1810,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   children: [
                     Positioned.fill(
                       child: _isLoadingHistory
-                          ? const Center(child: NumiLoadingAnimation())
+                          ? const Center(child: const NumiSkeleton(kind: NumiSkeletonKind.homeHistory, dense: true))
                           : _messages.isEmpty
                               ? const _EmptyState()
                               : ListView.builder(
@@ -2278,7 +2279,7 @@ class _MessageBubble extends ConsumerWidget {
                         fit: BoxFit.contain,
                         loadingBuilder: (context, child, progress) {
                           if (progress == null) return child;
-                          return SizedBox(height: 220, child: Center(child: NumiLoadingAnimation()));
+                          return SizedBox(height: 220, child: Center(child: const NumiSkeleton(kind: NumiSkeletonKind.imagePreview, dense: true)));
                         },
                         errorBuilder: (context, error, stackTrace) => Container(
                           width: MediaQuery.of(context).size.width * 0.82,
@@ -2820,7 +2821,7 @@ class _BottomInputBar extends ConsumerWidget {
                             child: SizedBox(
                               width: 18,
                               height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
+                              child: NumiLoadingAnimation(size: 18),
                             ),
                           ),
                         );

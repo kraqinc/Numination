@@ -282,10 +282,22 @@ class LocalProjectSyncService {
         skipped++;
         continue;
       }
-      final target = File(targetPath);
-      if (await target.exists()) {
-        await target.delete();
+      final targetType = await FileSystemEntity.type(
+        targetPath,
+        followLinks: false,
+      );
+      if (targetType == FileSystemEntityType.file) {
+        await File(targetPath).delete();
         deleted++;
+      } else if (targetType == FileSystemEntityType.directory) {
+        // Remove only empty directories. A recursive delete could erase local-only
+        // or sensitive files that were intentionally excluded from the cloud import.
+        try {
+          await Directory(targetPath).delete();
+          deleted++;
+        } on FileSystemException {
+          // Keep non-empty directories; their remaining files are local-only.
+        }
       }
     }
 

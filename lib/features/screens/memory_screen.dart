@@ -8,8 +8,7 @@ import '../../core/models.dart';
 import '../../core/theme.dart';
 import '../../core/theme_controller.dart';
 import 'package:numination/core/numi_icons.dart';
-import '../widgets/numi_loading_animation.dart';
-
+import '../widgets/numi_skeleton.dart';
 class MemoryScreen extends ConsumerStatefulWidget {
   const MemoryScreen({super.key});
 
@@ -173,7 +172,7 @@ class _MemoryScreenState extends ConsumerState<MemoryScreen> {
       body: RefreshIndicator(
         onRefresh: _load,
         child: _isLoading
-            ? Center(child: NumiLoadingAnimation())
+            ? Center(child: const NumiSkeleton(kind: NumiSkeletonKind.memories))
             : _memories.isEmpty
             ? _EmptyMemoryState(palette: palette)
             : ListView.separated(

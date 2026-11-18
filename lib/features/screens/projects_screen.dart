@@ -6,13 +6,13 @@ import 'package:lucide_flutter/lucide_flutter.dart';
 import '../../core/api.dart';
 import '../../core/error_messages.dart';
 import 'coder_chat_screen.dart';
+import 'coder_screen.dart';
 import '../../core/i18n.dart';
 import '../../core/models.dart';
 import '../../core/theme.dart';
 import '../../core/theme_controller.dart';
 import 'package:numination/core/numi_icons.dart';
-import '../widgets/numi_loading_animation.dart';
-
+import '../widgets/numi_skeleton.dart';
 class ProjectsScreen extends ConsumerStatefulWidget {
   const ProjectsScreen({super.key, this.onOpenChat});
 
@@ -82,69 +82,10 @@ class _ProjectsScreenState extends ConsumerState<ProjectsScreen> {
   }
 
   Future<void> _createProject() async {
-    final palette = ref.read(appPaletteProvider);
-    final controller = TextEditingController();
-
-    final name = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: palette.surface,
-        title: Text(
-          AppLocale.t('create'),
-          style: TextStyle(color: palette.textPrimary),
-        ),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          maxLength: 80,
-          style: TextStyle(color: palette.textPrimary),
-          decoration: InputDecoration(
-            hintText: 'Nombre del proyecto',
-            hintStyle: TextStyle(color: palette.textSecondary),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text(
-              AppLocale.t('cancel'),
-              style: TextStyle(color: palette.textSecondary),
-            ),
-          ),
-          TextButton(
-            onPressed: () {
-              final value = controller.text.trim();
-
-              if (value.isEmpty) {
-                return;
-              }
-
-              Navigator.of(dialogContext).pop(value);
-            },
-            child: Text(
-              AppLocale.t('create'),
-              style: TextStyle(color: palette.accent),
-            ),
-          ),
-        ],
-      ),
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(builder: (_) => const CoderScreen()),
     );
-
-    controller.dispose();
-
-    if (name == null || name.isEmpty) return;
-
-    try {
-      await ApiClient.post('/projects', {'name': name});
-
-      await _load();
-    } on ApiException catch (e) {
-      if (!mounted) return;
-      setState(() => _errorText = e.message);
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _errorText = AppErrorMessages.projectCreateFailed);
-    }
+    if (mounted) await _load();
   }
 
   List<ChatSession> _chatsForProject(Project project) {
@@ -187,8 +128,7 @@ class _ProjectsScreenState extends ConsumerState<ProjectsScreen> {
             ? ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 children: [
-                  SizedBox(height: MediaQuery.sizeOf(context).height * 0.35),
-                  Center(child: NumiLoadingAnimation()),
+                  const NumiSkeleton(kind: NumiSkeletonKind.projects),
                 ],
               )
             : _projects.isEmpty
@@ -329,7 +269,8 @@ class _ProjectCard extends StatelessWidget {
                             ],
                             const SizedBox(height: 4),
                             Text(
-                              '${chats.length} ${chats.length == 1 ? 'chat' : 'chats'}',
+                              AppLocale.t(chats.length == 1 ? 'chat_one' : 'chat_many')
+                                  .replaceAll('{count}', '${chats.length}'),
                               style: TextStyle(
                                 color: palette.textSecondary,
                                 fontSize: 11,
@@ -340,7 +281,7 @@ class _ProjectCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 4),
                       IconButton(
-                        tooltip: 'Abrir en Coder',
+                        tooltip: AppLocale.t('open_in_coder'),
                         onPressed: onOpenCoder,
                         icon: const Icon(LucideIcons.code2),
                       ),
@@ -413,7 +354,7 @@ class _ProjectChats extends StatelessWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Este proyecto todavía no tiene chats.',
+                      AppLocale.t('project_no_chats'),
                       style: TextStyle(
                         color: palette.textSecondary,
                         fontSize: 13,

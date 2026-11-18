@@ -28,5 +28,116 @@
   "cancel": "Cancelar",
   "create": "Criar",
   "name": "Nome",
-  "pronouns": "Pronomes"
+  "pronouns": "Pronomes",
+  "project_name_required": "Digite um nome para o projeto.",
+  "folder_dialog_title": "Selecione a pasta do projeto",
+  "folder_open_error": "Não foi possível abrir a pasta selecionada:",
+  "local_folder_required": "Selecione primeiro uma pasta local.",
+  "local_import_partial": "O projeto foi criado, mas a importação ficou incompleta. Verifique a conexão e importe os arquivos novamente. Detalhes:",
+  "import_summary": "{imported} arquivos importados. {skipped} arquivos binários, confidenciais ou grandes demais foram ignorados.",
+  "back": "Voltar",
+  "previous_step": "Etapa anterior",
+  "coder_new_project": "Coder · Novo projeto",
+  "workspace_eyebrow": "ESPAÇO DE TRABALHO CODER",
+  "workspace_title": "Seu espaço para construir",
+  "workspace_subtitle": "Projeto, arquivos e alterações em um só lugar.",
+  "step_name": "Nome",
+  "step_type": "Tipo",
+  "project_name_title": "Nome do projeto",
+  "project_name_description": "Escolha um nome e depois selecione onde o Coder vai trabalhar.",
+  "project_name_label": "Nome",
+  "project_name_hint": "Meu projeto",
+  "project_type_title": "Tipo de projeto",
+  "project_type_description": "Selecione onde você quer que o Coder trabalhe.",
+  "cloud_project": "Na nuvem",
+  "cloud_project_description": "Crie um projeto na nuvem e abra o chat do Coder.",
+  "local_project": "Pasta local",
+  "local_project_description": "Selecione uma pasta que o Numination possa ler e atualizar.",
+  "choose_local_folder": "Escolher pasta local",
+  "change_folder": "Alterar pasta",
+  "local_folder_warning": "O Coder pode criar, editar e excluir arquivos nesta pasta. Faça backup dos arquivos importantes antes de continuar.",
+  "local_sync_description": "Arquivos de texto compatíveis são copiados para o espaço de trabalho. Os arquivos criados, atualizados ou excluídos pelo Coder são sincronizados de volta para esta pasta.",
+  "create_project": "Criar projeto",
+  "next": "Avançar",
+  "creating_project": "Criando projeto…",
+  "importing_files": "Importando {count} arquivos…",
+  "wizard_footer": "O Coder trabalha com os arquivos do espaço do projeto. Você pode gerenciá-los no painel de arquivos.",
+  "chat_one": "{count} conversa",
+  "chat_many": "{count} conversas",
+  "open_in_coder": "Abrir no Coder",
+  "project_no_chats": "Este projeto ainda não tem conversas.",
+  "memory_subtitle": "O que o Numination lembra das suas conversas",
+  "email_preferences": "E-mails do Numination",
+  "email_preferences_subtitle": "Alertas de segurança, novidades e newsletter",
+  "terms_of_use": "Termos de uso",
+  "terms_subtitle": "Condições para usar o Numination",
+  "privacy_web_policy": "Política de privacidade do site",
+  "privacy_web_subtitle": "Como tratamos seus dados",
+  "automatic_updates": "Atualizações automáticas",
+  "automatic_updates_subtitle": "Detectar e baixar novas versões do Numination automaticamente",
+  "credits": "Créditos",
+  "credits_subtitle": "Consulte seu saldo e obtenha mais créditos",
+  "subscriptions": "Assinaturas",
+  "subscriptions_subtitle": "Planos, créditos semanais e benefícios",
+  "refresh_plans": "Atualizar planos",
+  "choose_plan": "Escolha seu plano",
+  "plans_intro": "Mais créditos para suas conversas, projetos e ferramentas de IA.",
+  "plans_load_failed": "Não foi possível carregar os planos. Verifique sua conexão e tente novamente.",
+  "back_to_chats": "Voltar às conversas",
+  "menu": "Menu",
+  "undo_changes": "Desfazer alterações",
+  "hide_files": "Ocultar arquivos",
+  "show_files": "Mostrar arquivos",
+  "download_project_zip": "Baixar ZIP do projeto",
+  "project_files": "ARQUIVOS DO PROJETO",
+  "project_no_files": "Este projeto ainda não tem arquivos.",
+  "coder_prompt": "Descreva o que você quer construir…",
+  "stop_dictation": "Parar ditado",
+  "dictate_message": "Ditado de mensagem",
+  "stop": "Parar",
+  "send": "Enviar",
+  "local_sync_success": "Alterações sincronizadas: {written} arquivo(s) atualizado(s), {deleted} excluído(s).",
+  "local_sync_error": "O Coder atualizou o espaço de trabalho, mas não foi possível sincronizar a pasta local:",
+  "zip_saved": "ZIP salvo:",
+  "@import_summary": {
+    "placeholders": {
+      "imported": {
+        "type": "String"
+      },
+      "skipped": {
+        "type": "String"
+      }
+    }
+  },
+  "@importing_files": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "@chat_one": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "@chat_many": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "@local_sync_success": {
+    "placeholders": {
+      "written": {
+        "type": "String"
+      },
+      "deleted": {
+        "type": "String"
+      }
+    }
+  }
 }

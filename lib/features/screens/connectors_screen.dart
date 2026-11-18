@@ -10,8 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/api.dart';
 import '../../core/theme_controller.dart';
 import '../../core/theme.dart';
-import '../widgets/numi_loading_animation.dart';
-
+import '../widgets/numi_skeleton.dart';
 class ConnectorsScreen extends ConsumerStatefulWidget {
   const ConnectorsScreen({super.key});
 
@@ -961,7 +960,7 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
         ),
       ),
       body: _loading && _providers.isEmpty
-          ? const Center(child: NumiLoadingAnimation())
+          ? const Center(child: const NumiSkeleton(kind: NumiSkeletonKind.connectors))
           : _error != null && _providers.isEmpty
           ? Center(
               child: Padding(

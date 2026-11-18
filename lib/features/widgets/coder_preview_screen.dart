@@ -9,6 +9,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import '../../core/error_messages.dart';
 import 'numi_loading_animation.dart';
 
+import 'numi_skeleton.dart';
 class CoderPreviewCard extends StatelessWidget {
   const CoderPreviewCard({
     super.key,
@@ -186,7 +187,7 @@ class _LottiePreviewLoader extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const NumiLoadingAnimation(size: 152),
+                const NumiSkeleton(kind: NumiSkeletonKind.coderPreview),
                 const SizedBox(height: 18),
                 Text(
                   english ? 'Building preview' : 'Construyendo vista previa',

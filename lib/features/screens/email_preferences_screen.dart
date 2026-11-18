@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api.dart';
 import '../../core/theme_controller.dart';
-
+import '../widgets/numi_skeleton.dart';
 class EmailPreferencesScreen extends ConsumerStatefulWidget {
   const EmailPreferencesScreen({super.key});
 
@@ -109,7 +109,7 @@ class _EmailPreferencesScreenState
         ),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: const NumiSkeleton(kind: NumiSkeletonKind.settings))
           : _error != null
           ? Center(
               child: Padding(
