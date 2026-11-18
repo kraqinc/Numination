@@ -11,6 +11,7 @@ import '../../core/api.dart';
 import '../../core/theme_controller.dart';
 import '../../core/theme.dart';
 import '../widgets/numi_skeleton.dart';
+
 class ConnectorsScreen extends ConsumerStatefulWidget {
   const ConnectorsScreen({super.key});
 
@@ -205,7 +206,8 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
 
   Future<void> _showProviderSetup(String provider) async {
     final serviceName = _label(provider);
-    final setupText = 'Para habilitar la conexión con $serviceName, es necesario configurar las credenciales de acceso (Client ID y Client Secret) junto con la clave de seguridad de cifrado en las variables del servidor.\n\n'
+    final setupText =
+        'Para habilitar la conexión con $serviceName, es necesario configurar las credenciales de acceso (Client ID y Client Secret) junto con la clave de seguridad de cifrado en las variables del servidor.\n\n'
         '1. Registra las credenciales de la aplicación en los secretos del servidor.\n'
         '2. Configura la siguiente dirección web exacta como la URL de redirección (Redirect URI) en la plataforma del proveedor:\n\n'
         '${_callbackUrl ?? 'Consulta GET /integrations para obtener la URL.'}\n\n'
@@ -226,7 +228,11 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
                   Clipboard.setData(ClipboardData(text: _callbackUrl!)),
                 );
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('La dirección de callback se ha copiado al portapapeles.')),
+                  const SnackBar(
+                    content: Text(
+                      'La dirección de callback se ha copiado al portapapeles.',
+                    ),
+                  ),
                 );
               }
             },
@@ -522,7 +528,8 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
     'notion' => SimpleIcons.notion,
     'figma' => SimpleIcons.figma,
     'supabase' => SimpleIcons.supabase,
-    'linear' => SimpleIcons.linear, // Corregido el error tipográfico anterior ('liear')
+    'linear' =>
+      SimpleIcons.linear, // Corregido el error tipográfico anterior ('liear')
     'vercel' => SimpleIcons.vercel,
     _ => LucideIcons.mail,
   };
@@ -960,7 +967,7 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
         ),
       ),
       body: _loading && _providers.isEmpty
-          ? const Center(child: const NumiSkeleton(kind: NumiSkeletonKind.connectors))
+          ? const Center(child: NumiSkeleton(kind: NumiSkeletonKind.connectors))
           : _error != null && _providers.isEmpty
           ? Center(
               child: Padding(

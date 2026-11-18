@@ -277,17 +277,10 @@ class ApiClient {
     }
 
     final uri = _functionUri(functionName);
-    final headers = <String, String>{
-      ..._headers,
-      'apikey': publishableKey,
-    };
+    final headers = <String, String>{..._headers, 'apikey': publishableKey};
 
     return _send(
-      (client) => client.post(
-        uri,
-        headers: headers,
-        body: jsonEncode(body),
-      ),
+      (client) => client.post(uri, headers: headers, body: jsonEncode(body)),
       retryable: false,
       timeout: timeout,
     );

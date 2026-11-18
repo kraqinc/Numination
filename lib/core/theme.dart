@@ -163,9 +163,7 @@ ThemeData buildTheme(AppPalette palette) {
     listTileTheme: ListTileThemeData(
       iconColor: textSecondary,
       textColor: textPrimary,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
     ),
 
     filledButtonTheme: FilledButtonThemeData(
@@ -175,9 +173,7 @@ ThemeData buildTheme(AppPalette palette) {
         minimumSize: const Size(44, 44),
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
         textStyle: const TextStyle(fontWeight: FontWeight.w600),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
     ),
 
@@ -188,9 +184,7 @@ ThemeData buildTheme(AppPalette palette) {
         minimumSize: const Size(44, 44),
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
         textStyle: const TextStyle(fontWeight: FontWeight.w600),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
     ),
 
@@ -199,9 +193,7 @@ ThemeData buildTheme(AppPalette palette) {
         foregroundColor: palette.accent,
         minimumSize: const Size(44, 40),
         textStyle: const TextStyle(fontWeight: FontWeight.w600),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     ),
 
@@ -209,9 +201,7 @@ ThemeData buildTheme(AppPalette palette) {
       backgroundColor: palette.accent,
       foregroundColor: accentForeground,
       elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
     ),
 
     scaffoldBackgroundColor: palette.background,
@@ -286,13 +276,8 @@ ThemeData buildTheme(AppPalette palette) {
     snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
       backgroundColor: palette.surfaceAlt,
-      contentTextStyle: TextStyle(
-        color: textPrimary,
-        fontSize: 13.5,
-      ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      contentTextStyle: TextStyle(color: textPrimary, fontSize: 13.5),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       insetPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
     ),
   );

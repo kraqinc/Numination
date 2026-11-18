@@ -39,12 +39,18 @@ class _NumiLoadingAnimationState extends State<NumiLoadingAnimation>
         final child = pageSized
             ? _pageSkeleton(width, base)
             : SizedBox(
-                width: constraints.hasBoundedWidth ? constraints.maxWidth : widget.size,
-                height: constraints.hasBoundedHeight ? constraints.maxHeight : widget.size,
+                width: constraints.hasBoundedWidth
+                    ? constraints.maxWidth
+                    : widget.size,
+                height: constraints.hasBoundedHeight
+                    ? constraints.maxHeight
+                    : widget.size,
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     color: base,
-                    borderRadius: BorderRadius.circular(widget.size <= 24 ? 7 : 12),
+                    borderRadius: BorderRadius.circular(
+                      widget.size <= 24 ? 7 : 12,
+                    ),
                   ),
                 ),
               );
@@ -73,7 +79,10 @@ class _NumiLoadingAnimationState extends State<NumiLoadingAnimation>
       width: w,
       height: h,
       child: DecoratedBox(
-        decoration: BoxDecoration(color: base, borderRadius: BorderRadius.circular(radius)),
+        decoration: BoxDecoration(
+          color: base,
+          borderRadius: BorderRadius.circular(radius),
+        ),
       ),
     );
 
@@ -86,16 +95,23 @@ class _NumiLoadingAnimationState extends State<NumiLoadingAnimation>
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(children: [
-                block(42, 42, radius: 14),
-                const SizedBox(width: 12),
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  block(contentWidth * 0.42, 12),
-                  const SizedBox(height: 8),
-                  block(contentWidth * 0.27, 9),
-                ])),
-                block(30, 30, radius: 10),
-              ]),
+              Row(
+                children: [
+                  block(42, 42, radius: 14),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        block(contentWidth * 0.42, 12),
+                        const SizedBox(height: 8),
+                        block(contentWidth * 0.27, 9),
+                      ],
+                    ),
+                  ),
+                  block(30, 30, radius: 10),
+                ],
+              ),
               const SizedBox(height: 24),
               block(contentWidth * 0.48, 16),
               const SizedBox(height: 10),
@@ -105,16 +121,27 @@ class _NumiLoadingAnimationState extends State<NumiLoadingAnimation>
                 Container(
                   height: 66,
                   padding: const EdgeInsets.all(13),
-                  decoration: BoxDecoration(color: base, borderRadius: BorderRadius.circular(15)),
-                  child: Row(children: [
-                    block(38, 38, radius: 11),
-                    const SizedBox(width: 12),
-                    Expanded(child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      block(contentWidth * 0.42, 10),
-                      const SizedBox(height: 8),
-                      block(contentWidth * (index == 1 ? 0.29 : 0.52), 8),
-                    ])),
-                  ]),
+                  decoration: BoxDecoration(
+                    color: base,
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: Row(
+                    children: [
+                      block(38, 38, radius: 11),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            block(contentWidth * 0.42, 10),
+                            const SizedBox(height: 8),
+                            block(contentWidth * (index == 1 ? 0.29 : 0.52), 8),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 11),
               ],

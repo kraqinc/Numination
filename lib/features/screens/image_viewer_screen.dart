@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import '../../core/api.dart';
 
 import '../widgets/numi_loading_animation.dart';
+
 class ImageViewerScreen extends StatefulWidget {
   const ImageViewerScreen({
     super.key,
@@ -28,12 +29,35 @@ class _ImageViewerScreenState extends State<ImageViewerScreen> {
   bool _reporting = false;
 
   static const _styles = <({String name, String prompt})>[
-    (name: 'Cinematográfico', prompt: 'fotografía cinematográfica, iluminación natural dramática, composición rica y detallada'),
-    (name: 'Anime', prompt: 'ilustración anime original, líneas limpias, color expresivo y acabado profesional'),
-    (name: '3D', prompt: 'render 3D de alta calidad, materiales detallados, iluminación de estudio suave'),
-    (name: 'Acuarela', prompt: 'pintura tradicional de acuarela, textura de papel y pigmentos suaves'),
-    (name: 'Pixel art', prompt: 'pixel art retro, píxeles precisos y paleta de color limitada'),
-    (name: 'Minimalista', prompt: 'ilustración editorial minimalista, formas claras y pocos detalles'),
+    (
+      name: 'Cinematográfico',
+      prompt:
+          'fotografía cinematográfica, iluminación natural dramática, composición rica y detallada',
+    ),
+    (
+      name: 'Anime',
+      prompt:
+          'ilustración anime original, líneas limpias, color expresivo y acabado profesional',
+    ),
+    (
+      name: '3D',
+      prompt:
+          'render 3D de alta calidad, materiales detallados, iluminación de estudio suave',
+    ),
+    (
+      name: 'Acuarela',
+      prompt:
+          'pintura tradicional de acuarela, textura de papel y pigmentos suaves',
+    ),
+    (
+      name: 'Pixel art',
+      prompt: 'pixel art retro, píxeles precisos y paleta de color limitada',
+    ),
+    (
+      name: 'Minimalista',
+      prompt:
+          'ilustración editorial minimalista, formas claras y pocos detalles',
+    ),
   ];
 
   void _showMessage(String message) {
@@ -52,14 +76,20 @@ class _ImageViewerScreenState extends State<ImageViewerScreen> {
         throw const FormatException('Enlace de imagen no válido.');
       }
       final response = await http
-          .get(uri, headers: const {'Accept': 'image/png,image/jpeg,image/webp'})
+          .get(
+            uri,
+            headers: const {'Accept': 'image/png,image/jpeg,image/webp'},
+          )
           .timeout(const Duration(seconds: 35));
       if (response.statusCode != 200 || response.bodyBytes.isEmpty) {
         throw Exception('No se pudo descargar la imagen.');
       }
 
       final mime = (response.headers['content-type'] ?? 'image/png')
-          .split(';').first.trim().toLowerCase();
+          .split(';')
+          .first
+          .trim()
+          .toLowerCase();
       final String extension;
       final String mimeType;
       switch (mime) {
@@ -76,7 +106,8 @@ class _ImageViewerScreenState extends State<ImageViewerScreen> {
 
       final savedFile = await FilePicker.saveFile(
         dialogTitle: 'Guardar imagen de Numination',
-        fileName: 'numination-imagen-${DateTime.now().millisecondsSinceEpoch}.$extension',
+        fileName:
+            'numination-imagen-${DateTime.now().millisecondsSinceEpoch}.$extension',
         bytes: response.bodyBytes,
         mimeType: mimeType,
       );
@@ -101,22 +132,38 @@ class _ImageViewerScreenState extends State<ImageViewerScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Cambiar estilo', style: TextStyle(
-                color: Colors.white, fontSize: 19, fontWeight: FontWeight.w700,
-              )),
+              const Text(
+                'Cambiar estilo',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 19,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
               const SizedBox(height: 6),
               const Text(
                 'Se enviará esta imagen como referencia para editarla con el estilo elegido.',
                 style: TextStyle(color: Colors.white70, fontSize: 13),
               ),
               const SizedBox(height: 12),
-              ..._styles.map((item) => ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.auto_awesome, color: Color(0xFFFF806E)),
-                title: Text(item.name, style: const TextStyle(color: Colors.white)),
-                trailing: const Icon(Icons.chevron_right, color: Colors.white54),
-                onTap: () => Navigator.pop(sheetContext, item),
-              )),
+              ..._styles.map(
+                (item) => ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(
+                    Icons.auto_awesome,
+                    color: Color(0xFFFF806E),
+                  ),
+                  title: Text(
+                    item.name,
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  trailing: const Icon(
+                    Icons.chevron_right,
+                    color: Colors.white54,
+                  ),
+                  onTap: () => Navigator.pop(sheetContext, item),
+                ),
+              ),
             ],
           ),
         ),
@@ -168,10 +215,22 @@ class _ImageViewerScreenState extends State<ImageViewerScreen> {
                   initialValue: category,
                   isExpanded: true,
                   items: const [
-                    DropdownMenuItem(value: 'inappropriate', child: Text('Contenido inapropiado')),
-                    DropdownMenuItem(value: 'spam', child: Text('Spam o contenido engañoso')),
-                    DropdownMenuItem(value: 'rights', child: Text('Posible problema de derechos')),
-                    DropdownMenuItem(value: 'other', child: Text('Otro problema')),
+                    DropdownMenuItem(
+                      value: 'inappropriate',
+                      child: Text('Contenido inapropiado'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'spam',
+                      child: Text('Spam o contenido engañoso'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'rights',
+                      child: Text('Posible problema de derechos'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'other',
+                      child: Text('Otro problema'),
+                    ),
                   ],
                   onChanged: (value) {
                     if (value != null) setDialogState(() => category = value);
@@ -255,7 +314,11 @@ class _ImageViewerScreenState extends State<ImageViewerScreen> {
                   PopupMenuButton<String>(
                     tooltip: 'Más opciones',
                     color: const Color(0xFF2B2B2B),
-                    icon: const Icon(Icons.more_vert, color: Colors.white, size: 25),
+                    icon: const Icon(
+                      Icons.more_vert,
+                      color: Colors.white,
+                      size: 25,
+                    ),
                     onSelected: (value) {
                       if (value == 'report') _reportImage();
                     },
@@ -264,9 +327,16 @@ class _ImageViewerScreenState extends State<ImageViewerScreen> {
                         value: 'report',
                         child: Row(
                           children: [
-                            Icon(Icons.flag_outlined, color: Colors.white70, size: 19),
+                            Icon(
+                              Icons.flag_outlined,
+                              color: Colors.white70,
+                              size: 19,
+                            ),
                             SizedBox(width: 10),
-                            Text('Reportar esta imagen', style: TextStyle(color: Colors.white)),
+                            Text(
+                              'Reportar esta imagen',
+                              style: TextStyle(color: Colors.white),
+                            ),
                           ],
                         ),
                       ),
@@ -285,18 +355,22 @@ class _ImageViewerScreenState extends State<ImageViewerScreen> {
                     child: Image.network(
                       widget.imageUrl,
                       fit: BoxFit.contain,
-                      loadingBuilder: (context, child, progress) => progress == null
+                      loadingBuilder: (context, child, progress) =>
+                          progress == null
                           ? child
                           : const SizedBox(
                               width: 44,
                               height: 44,
                               child: NumiLoadingAnimation(size: 44),
                             ),
-                      errorBuilder: (context, error, stackTrace) => const Padding(
-                        padding: EdgeInsets.all(24),
-                        child: Text('No se pudo cargar esta imagen.',
-                            style: TextStyle(color: Colors.white70)),
-                      ),
+                      errorBuilder: (context, error, stackTrace) =>
+                          const Padding(
+                            padding: EdgeInsets.all(24),
+                            child: Text(
+                              'No se pudo cargar esta imagen.',
+                              style: TextStyle(color: Colors.white70),
+                            ),
+                          ),
                     ),
                   ),
                 ),
@@ -306,17 +380,23 @@ class _ImageViewerScreenState extends State<ImageViewerScreen> {
               padding: const EdgeInsets.fromLTRB(12, 12, 12, 18),
               child: Row(
                 children: [
-                  Expanded(child: _ViewerAction(
-                    icon: Icons.auto_awesome_outlined,
-                    label: 'Cambiar estilo',
-                    onPressed: _chooseStyle,
-                  )),
+                  Expanded(
+                    child: _ViewerAction(
+                      icon: Icons.auto_awesome_outlined,
+                      label: 'Cambiar estilo',
+                      onPressed: _chooseStyle,
+                    ),
+                  ),
                   const SizedBox(width: 10),
-                  Expanded(child: _ViewerAction(
-                    icon: _downloading ? Icons.hourglass_top : Icons.download_outlined,
-                    label: _downloading ? 'Guardando…' : 'Descargar',
-                    onPressed: _downloading ? null : _downloadImage,
-                  )),
+                  Expanded(
+                    child: _ViewerAction(
+                      icon: _downloading
+                          ? Icons.hourglass_top
+                          : Icons.download_outlined,
+                      label: _downloading ? 'Guardando…' : 'Descargar',
+                      onPressed: _downloading ? null : _downloadImage,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -329,7 +409,9 @@ class _ImageViewerScreenState extends State<ImageViewerScreen> {
 
 class _ViewerCircleButton extends StatelessWidget {
   const _ViewerCircleButton({
-    required this.icon, required this.tooltip, required this.onPressed,
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
   });
   final IconData icon;
   final String tooltip;
@@ -349,7 +431,9 @@ class _ViewerCircleButton extends StatelessWidget {
 
 class _ViewerAction extends StatelessWidget {
   const _ViewerAction({
-    required this.icon, required this.label, required this.onPressed,
+    required this.icon,
+    required this.label,
+    required this.onPressed,
   });
   final IconData icon;
   final String label;
@@ -371,8 +455,12 @@ class _ViewerAction extends StatelessWidget {
         ),
       ),
       const SizedBox(height: 7),
-      Text(label, maxLines: 1, overflow: TextOverflow.ellipsis,
-          style: const TextStyle(color: Colors.white, fontSize: 13)),
+      Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(color: Colors.white, fontSize: 13),
+      ),
     ],
   );
 }

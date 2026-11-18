@@ -250,10 +250,7 @@ class UpdateService {
 
       // iOS comprueba la versión, pero instala mediante App Store/TestFlight.
       if (Platform.isIOS) {
-        await prefs.setString(
-          'ios_update_available_version',
-          update.version,
-        );
+        await prefs.setString('ios_update_available_version', update.version);
         return;
       }
 

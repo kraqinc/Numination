@@ -268,7 +268,9 @@ class _CoderScreenState extends ConsumerState<CoderScreen> {
         backgroundColor: palette.background,
         elevation: 0,
         leading: IconButton(
-          tooltip: _step == 0 ? AppLocale.t('back') : AppLocale.t('previous_step'),
+          tooltip: _step == 0
+              ? AppLocale.t('back')
+              : AppLocale.t('previous_step'),
           onPressed: () {
             if (_step == 1) {
               setState(() => _step = 0);
@@ -306,18 +308,43 @@ class _CoderScreenState extends ConsumerState<CoderScreen> {
                       color: palette.accent.withValues(alpha: 0.13),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Icon(LucideIcons.code2, color: palette.accent, size: 21),
+                    child: Icon(
+                      LucideIcons.code2,
+                      color: palette.accent,
+                      size: 21,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(AppLocale.t('workspace_eyebrow'), style: TextStyle(color: palette.accent, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 1.1)),
+                        Text(
+                          AppLocale.t('workspace_eyebrow'),
+                          style: TextStyle(
+                            color: palette.accent,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.1,
+                          ),
+                        ),
                         const SizedBox(height: 4),
-                        Text(AppLocale.t('workspace_title'), style: TextStyle(color: palette.textPrimary, fontSize: 14, fontWeight: FontWeight.w700)),
+                        Text(
+                          AppLocale.t('workspace_title'),
+                          style: TextStyle(
+                            color: palette.textPrimary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                         const SizedBox(height: 2),
-                        Text(AppLocale.t('workspace_subtitle'), style: TextStyle(color: palette.textSecondary, fontSize: 11)),
+                        Text(
+                          AppLocale.t('workspace_subtitle'),
+                          style: TextStyle(
+                            color: palette.textSecondary,
+                            fontSize: 11,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -448,16 +475,18 @@ class _CoderScreenState extends ConsumerState<CoderScreen> {
                             value: 'cloud',
                             icon: LucideIcons.cloud,
                             title: AppLocale.t('cloud_project'),
-                            description:
-                                AppLocale.t('cloud_project_description'),
+                            description: AppLocale.t(
+                              'cloud_project_description',
+                            ),
                           ),
                           const SizedBox(height: 12),
                           projectTypeCard(
                             value: 'local',
                             icon: LucideIcons.folderOpen,
                             title: AppLocale.t('local_project'),
-                            description:
-                                AppLocale.t('local_project_description'),
+                            description: AppLocale.t(
+                              'local_project_description',
+                            ),
                           ),
                           if (isLocal) ...[
                             const SizedBox(height: 14),
@@ -595,7 +624,9 @@ class _CoderScreenState extends ConsumerState<CoderScreen> {
                           const SizedBox(width: 10),
                           Text(
                             _projectType == 'local'
-                                ? AppLocale.t('importing_files').replaceAll('{count}', '$_importProgress')
+                                ? AppLocale.t(
+                                    'importing_files',
+                                  ).replaceAll('{count}', '$_importProgress')
                                 : AppLocale.t('creating_project'),
                             style: const TextStyle(
                               fontWeight: FontWeight.w800,
@@ -608,7 +639,9 @@ class _CoderScreenState extends ConsumerState<CoderScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
-                            _step == 0 ? AppLocale.t('next') : AppLocale.t('create_project'),
+                            _step == 0
+                                ? AppLocale.t('next')
+                                : AppLocale.t('create_project'),
                             style: const TextStyle(
                               fontWeight: FontWeight.w800,
                               fontSize: 15,

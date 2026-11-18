@@ -33,6 +33,7 @@ import 'plans_screen.dart';
 import '../widgets/numi_loading_animation.dart';
 
 import '../widgets/numi_skeleton.dart';
+
 class ChatPlace {
   final String name;
   final String address;
@@ -85,6 +86,7 @@ class ChatMessage {
     this.places = const [],
   });
 }
+
 class PendingAttachment {
   final String name;
   final String content;
@@ -385,7 +387,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     _messageFocusNode.requestFocus();
   }
 
-
   Future<void> _initSpeech() async {
     try {
       _speechAvailable = await _speech.initialize(
@@ -438,9 +439,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final messenger = ScaffoldMessenger.of(context);
     messenger
       ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(content: Text(message)),
-      );
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _onComposerChanged() {
@@ -709,8 +708,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   void _onNewChatSwipeUpdate(DragUpdateDetails details) {
     if (!_newChatSwipeTracking || details.delta.dx <= 0) return;
     setState(() {
-      _newChatSwipeProgress =
-          (_newChatSwipeProgress + details.delta.dx / 150).clamp(0.0, 1.0).toDouble();
+      _newChatSwipeProgress = (_newChatSwipeProgress + details.delta.dx / 150)
+          .clamp(0.0, 1.0)
+          .toDouble();
     });
   }
 
@@ -854,12 +854,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               final index = entry.key;
               final message = entry.value;
               const imageMarker = '[[NUMINATION_IMAGE]]\n';
-              final isGeneratedImage = message.role != 'user' &&
+              final isGeneratedImage =
+                  message.role != 'user' &&
                   message.content.startsWith(imageMarker);
               final imageUrl = isGeneratedImage
                   ? message.content.substring(imageMarker.length).trim()
                   : null;
-              final imagePrompt = isGeneratedImage && index > 0 &&
+              final imagePrompt =
+                  isGeneratedImage &&
+                      index > 0 &&
                       list[index - 1].role == 'user'
                   ? list[index - 1].content
                   : null;
@@ -868,7 +871,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 fromUser: message.role == 'user',
                 id: message.id,
                 chatId: message.chatId,
-                imageUrl: imageUrl != null && imageUrl.isNotEmpty ? imageUrl : null,
+                imageUrl: imageUrl != null && imageUrl.isNotEmpty
+                    ? imageUrl
+                    : null,
                 imagePrompt: imagePrompt,
               );
             }),
@@ -911,7 +916,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       context,
     ).push(MaterialPageRoute<void>(builder: (_) => const GhostChatScreen()));
   }
-
 
   Future<void> _toggleListening() async {
     if (_speechStartInProgress) return;
@@ -1136,7 +1140,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       return;
     }
 
-    final useImageGeneration = !_isGreetingOnly(text) &&
+    final useImageGeneration =
+        !_isGreetingOnly(text) &&
         (_imageGenerationForNextMessage || _isExplicitImageRequest(text));
     final sourceImageUrl = _pendingImageEditSourceUrl;
     final useWebSearch = _webSearchForNextMessage && !useImageGeneration;
@@ -1416,21 +1421,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           if (completeText != null && completeText.isNotEmpty) {
             responseText = completeText;
           }
- // 67
-           final rawPlaces = payload['places'];
+          // 67
+          final rawPlaces = payload['places'];
 
-           if (rawPlaces is List) {
-             responsePlaces = rawPlaces
-                 .whereType<Map>()
-                 .map(
-                   (item) => ChatPlace.fromJson(
-                     Map<String, dynamic>.from(item),
-                   ),
-                 )
-                 .where((place) => place.name.trim().isNotEmpty)
-                 .take(3)
-                 .toList(growable: false);
-           }
+          if (rawPlaces is List) {
+            responsePlaces = rawPlaces
+                .whereType<Map>()
+                .map(
+                  (item) => ChatPlace.fromJson(Map<String, dynamic>.from(item)),
+                )
+                .where((place) => place.name.trim().isNotEmpty)
+                .take(3)
+                .toList(growable: false);
+          }
           final userId = payload['userMessageId']?.toString();
           final assistantId = payload['assistantMessageId']?.toString();
 
@@ -1675,9 +1678,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     if (messageId == null || messageId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'No se pudo guardar tu opinion, intenta de nuevo.',
-          ),
+          content: Text('No se pudo guardar tu opinion, intenta de nuevo.'),
         ),
       );
       return;
@@ -1810,39 +1811,49 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   children: [
                     Positioned.fill(
                       child: _isLoadingHistory
-                          ? const Center(child: const NumiSkeleton(kind: NumiSkeletonKind.homeHistory, dense: true))
+                          ? const Center(
+                              child: NumiSkeleton(
+                                kind: NumiSkeletonKind.homeHistory,
+                                dense: true,
+                              ),
+                            )
                           : _messages.isEmpty
-                              ? const _EmptyState()
-                              : ListView.builder(
-                                  controller: _scrollController,
-                                  padding: const EdgeInsets.fromLTRB(0, 8, 0, 18),
-                                  itemCount: _messages.length + (_isSending ? 1 : 0),
-                                  itemBuilder: (context, index) {
-                                    if (_isSending && index == _messages.length) {
-                                      return _ThinkingMessage(
-                                        activities: _currentActivities,
-                                        expanded: _activityExpanded,
-                                        isSearching: _isSearchingWebForCurrentRequest,
-                                        onToggle: () => setState(
-                                          () => _activityExpanded = !_activityExpanded,
-                                        ),
-                                      );
-                                    }
+                          ? const _EmptyState()
+                          : ListView.builder(
+                              controller: _scrollController,
+                              padding: const EdgeInsets.fromLTRB(0, 8, 0, 18),
+                              itemCount:
+                                  _messages.length + (_isSending ? 1 : 0),
+                              itemBuilder: (context, index) {
+                                if (_isSending && index == _messages.length) {
+                                  return _ThinkingMessage(
+                                    activities: _currentActivities,
+                                    expanded: _activityExpanded,
+                                    isSearching:
+                                        _isSearchingWebForCurrentRequest,
+                                    onToggle: () => setState(
+                                      () => _activityExpanded =
+                                          !_activityExpanded,
+                                    ),
+                                  );
+                                }
 
-                                    final message = _messages[index];
-                                    return _MessageBubble(
-                                      message: message,
-                                      showActivityDisclosure: !_isSending,
-                                      animateCharacters: !message.fromUser &&
-                                          (message.id == null ||
-                                              message.id == _animatedAssistantMessageId),
-                                      onCopy: _copyMessage,
-                                      onEdit: _editMessage,
-                                      onFeedback: _sendFeedback,
-                                      onOpenImage: _openGeneratedImage,
-                                    );
-                                  },
-                                ),
+                                final message = _messages[index];
+                                return _MessageBubble(
+                                  message: message,
+                                  showActivityDisclosure: !_isSending,
+                                  animateCharacters:
+                                      !message.fromUser &&
+                                      (message.id == null ||
+                                          message.id ==
+                                              _animatedAssistantMessageId),
+                                  onCopy: _copyMessage,
+                                  onEdit: _editMessage,
+                                  onFeedback: _sendFeedback,
+                                  onOpenImage: _openGeneratedImage,
+                                );
+                              },
+                            ),
                     ),
                     if (_newChatSwipeProgress > 0.02)
                       Positioned(
@@ -1854,14 +1865,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                             child: ConstrainedBox(
                               constraints: const BoxConstraints(maxWidth: 320),
                               child: Container(
-                                padding: const EdgeInsets.fromLTRB(14, 10, 14, 9),
+                                padding: const EdgeInsets.fromLTRB(
+                                  14,
+                                  10,
+                                  14,
+                                  9,
+                                ),
                                 decoration: BoxDecoration(
                                   color: palette.surface,
                                   borderRadius: BorderRadius.circular(16),
                                   border: Border.all(color: palette.border),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.16),
+                                      color: Colors.black.withValues(
+                                        alpha: 0.16,
+                                      ),
                                       blurRadius: 18,
                                       offset: const Offset(0, 6),
                                     ),
@@ -1871,7 +1889,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
                                       children: [
                                         Icon(
                                           LucideIcons.messageSquare,
@@ -1888,7 +1907,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                           ),
                                         ),
                                         Padding(
-                                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                          ),
                                           child: Container(
                                             width: 1,
                                             height: 15,
@@ -1918,7 +1939,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                         value: _newChatSwipeProgress,
                                         minHeight: 3,
                                         backgroundColor: palette.border,
-                                        valueColor: AlwaysStoppedAnimation<Color>(palette.accent),
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                              palette.accent,
+                                            ),
                                       ),
                                     ),
                                   ],
@@ -2279,7 +2303,15 @@ class _MessageBubble extends ConsumerWidget {
                         fit: BoxFit.contain,
                         loadingBuilder: (context, child, progress) {
                           if (progress == null) return child;
-                          return SizedBox(height: 220, child: Center(child: const NumiSkeleton(kind: NumiSkeletonKind.imagePreview, dense: true)));
+                          return SizedBox(
+                            height: 220,
+                            child: Center(
+                              child: const NumiSkeleton(
+                                kind: NumiSkeletonKind.imagePreview,
+                                dense: true,
+                              ),
+                            ),
+                          );
                         },
                         errorBuilder: (context, error, stackTrace) => Container(
                           width: MediaQuery.of(context).size.width * 0.82,
@@ -2351,12 +2383,10 @@ class _MessageBubble extends ConsumerWidget {
                   animateCharacters: animateCharacters,
                 ),
               ),
-              if (!isUser && message.places.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                ...message.places.map(
-                  (place) => _PlacePreviewCard(place: place),
-                ),
-              ],
+            if (!isUser && message.places.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              ...message.places.map((place) => _PlacePreviewCard(place: place)),
+            ],
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -2397,9 +2427,7 @@ class _MessageBubble extends ConsumerWidget {
 }
 
 class _PlacePreviewCard extends StatelessWidget {
-  const _PlacePreviewCard({
-    required this.place,
-  });
+  const _PlacePreviewCard({required this.place});
 
   final ChatPlace place;
 
@@ -2409,30 +2437,22 @@ class _PlacePreviewCard extends StatelessWidget {
 
     final originalUri = Uri.tryParse(place.googleMapsUri);
 
-    final isGoogleMapsUrl = originalUri != null &&
+    final isGoogleMapsUrl =
+        originalUri != null &&
         originalUri.scheme == 'https' &&
-        (
-          originalUri.host == 'google.com' ||
-          originalUri.host.endsWith('.google.com') ||
-          originalUri.host == 'maps.app.goo.gl' ||
-          originalUri.host == 'goo.gl'
-        );
+        (originalUri.host == 'google.com' ||
+            originalUri.host.endsWith('.google.com') ||
+            originalUri.host == 'maps.app.goo.gl' ||
+            originalUri.host == 'goo.gl');
 
     final uri = isGoogleMapsUrl
         ? originalUri
-        : Uri.https(
-            'www.google.com',
-            '/maps/search/',
-            {
-              'api': '1',
-              'query': '$name, $address',
-            },
-          );
+        : Uri.https('www.google.com', '/maps/search/', {
+            'api': '1',
+            'query': '$name, $address',
+          });
 
-    await launchUrl(
-      uri,
-      mode: LaunchMode.externalApplication,
-    );
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   Widget _mapPlaceholder(BuildContext context) {
@@ -2456,15 +2476,11 @@ class _PlacePreviewCard extends StatelessWidget {
 
     final imageUri = Uri.tryParse(place.mapImageUrl);
 
-    final hasMapImage = imageUri != null &&
-        imageUri.scheme == 'https';
+    final hasMapImage = imageUri != null && imageUri.scheme == 'https';
 
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(
-        top: 5,
-        bottom: 7,
-      ),
+      margin: const EdgeInsets.only(top: 5, bottom: 7),
       decoration: BoxDecoration(
         color: colors.surfaceContainer,
         borderRadius: BorderRadius.circular(15),
@@ -2490,22 +2506,14 @@ class _PlacePreviewCard extends StatelessWidget {
                         ? Image.network(
                             place.mapImageUrl,
                             fit: BoxFit.cover,
-                            loadingBuilder: (
-                              context,
-                              child,
-                              progress,
-                            ) {
+                            loadingBuilder: (context, child, progress) {
                               if (progress == null) {
                                 return child;
                               }
 
                               return _mapPlaceholder(context);
                             },
-                            errorBuilder: (
-                              context,
-                              error,
-                              stackTrace,
-                            ) {
+                            errorBuilder: (context, error, stackTrace) {
                               return _mapPlaceholder(context);
                             },
                           )
@@ -3165,137 +3173,160 @@ class _BottomInputBar extends ConsumerWidget {
                 ValueListenableBuilder<TextEditingValue>(
                   valueListenable: controller,
                   builder: (context, editingValue, _) {
-                    final hasComposerContent = editingValue.text.trim().isNotEmpty || pendingAttachments.isNotEmpty;
+                    final hasComposerContent =
+                        editingValue.text.trim().isNotEmpty ||
+                        pendingAttachments.isNotEmpty;
                     return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: palette.surface,
                         borderRadius: BorderRadius.circular(36),
                         border: Border.all(color: palette.border),
                       ),
                       child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                    SizedBox(
-                      width: 42,
-                      height: 44,
-                      child: IconButton(
-                        tooltip: toolsExpanded
-                            ? (english ? 'Close tools' : 'Cerrar herramientas')
-                            : (english ? 'More tools' : 'Más herramientas'),
-                        onPressed: isAttaching ? null : onToggleTools,
-                        padding: EdgeInsets.zero,
-                        icon: AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 180),
-                          child: isAttaching
-                              ? const SizedBox(
-                                  key: ValueKey('loading'),
-                                  width: 19,
-                                  height: 19,
-                                  child: NumiLoadingAnimation(),
-                                )
-                              : Icon(
-                                  toolsExpanded
-                                      ? LucideIcons.x
-                                      : LucideIcons.plus,
-                                  key: ValueKey(toolsExpanded),
-                                  color: toolsExpanded
-                                      ? palette.accent
-                                      : palette.textSecondary,
-                                ),
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(3, 9, 3, 11),
-                        child: TextField(
-                          controller: controller,
-                          focusNode: focusNode,
-                          enabled: !isSending,
-                          minLines: 1,
-                          maxLines: 5,
-                          keyboardType: TextInputType.multiline,
-                          textInputAction: TextInputAction.newline,
-                          textCapitalization: TextCapitalization.sentences,
-                          enableInteractiveSelection: true,
-                          cursorColor: palette.accent,
-                          style: TextStyle(
-                            color: palette.textPrimary,
-                            fontSize: 15,
-                            height: 1.35,
-                          ),
-                          decoration: InputDecoration(
-                            hintText: hintText,
-                            hintMaxLines: 2,
-                            hintStyle: TextStyle(
-                              color: palette.textSecondary.withValues(
-                                alpha: 0.76,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          SizedBox(
+                            width: 42,
+                            height: 44,
+                            child: IconButton(
+                              tooltip: toolsExpanded
+                                  ? (english
+                                        ? 'Close tools'
+                                        : 'Cerrar herramientas')
+                                  : (english
+                                        ? 'More tools'
+                                        : 'Más herramientas'),
+                              onPressed: isAttaching ? null : onToggleTools,
+                              padding: EdgeInsets.zero,
+                              icon: AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 180),
+                                child: isAttaching
+                                    ? const SizedBox(
+                                        key: ValueKey('loading'),
+                                        width: 19,
+                                        height: 19,
+                                        child: NumiLoadingAnimation(),
+                                      )
+                                    : Icon(
+                                        toolsExpanded
+                                            ? LucideIcons.x
+                                            : LucideIcons.plus,
+                                        key: ValueKey(toolsExpanded),
+                                        color: toolsExpanded
+                                            ? palette.accent
+                                            : palette.textSecondary,
+                                      ),
                               ),
                             ),
-                            border: InputBorder.none,
-                            enabledBorder: InputBorder.none,
-                            focusedBorder: InputBorder.none,
-                            disabledBorder: InputBorder.none,
-                            errorBorder: InputBorder.none,
-                            focusedErrorBorder: InputBorder.none,
-                            isCollapsed: true,
-                            contentPadding: EdgeInsets.zero,
                           ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 2),
-                      child: IconButton.filled(
-                        tooltip: isSending
-                            ? (english ? 'Stop generation' : 'Detener generación')
-                            : isListening
-                                ? (english ? 'Stop voice input' : 'Detener micrófono')
-                                : (english ? 'Send message' : 'Enviar mensaje'),
-                        style: IconButton.styleFrom(
-                          minimumSize: const Size(44, 44),
-                          fixedSize: const Size(44, 44),
-                          padding: EdgeInsets.zero,
-                          shape: const CircleBorder(),
-                          backgroundColor: isListening
-                              ? const Color(0xFFE05252)
-                              : palette.accent,
-                          foregroundColor: palette.accent.computeLuminance() > 0.42
-                              ? const Color(0xFF101820)
-                              : Colors.white,
-                        ),
-                        onPressed: isSending
-                            ? onCancel
-                            : isListening
-                                ? onMicTap
-                                : hasComposerContent ? onSend : onMicTap,
-                        icon: AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 180),
-                          transitionBuilder: (child, animation) {
-                            return ScaleTransition(
-                              scale: animation,
-                              child: FadeTransition(
-                                opacity: animation,
-                                child: child,
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(3, 9, 3, 11),
+                              child: TextField(
+                                controller: controller,
+                                focusNode: focusNode,
+                                enabled: !isSending,
+                                minLines: 1,
+                                maxLines: 5,
+                                keyboardType: TextInputType.multiline,
+                                textInputAction: TextInputAction.newline,
+                                textCapitalization:
+                                    TextCapitalization.sentences,
+                                enableInteractiveSelection: true,
+                                cursorColor: palette.accent,
+                                style: TextStyle(
+                                  color: palette.textPrimary,
+                                  fontSize: 15,
+                                  height: 1.35,
+                                ),
+                                decoration: InputDecoration(
+                                  hintText: hintText,
+                                  hintMaxLines: 2,
+                                  hintStyle: TextStyle(
+                                    color: palette.textSecondary.withValues(
+                                      alpha: 0.76,
+                                    ),
+                                  ),
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                  disabledBorder: InputBorder.none,
+                                  errorBorder: InputBorder.none,
+                                  focusedErrorBorder: InputBorder.none,
+                                  isCollapsed: true,
+                                  contentPadding: EdgeInsets.zero,
+                                ),
                               ),
-                            );
-                          },
-                          child: Icon(
-                            isSending || isListening
-                                ? LucideIcons.square
-                                : hasComposerContent
-                                    ? LucideIcons.arrowUp
-                                    : Icons.graphic_eq_rounded,
-                            key: ValueKey((isSending, isListening, hasComposerContent)),
-                            size: 21,
+                            ),
                           ),
-                        ),
+                          const SizedBox(width: 6),
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 2),
+                            child: IconButton.filled(
+                              tooltip: isSending
+                                  ? (english
+                                        ? 'Stop generation'
+                                        : 'Detener generación')
+                                  : isListening
+                                  ? (english
+                                        ? 'Stop voice input'
+                                        : 'Detener micrófono')
+                                  : (english
+                                        ? 'Send message'
+                                        : 'Enviar mensaje'),
+                              style: IconButton.styleFrom(
+                                minimumSize: const Size(44, 44),
+                                fixedSize: const Size(44, 44),
+                                padding: EdgeInsets.zero,
+                                shape: const CircleBorder(),
+                                backgroundColor: isListening
+                                    ? const Color(0xFFE05252)
+                                    : palette.accent,
+                                foregroundColor:
+                                    palette.accent.computeLuminance() > 0.42
+                                    ? const Color(0xFF101820)
+                                    : Colors.white,
+                              ),
+                              onPressed: isSending
+                                  ? onCancel
+                                  : isListening
+                                  ? onMicTap
+                                  : hasComposerContent
+                                  ? onSend
+                                  : onMicTap,
+                              icon: AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 180),
+                                transitionBuilder: (child, animation) {
+                                  return ScaleTransition(
+                                    scale: animation,
+                                    child: FadeTransition(
+                                      opacity: animation,
+                                      child: child,
+                                    ),
+                                  );
+                                },
+                                child: Icon(
+                                  isSending || isListening
+                                      ? LucideIcons.square
+                                      : hasComposerContent
+                                      ? LucideIcons.arrowUp
+                                      : Icons.graphic_eq_rounded,
+                                  key: ValueKey((
+                                    isSending,
+                                    isListening,
+                                    hasComposerContent,
+                                  )),
+                                  size: 21,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                      ],
-                    ),
                     );
                   },
                 ),

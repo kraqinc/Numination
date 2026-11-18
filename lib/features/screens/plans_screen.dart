@@ -7,6 +7,7 @@ import '../../core/i18n.dart';
 import '../widgets/numi_loading_animation.dart';
 
 import '../widgets/numi_skeleton.dart';
+
 class PlansScreen extends StatefulWidget {
   const PlansScreen({super.key});
 
@@ -457,7 +458,7 @@ class _PlansScreenState extends State<PlansScreen> {
         ],
       ),
       body: _loadingPlans
-          ? const Center(child: const NumiSkeleton(kind: NumiSkeletonKind.plans))
+          ? const Center(child: NumiSkeleton(kind: NumiSkeletonKind.plans))
           : _loadError != null
           ? _buildLoadError()
           : RefreshIndicator(
@@ -649,7 +650,7 @@ class _PlansScreenState extends State<PlansScreen> {
             const Center(
               child: Padding(
                 padding: EdgeInsets.all(12),
-                child: const NumiLoadingAnimation(),
+                child: NumiLoadingAnimation(),
               ),
             )
           else ...[
@@ -717,7 +718,7 @@ class _PlansScreenState extends State<PlansScreen> {
                   ? const SizedBox(
                       height: 18,
                       width: 18,
-                      child: const NumiLoadingAnimation(size: 18),
+                      child: NumiLoadingAnimation(size: 18),
                     )
                   : const Icon(Icons.verified_outlined),
               label: Text(

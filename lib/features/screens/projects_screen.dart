@@ -13,6 +13,7 @@ import '../../core/theme.dart';
 import '../../core/theme_controller.dart';
 import 'package:numination/core/numi_icons.dart';
 import '../widgets/numi_skeleton.dart';
+
 class ProjectsScreen extends ConsumerStatefulWidget {
   const ProjectsScreen({super.key, this.onOpenChat});
 
@@ -82,9 +83,9 @@ class _ProjectsScreenState extends ConsumerState<ProjectsScreen> {
   }
 
   Future<void> _createProject() async {
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(builder: (_) => const CoderScreen()),
-    );
+    await Navigator.of(
+      context,
+    ).push<void>(MaterialPageRoute<void>(builder: (_) => const CoderScreen()));
     if (mounted) await _load();
   }
 
@@ -127,9 +128,7 @@ class _ProjectsScreenState extends ConsumerState<ProjectsScreen> {
         child: _isLoading
             ? ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                children: [
-                  const NumiSkeleton(kind: NumiSkeletonKind.projects),
-                ],
+                children: [const NumiSkeleton(kind: NumiSkeletonKind.projects)],
               )
             : _projects.isEmpty
             ? ListView(
@@ -269,8 +268,9 @@ class _ProjectCard extends StatelessWidget {
                             ],
                             const SizedBox(height: 4),
                             Text(
-                              AppLocale.t(chats.length == 1 ? 'chat_one' : 'chat_many')
-                                  .replaceAll('{count}', '${chats.length}'),
+                              AppLocale.t(
+                                chats.length == 1 ? 'chat_one' : 'chat_many',
+                              ).replaceAll('{count}', '${chats.length}'),
                               style: TextStyle(
                                 color: palette.textSecondary,
                                 fontSize: 11,

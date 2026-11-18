@@ -19,6 +19,7 @@ import 'package:numination/core/numi_icons.dart';
 import 'numi_loading_animation.dart';
 
 import 'numi_skeleton.dart';
+
 class AppDrawer extends ConsumerStatefulWidget {
   const AppDrawer({
     super.key,
@@ -470,7 +471,9 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                       onTap: () {
                         Navigator.of(context).pop();
                         Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                          MaterialPageRoute(
+                            builder: (_) => const SettingsScreen(),
+                          ),
                         );
                       },
                       child: CircleAvatar(
@@ -480,7 +483,11 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                             ? NetworkImage(_resolvedAvatarUrl!)
                             : null,
                         child: _resolvedAvatarUrl == null
-                            ? Icon(NumiIcons.person, size: 19, color: palette.textSecondary)
+                            ? Icon(
+                                NumiIcons.person,
+                                size: 19,
+                                color: palette.textSecondary,
+                              )
                             : null,
                       ),
                     ),
@@ -515,9 +522,15 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                     IconButton(
                       tooltip: english ? 'Sign out' : 'Cerrar sesión',
                       onPressed: () async {
-                        await ref.read(authControllerProvider.notifier).signOut();
+                        await ref
+                            .read(authControllerProvider.notifier)
+                            .signOut();
                       },
-                      icon: Icon(NumiIcons.logout, color: palette.textSecondary, size: 19),
+                      icon: Icon(
+                        NumiIcons.logout,
+                        color: palette.textSecondary,
+                        size: 19,
+                      ),
                     ),
                   ],
                 ),
@@ -582,7 +595,10 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                 onTap: () {
                   Navigator.of(context).pop();
                   Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => ProjectsScreen(onOpenChat: widget.onSelectChat)),
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          ProjectsScreen(onOpenChat: widget.onSelectChat),
+                    ),
                   );
                 },
               ),
@@ -593,7 +609,9 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                 color: palette.textPrimary,
                 onTap: () {
                   Navigator.of(context).pop();
-                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ArtifactsScreen()));
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const ArtifactsScreen()),
+                  );
                 },
               ),
               const SizedBox(height: 4),
@@ -603,7 +621,9 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                 color: palette.textPrimary,
                 onTap: () {
                   Navigator.of(context).pop();
-                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ConnectorsScreen()));
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const ConnectorsScreen()),
+                  );
                 },
               ),
               const SizedBox(height: 4),
@@ -613,7 +633,11 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                 color: palette.textPrimary,
                 onTap: () {
                   Navigator.of(context).pop();
-                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NotificationScreen()));
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const NotificationScreen(),
+                    ),
+                  );
                 },
               ),
               const SizedBox(height: 4),
@@ -622,17 +646,27 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                 label: english ? 'Credits' : 'Créditos',
                 color: palette.textPrimary,
                 trailing: _creditsLoading
-                    ? const SizedBox(width: 15, height: 15, child: NumiLoadingAnimation(size: 18))
+                    ? const SizedBox(
+                        width: 15,
+                        height: 15,
+                        child: NumiLoadingAnimation(size: 18),
+                      )
                     : _creditBalance == null
-                        ? null
-                        : Text(
-                            _formatCreditBalance(_creditBalance!),
-                            style: TextStyle(color: palette.accent, fontSize: 13, fontWeight: FontWeight.w700),
-                          ),
+                    ? null
+                    : Text(
+                        _formatCreditBalance(_creditBalance!),
+                        style: TextStyle(
+                          color: palette.accent,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                 onTap: () {
                   final navigator = Navigator.of(context);
                   navigator.pop();
-                  navigator.push(MaterialPageRoute(builder: (_) => const CreditsHubScreen()));
+                  navigator.push(
+                    MaterialPageRoute(builder: (_) => const CreditsHubScreen()),
+                  );
                 },
               ),
               Padding(
@@ -644,13 +678,30 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                   Expanded(
                     child: Text(
                       english ? 'Chats' : 'Chats',
-                      style: TextStyle(color: palette.textPrimary, fontSize: 16, fontWeight: FontWeight.w700),
+                      style: TextStyle(
+                        color: palette.textPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(color: palette.surfaceAlt, borderRadius: BorderRadius.circular(20)),
-                    child: Text('${_chats.length}', style: TextStyle(color: palette.textSecondary, fontSize: 11, fontWeight: FontWeight.w700)),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: palette.surfaceAlt,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '${_chats.length}',
+                      style: TextStyle(
+                        color: palette.textSecondary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                   const SizedBox(width: 8),
                   ModePillDropdown(
@@ -663,56 +714,79 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
               const SizedBox(height: 9),
               Expanded(
                 child: _isLoading
-                    ? Center(child: const NumiSkeleton(kind: NumiSkeletonKind.homeHistory, dense: true))
+                    ? Center(
+                        child: const NumiSkeleton(
+                          kind: NumiSkeletonKind.homeHistory,
+                          dense: true,
+                        ),
+                      )
                     : _chats.isEmpty
-                        ? Center(
-                            child: Text(
-                              context.l10n.noResults,
-                              style: TextStyle(color: palette.textSecondary, fontSize: 13),
-                            ),
-                          )
-                        : ListView.separated(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            itemCount: _chats.length,
-                            separatorBuilder: (_, _) => const SizedBox(height: 4),
-                            itemBuilder: (context, index) {
-                              final chat = _chats[index];
-                              return Material(
-                                color: palette.surfaceAlt.withValues(alpha: 0.48),
-                                borderRadius: BorderRadius.circular(12),
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(12),
-                                  onTap: () {
-                                    Navigator.of(context).pop();
-                                    widget.onSelectChat(chat);
-                                  },
-                                  onLongPress: () => _showChatActions(chat),
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
-                                    child: Row(
-                                      children: [
-                                        Icon(
-                                          chat.mode == 'coder' ? NumiIcons.code_rounded : NumiIcons.chat_bubble_outline,
-                                          color: palette.textSecondary,
-                                          size: 18,
-                                        ),
-                                        const SizedBox(width: 10),
-                                        Expanded(
-                                          child: Text(
-                                            chat.title,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: TextStyle(color: palette.textPrimary, fontSize: 13, fontWeight: FontWeight.w500),
-                                          ),
-                                        ),
-                                        Icon(LucideIcons.chevronRight, size: 15, color: palette.textSecondary.withValues(alpha: 0.7)),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
+                    ? Center(
+                        child: Text(
+                          context.l10n.noResults,
+                          style: TextStyle(
+                            color: palette.textSecondary,
+                            fontSize: 13,
                           ),
+                        ),
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        itemCount: _chats.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 4),
+                        itemBuilder: (context, index) {
+                          final chat = _chats[index];
+                          return Material(
+                            color: palette.surfaceAlt.withValues(alpha: 0.48),
+                            borderRadius: BorderRadius.circular(12),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: () {
+                                Navigator.of(context).pop();
+                                widget.onSelectChat(chat);
+                              },
+                              onLongPress: () => _showChatActions(chat),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 11,
+                                  vertical: 10,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      chat.mode == 'coder'
+                                          ? NumiIcons.code_rounded
+                                          : NumiIcons.chat_bubble_outline,
+                                      color: palette.textSecondary,
+                                      size: 18,
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        chat.title,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: palette.textPrimary,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                    Icon(
+                                      LucideIcons.chevronRight,
+                                      size: 15,
+                                      color: palette.textSecondary.withValues(
+                                        alpha: 0.7,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
               ),
             ],
           ),
@@ -755,7 +829,11 @@ class _DrawerItem extends StatelessWidget {
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: color, fontSize: 14, fontWeight: FontWeight.w500),
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
               if (trailing != null) ...[const SizedBox(width: 8), trailing!],

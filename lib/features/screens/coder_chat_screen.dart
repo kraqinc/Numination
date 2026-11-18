@@ -21,6 +21,7 @@ import '../widgets/ai_response.dart';
 import '../widgets/coder_preview_screen.dart';
 import 'coder_editor_screen.dart';
 import '../widgets/numi_skeleton.dart';
+
 class CoderPreviewState {
   final bool ready;
   final String? url;
@@ -283,17 +284,12 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
   Future<Map<String, dynamic>> _requestPreview({
     bool waitForReady = false,
   }) async {
-    final response = await ApiClient.postFunction(
-      'visual-integ-preview',
-      {
-        'action': 'start',
-        'projectId': widget.projectId,
-      },
-    );
+    final response = await ApiClient.postFunction('visual-integ-preview', {
+      'action': 'start',
+      'projectId': widget.projectId,
+    });
 
-    var data = Map<String, dynamic>.from(
-      ApiClient.decode(response) as Map,
-    );
+    var data = Map<String, dynamic>.from(ApiClient.decode(response) as Map);
 
     if (!waitForReady ||
         data['previewReady'] == true ||
@@ -308,15 +304,10 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
 
       final statusResponse = await ApiClient.postFunction(
         'visual-integ-preview',
-        {
-          'action': 'status',
-          'projectId': widget.projectId,
-        },
+        {'action': 'status', 'projectId': widget.projectId},
       );
 
-      data = Map<String, dynamic>.from(
-        ApiClient.decode(statusResponse) as Map,
-      );
+      data = Map<String, dynamic>.from(ApiClient.decode(statusResponse) as Map);
 
       if (data['previewReady'] == true ||
           data['status'] == 'failed' ||
@@ -758,9 +749,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(
-                  '${AppLocale.t('local_sync_error')} $error',
-                ),
+                content: Text('${AppLocale.t('local_sync_error')} $error'),
                 duration: const Duration(seconds: 6),
               ),
             );
@@ -1677,9 +1666,26 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('PROJECT EXPLORER', style: TextStyle(color: palette.textSecondary, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 1.0)),
+                            Text(
+                              'PROJECT EXPLORER',
+                              style: TextStyle(
+                                color: palette.textSecondary,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1.0,
+                              ),
+                            ),
                             const SizedBox(height: 3),
-                            Text(widget.projectName, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: palette.textPrimary, fontSize: 14, fontWeight: FontWeight.w700)),
+                            Text(
+                              widget.projectName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: palette.textPrimary,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -1688,11 +1694,30 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 5,
+                ),
                 child: Row(
                   children: [
-                    Expanded(child: Text('ARCHIVOS', style: TextStyle(color: palette.textSecondary, fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 1.0))),
-                    Text('${_files.length}', style: TextStyle(color: palette.textSecondary, fontSize: 11)),
+                    Expanded(
+                      child: Text(
+                        'ARCHIVOS',
+                        style: TextStyle(
+                          color: palette.textSecondary,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.0,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      '${_files.length}',
+                      style: TextStyle(
+                        color: palette.textSecondary,
+                        fontSize: 11,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -1704,8 +1729,19 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
               ),
               Divider(color: palette.border, height: 1),
               ListTile(
-                leading: Icon(LucideIcons.arrowLeft, color: palette.textSecondary, size: 19),
-                title: Text(AppLocale.t('back_to_chats'), style: TextStyle(color: palette.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
+                leading: Icon(
+                  LucideIcons.arrowLeft,
+                  color: palette.textSecondary,
+                  size: 19,
+                ),
+                title: Text(
+                  AppLocale.t('back_to_chats'),
+                  style: TextStyle(
+                    color: palette.textPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.of(context).maybePop();
@@ -1746,9 +1782,13 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
             icon: const Icon(LucideIcons.undo2),
           ),
           IconButton(
-            tooltip: _showFiles ? AppLocale.t('hide_files') : AppLocale.t('show_files'),
+            tooltip: _showFiles
+                ? AppLocale.t('hide_files')
+                : AppLocale.t('show_files'),
             onPressed: () => setState(() => _showFiles = !_showFiles),
-            icon: Icon(_showFiles ? LucideIcons.folderOpen : LucideIcons.folder),
+            icon: Icon(
+              _showFiles ? LucideIcons.folderOpen : LucideIcons.folder,
+            ),
           ),
           IconButton(
             tooltip: AppLocale.t('download_project_zip'),
@@ -1775,47 +1815,78 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 14),
                         child: Row(
                           children: [
-                            Icon(LucideIcons.folderOpen, size: 15, color: palette.accent),
+                            Icon(
+                              LucideIcons.folderOpen,
+                              size: 15,
+                              color: palette.accent,
+                            ),
                             const SizedBox(width: 8),
-                            Text(AppLocale.t('project_files'), style: TextStyle(color: palette.textSecondary, fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 0.8)),
+                            Text(
+                              AppLocale.t('project_files'),
+                              style: TextStyle(
+                                color: palette.textSecondary,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
                             const Spacer(),
-                            Text('${_files.length}', style: TextStyle(color: palette.textSecondary, fontSize: 11)),
+                            Text(
+                              '${_files.length}',
+                              style: TextStyle(
+                                color: palette.textSecondary,
+                                fontSize: 11,
+                              ),
+                            ),
                           ],
                         ),
                       ),
                     ),
                     Expanded(
                       child: _loadingFiles
-                          ? const Center(child: const NumiSkeleton(kind: NumiSkeletonKind.files, dense: true))
+                          ? const Center(
+                              child: NumiSkeleton(
+                                kind: NumiSkeletonKind.files,
+                                dense: true,
+                              ),
+                            )
                           : _files.isEmpty
-                              ? Center(
-                                  child: Text(
-                                    _errorText ?? AppLocale.t('project_no_files'),
-                                    style: TextStyle(color: palette.textSecondary, fontSize: 12),
-                                  ),
-                                )
-                              : ListView.builder(
-                                  itemCount: _files.length,
-                                  itemBuilder: (context, index) {
-                                    final file = _files[index];
-                                    return ListTile(
-                                      dense: true,
-                                      visualDensity: VisualDensity.compact,
-                                      leading: Icon(
-                                        file.isDirectory ? LucideIcons.folder : LucideIcons.fileCode2,
-                                        color: palette.textSecondary,
-                                        size: 18,
-                                      ),
-                                      title: Text(
-                                        file.path,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(color: palette.textPrimary, fontSize: 12),
-                                      ),
-                                      onTap: () => _previewFile(file),
-                                    );
-                                  },
+                          ? Center(
+                              child: Text(
+                                _errorText ?? AppLocale.t('project_no_files'),
+                                style: TextStyle(
+                                  color: palette.textSecondary,
+                                  fontSize: 12,
                                 ),
+                              ),
+                            )
+                          : ListView.builder(
+                              itemCount: _files.length,
+                              itemBuilder: (context, index) {
+                                final file = _files[index];
+                                return ListTile(
+                                  dense: true,
+                                  visualDensity: VisualDensity.compact,
+                                  leading: Icon(
+                                    file.isDirectory
+                                        ? LucideIcons.folder
+                                        : LucideIcons.fileCode2,
+                                    color: palette.textSecondary,
+                                    size: 18,
+                                  ),
+                                  title: Text(
+                                    file.path,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: palette.textPrimary,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  onTap: () => _previewFile(file),
+                                );
+                              },
+                            ),
                     ),
                   ],
                 ),
@@ -1905,7 +1976,11 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
                         tooltip: 'Más herramientas',
                         onPressed: _isSending ? null : _openAddMenu,
                         padding: EdgeInsets.zero,
-                        icon: Icon(LucideIcons.plus, color: palette.textSecondary, size: 21),
+                        icon: Icon(
+                          LucideIcons.plus,
+                          color: palette.textSecondary,
+                          size: 21,
+                        ),
                       ),
                     ),
                     Expanded(
@@ -1920,10 +1995,19 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
                           textCapitalization: TextCapitalization.sentences,
                           keyboardType: TextInputType.multiline,
                           cursorColor: palette.accent,
-                          style: TextStyle(color: palette.textPrimary, fontSize: 14, height: 1.35),
+                          style: TextStyle(
+                            color: palette.textPrimary,
+                            fontSize: 14,
+                            height: 1.35,
+                          ),
                           decoration: InputDecoration(
                             hintText: AppLocale.t('coder_prompt'),
-                            hintStyle: TextStyle(color: palette.textSecondary.withValues(alpha: 0.78), fontSize: 14),
+                            hintStyle: TextStyle(
+                              color: palette.textSecondary.withValues(
+                                alpha: 0.78,
+                              ),
+                              fontSize: 14,
+                            ),
                             border: InputBorder.none,
                             enabledBorder: InputBorder.none,
                             focusedBorder: InputBorder.none,
@@ -1940,20 +2024,30 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
                       width: 42,
                       height: 44,
                       child: IconButton(
-                        tooltip: _isListening ? AppLocale.t('stop_dictation') : AppLocale.t('dictate_message'),
+                        tooltip: _isListening
+                            ? AppLocale.t('stop_dictation')
+                            : AppLocale.t('dictate_message'),
                         onPressed: _isSending ? null : _toggleListening,
                         padding: EdgeInsets.zero,
                         icon: Icon(
                           _isListening ? LucideIcons.micOff : LucideIcons.mic,
-                          color: _isListening ? palette.accent : palette.textSecondary,
+                          color: _isListening
+                              ? palette.accent
+                              : palette.textSecondary,
                           size: 21,
                         ),
                       ),
                     ),
                     Padding(
-                      padding: const EdgeInsets.only(left: 2, right: 1, bottom: 1),
+                      padding: const EdgeInsets.only(
+                        left: 2,
+                        right: 1,
+                        bottom: 1,
+                      ),
                       child: IconButton.filled(
-                        tooltip: _isSending ? AppLocale.t('stop') : AppLocale.t('send'),
+                        tooltip: _isSending
+                            ? AppLocale.t('stop')
+                            : AppLocale.t('send'),
                         style: IconButton.styleFrom(
                           minimumSize: const Size(42, 42),
                           fixedSize: const Size(42, 42),
@@ -1962,8 +2056,13 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
                           foregroundColor: Colors.white,
                           shape: const CircleBorder(),
                         ),
-                        onPressed: _isSending ? _cancelGeneration : _sendMessage,
-                        icon: Icon(_isSending ? LucideIcons.square : LucideIcons.arrowUp, size: 19),
+                        onPressed: _isSending
+                            ? _cancelGeneration
+                            : _sendMessage,
+                        icon: Icon(
+                          _isSending ? LucideIcons.square : LucideIcons.arrowUp,
+                          size: 19,
+                        ),
                       ),
                     ),
                   ],

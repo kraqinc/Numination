@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/api.dart';
 import 'plans_screen.dart';
 import '../widgets/numi_skeleton.dart';
+
 class CreditsHubScreen extends StatefulWidget {
   const CreditsHubScreen({super.key});
 
@@ -90,7 +91,10 @@ class _CreditsHubScreenState extends State<CreditsHubScreen> {
                   Text('Créditos actuales', style: typography.titleMedium),
                   const SizedBox(height: 10),
                   if (_loading)
-                    const NumiSkeleton(kind: NumiSkeletonKind.credits, dense: true)
+                    const NumiSkeleton(
+                      kind: NumiSkeletonKind.credits,
+                      dense: true,
+                    )
                   else if (_error != null)
                     Text(
                       _error!,
