@@ -9,6 +9,7 @@ build/
 coverage/
 .idea
 # Android
+.env
 a**/local.properties
 android/.gradle/
 android/build/

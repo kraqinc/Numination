@@ -13,7 +13,9 @@ import '../../core/theme.dart';
 import '../widgets/numi_skeleton.dart';
 
 class ConnectorsScreen extends ConsumerStatefulWidget {
-  const ConnectorsScreen({super.key});
+  const ConnectorsScreen({super.key, this.desktopSheet = false});
+
+  final bool desktopSheet;
 
   @override
   ConsumerState<ConnectorsScreen> createState() => _ConnectorsScreenState();
@@ -858,6 +860,7 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
     return Scaffold(
       backgroundColor: palette.background,
       appBar: AppBar(
+        automaticallyImplyLeading: !widget.desktopSheet,
         backgroundColor: palette.background,
         centerTitle: true,
         leading: IconButton(
@@ -888,6 +891,13 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
           ),
         ),
         actions: [
+          if (widget.desktopSheet)
+            IconButton(
+              tooltip: 'Cerrar',
+              onPressed: () => Navigator.of(context).pop(),
+              icon: const Icon(Icons.close_rounded),
+            ),
+
           IconButton(
             tooltip: 'Actualizar conexiones',
             onPressed: () => unawaited(_load()),

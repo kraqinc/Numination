@@ -159,6 +159,8 @@ class ApiClient {
   static Map<String, String> get _headers => {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
+    if (Env.supabasePublishableKey.trim().isNotEmpty)
+      'apikey': Env.supabasePublishableKey.trim(),
     if (_token != null) 'Authorization': 'Bearer $_token',
   };
 

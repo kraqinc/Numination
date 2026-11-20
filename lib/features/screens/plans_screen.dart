@@ -1,3 +1,4 @@
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -457,46 +458,172 @@ class _PlansScreenState extends State<PlansScreen> {
           ),
         ],
       ),
-      body: _loadingPlans
-          ? const Center(child: NumiSkeleton(kind: NumiSkeletonKind.plans))
-          : _loadError != null
-          ? _buildLoadError()
-          : RefreshIndicator(
-              onRefresh: _loadPlans,
-              child: ListView(
-                padding: const EdgeInsets.all(20),
-                children: [
-                  Text(
-                    AppLocale.t('choose_plan'),
-                    style: text.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
+      body: Stack(
+        children: [
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 900),
+              child: _loadingPlans
+                  ? const Center(
+                      child: NumiSkeleton(kind: NumiSkeletonKind.plans),
+                    )
+                  : _loadError != null
+                  ? _buildLoadError()
+                  : RefreshIndicator(
+                      onRefresh: _loadPlans,
+                      child: ListView(
+                        padding: const EdgeInsets.all(20),
+                        children: [
+                          Text(
+                            AppLocale.t('choose_plan'),
+                            style: text.headlineMedium?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            AppLocale.t('plans_intro'),
+                            style: text.bodyLarge?.copyWith(
+                              color: colors.onSurfaceVariant,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          _buildFreePlan(),
+                          const SizedBox(height: 20),
+                          if (_pendingPaypalPaymentId != null)
+                            _buildPaypalPending(),
+                          if (_pendingPaypalPaymentId != null)
+                            const SizedBox(height: 18),
+                          if (_plans.isEmpty)
+                            _buildEmptyPlans()
+                          else
+                            for (final plan in _plans) ...[
+                              _buildPlanCard(plan),
+                              const SizedBox(height: 14),
+                            ],
+                          const SizedBox(height: 8),
+                          _buildPaymentInformation(),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    AppLocale.t('plans_intro'),
-                    style: text.bodyLarge?.copyWith(
-                      color: colors.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  _buildFreePlan(),
-                  const SizedBox(height: 20),
-                  if (_pendingPaypalPaymentId != null) _buildPaypalPending(),
-                  if (_pendingPaypalPaymentId != null)
-                    const SizedBox(height: 18),
-                  if (_plans.isEmpty)
-                    _buildEmptyPlans()
-                  else
-                    for (final plan in _plans) ...[
-                      _buildPlanCard(plan),
-                      const SizedBox(height: 14),
-                    ],
-                  const SizedBox(height: 8),
-                  _buildPaymentInformation(),
-                ],
+            ),
+          ),
+
+          // Bloqueo visual temporal de la sección.
+          Positioned.fill(
+            child: AbsorbPointer(
+              child: BackdropFilter(
+                filter: ui.ImageFilter.blur(sigmaX: 26, sigmaY: 26),
+                child: Container(
+                  color: colors.scrim.withValues(alpha: 0.40),
+                  child: const SizedBox.expand(),
+                ),
               ),
             ),
+          ),
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 460),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 30,
+                    vertical: 36,
+                  ),
+                  decoration: BoxDecoration(
+                    color: colors.surface.withValues(alpha: 0.78),
+                    borderRadius: BorderRadius.circular(28),
+                    border: Border.all(color: colors.outlineVariant),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.14),
+                        blurRadius: 40,
+                        offset: const Offset(0, 18),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 78,
+                        height: 78,
+                        decoration: BoxDecoration(
+                          color: colors.primaryContainer,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.lock_outline_rounded,
+                          size: 38,
+                          color: colors.onPrimaryContainer,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        'Estamos trabajando en ello',
+                        textAlign: TextAlign.center,
+                        style: text.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.6,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Estamos preparando esta sección de '
+                        'Numination para ofrecerte una experiencia '
+                        'más completa. Muy pronto podrás consultar '
+                        'y gestionar tus planes desde aquí.',
+                        textAlign: TextAlign.center,
+                        style: text.bodyMedium?.copyWith(
+                          height: 1.55,
+                          color: colors.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: colors.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        child: Text(
+                          'PRÓXIMAMENTE',
+                          style: text.labelMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.1,
+                            color: colors.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.of(context).maybePop();
+                        },
+                        icon: const Icon(Icons.arrow_back_rounded),
+                        label: const Text('Volver'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: colors.onSurface,
+                          side: BorderSide(color: colors.outlineVariant),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 25,
+                            vertical: 13,
+                          ),
+                          shape: const StadiumBorder(),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

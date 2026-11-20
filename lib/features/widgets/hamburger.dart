@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:lucide_flutter/lucide_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -105,6 +106,57 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
     if (oldWidget.avatarUrl != widget.avatarUrl) {
       _resolvedAvatarUrl = widget.avatarUrl;
     }
+  }
+
+  void _openDrawerModule(Widget Function(bool desktopSheet) pageBuilder) {
+    final desktop =
+        !kIsWeb &&
+        const {
+          TargetPlatform.linux,
+          TargetPlatform.windows,
+          TargetPlatform.macOS,
+        }.contains(defaultTargetPlatform);
+
+    final navigator = Navigator.of(context);
+    navigator.pop();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !navigator.mounted) return;
+
+      if (!desktop) {
+        navigator.push(
+          MaterialPageRoute<void>(builder: (_) => pageBuilder(false)),
+        );
+        return;
+      }
+
+      final size = MediaQuery.sizeOf(navigator.context);
+      final width = size.width - 32 > 1120 ? 1120.0 : size.width - 32;
+      final height = size.height * 0.80 > 820 ? 820.0 : size.height * 0.80;
+
+      showModalBottomSheet<void>(
+        context: navigator.context,
+        useRootNavigator: true,
+        isScrollControlled: true,
+        useSafeArea: true,
+        backgroundColor: Colors.transparent,
+        barrierColor: Colors.black.withValues(alpha: 0.48),
+        builder: (sheetContext) => Align(
+          alignment: Alignment.bottomCenter,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: SizedBox(
+              width: width,
+              height: height,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(22),
+                child: pageBuilder(true),
+              ),
+            ),
+          ),
+        ),
+      );
+    });
   }
 
   Future<void> _loadProfile() async {
@@ -441,6 +493,9 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
     }
   }
 
+  // Abre módulos como panel limitado en escritorio.
+  // En móvil conserva la navegación por páginas.
+
   @override
   Widget build(BuildContext context) {
     final palette = ref.watch(appPaletteProvider);
@@ -468,14 +523,10 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                   children: [
                     InkWell(
                       borderRadius: BorderRadius.circular(22),
-                      onTap: () {
-                        Navigator.of(context).pop();
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const SettingsScreen(),
-                          ),
-                        );
-                      },
+                      onTap: () => _openDrawerModule(
+                        (desktopSheet) =>
+                            SettingsScreen(desktopSheet: desktopSheet),
+                      ),
                       child: CircleAvatar(
                         radius: 20,
                         backgroundColor: palette.surface,
@@ -607,38 +658,29 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                 icon: NumiIcons.description_outlined,
                 label: context.l10n.artifacts,
                 color: palette.textPrimary,
-                onTap: () {
-                  Navigator.of(context).pop();
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const ArtifactsScreen()),
-                  );
-                },
+                onTap: () => _openDrawerModule(
+                  (desktopSheet) => ArtifactsScreen(desktopSheet: desktopSheet),
+                ),
               ),
               const SizedBox(height: 4),
               _DrawerItem(
                 icon: NumiIcons.power_off_outlined,
                 label: context.l10n.connectors,
                 color: palette.textPrimary,
-                onTap: () {
-                  Navigator.of(context).pop();
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const ConnectorsScreen()),
-                  );
-                },
+                onTap: () => _openDrawerModule(
+                  (desktopSheet) =>
+                      ConnectorsScreen(desktopSheet: desktopSheet),
+                ),
               ),
               const SizedBox(height: 4),
               _DrawerItem(
                 icon: NumiIcons.notifications_outlined,
                 label: context.l10n.notifications,
                 color: palette.textPrimary,
-                onTap: () {
-                  Navigator.of(context).pop();
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const NotificationScreen(),
-                    ),
-                  );
-                },
+                onTap: () => _openDrawerModule(
+                  (desktopSheet) =>
+                      NotificationScreen(desktopSheet: desktopSheet),
+                ),
               ),
               const SizedBox(height: 4),
               _DrawerItem(
@@ -661,13 +703,10 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                           fontWeight: FontWeight.w700,
                         ),
                       ),
-                onTap: () {
-                  final navigator = Navigator.of(context);
-                  navigator.pop();
-                  navigator.push(
-                    MaterialPageRoute(builder: (_) => const CreditsHubScreen()),
-                  );
-                },
+                onTap: () => _openDrawerModule(
+                  (desktopSheet) =>
+                      CreditsHubScreen(desktopSheet: desktopSheet),
+                ),
               ),
               Padding(
                 padding: const EdgeInsets.only(top: 8, bottom: 8),

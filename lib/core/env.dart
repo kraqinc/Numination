@@ -11,7 +11,7 @@ class Env {
       _val('SUPABASE_URL', 'https://whxqciwphwgzcshejpty.supabase.co');
 
   static String get supabasePublishableKey =>
-      _val('SUPABASE_PUBLISHABLE_KEY', '');
+      _val('SUPABASE_PUBLISHABLE_KEY', _val('SUPABASE_ANON_KEY', ''));
 
   static String get googleClientId =>
       _val('SUPABASE_AUTH_GOOGLE_CLIENT_ID', '');

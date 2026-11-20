@@ -1,4 +1,5 @@
 import 'package:app_links/app_links.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -44,7 +45,14 @@ Future<void> main() async {
     ),
   );
 
-  if (Env.googleClientId.trim().isNotEmpty) {
+  final platform = defaultTargetPlatform;
+  final supportsNativeGoogleSignIn =
+      !kIsWeb &&
+      (platform == TargetPlatform.android ||
+          platform == TargetPlatform.iOS ||
+          platform == TargetPlatform.macOS);
+
+  if (supportsNativeGoogleSignIn && Env.googleClientId.trim().isNotEmpty) {
     await GoogleSignIn.instance.initialize(serverClientId: Env.googleClientId);
   }
 

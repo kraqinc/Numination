@@ -5,7 +5,9 @@ import 'plans_screen.dart';
 import '../widgets/numi_skeleton.dart';
 
 class CreditsHubScreen extends StatefulWidget {
-  const CreditsHubScreen({super.key});
+  const CreditsHubScreen({super.key, this.desktopSheet = false});
+
+  final bool desktopSheet;
 
   @override
   State<CreditsHubScreen> createState() => _CreditsHubScreenState();
@@ -63,8 +65,16 @@ class _CreditsHubScreenState extends State<CreditsHubScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: !widget.desktopSheet,
         title: const Text('Créditos'),
         actions: [
+          if (widget.desktopSheet)
+            IconButton(
+              tooltip: 'Cerrar',
+              onPressed: () => Navigator.of(context).pop(),
+              icon: const Icon(Icons.close_rounded),
+            ),
+
           IconButton(
             tooltip: 'Actualizar saldo',
             onPressed: _loading ? null : _load,

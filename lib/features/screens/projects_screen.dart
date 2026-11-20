@@ -123,62 +123,76 @@ class _ProjectsScreenState extends ConsumerState<ProjectsScreen> {
         backgroundColor: palette.accent,
         child: const Icon(NumiIcons.add, color: Colors.black),
       ),
-      body: RefreshIndicator(
-        onRefresh: _load,
-        child: _isLoading
-            ? ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                children: [const NumiSkeleton(kind: NumiSkeletonKind.projects)],
-              )
-            : _projects.isEmpty
-            ? ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                children: [
-                  SizedBox(height: MediaQuery.sizeOf(context).height * 0.28),
-                  _EmptyProjectsState(errorText: _errorText, palette: palette),
-                ],
-              )
-            : ListView.separated(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
-                itemCount: _projects.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 10),
-                itemBuilder: (context, index) {
-                  final project = _projects[index];
-                  final expanded = _expandedProjects.contains(project.id);
-                  final chats = _chatsForProject(project);
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1240),
+          child: RefreshIndicator(
+            onRefresh: _load,
+            child: _isLoading
+                ? ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    children: [
+                      const NumiSkeleton(kind: NumiSkeletonKind.projects),
+                    ],
+                  )
+                : _projects.isEmpty
+                ? ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    children: [
+                      SizedBox(
+                        height: MediaQuery.sizeOf(context).height * 0.28,
+                      ),
+                      _EmptyProjectsState(
+                        errorText: _errorText,
+                        palette: palette,
+                      ),
+                    ],
+                  )
+                : ListView.separated(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
+                    itemCount: _projects.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 10),
+                    itemBuilder: (context, index) {
+                      final project = _projects[index];
+                      final expanded = _expandedProjects.contains(project.id);
+                      final chats = _chatsForProject(project);
 
-                  return _ProjectCard(
-                    project: project,
-                    chats: chats,
-                    expanded: expanded,
-                    palette: palette,
-                    onToggle: () => _toggleProject(project.id),
-                    onOpenChat: widget.onOpenChat,
-                    onOpenCoder: () {
-                      final coderChats = chats
-                          .where((chat) => chat.mode.toLowerCase() == 'coder')
-                          .toList();
-                      final latestChat = coderChats.isEmpty
-                          ? null
-                          : coderChats.first;
-                      Navigator.of(context)
-                          .push(
-                            MaterialPageRoute<void>(
-                              builder: (_) => CoderChatScreen(
-                                projectId: project.id,
-                                projectName: project.name,
-                                chatId: latestChat?.id,
-                              ),
-                            ),
-                          )
-                          .then((_) {
-                            if (mounted) _load();
-                          });
+                      return _ProjectCard(
+                        project: project,
+                        chats: chats,
+                        expanded: expanded,
+                        palette: palette,
+                        onToggle: () => _toggleProject(project.id),
+                        onOpenChat: widget.onOpenChat,
+                        onOpenCoder: () {
+                          final coderChats = chats
+                              .where(
+                                (chat) => chat.mode.toLowerCase() == 'coder',
+                              )
+                              .toList();
+                          final latestChat = coderChats.isEmpty
+                              ? null
+                              : coderChats.first;
+                          Navigator.of(context)
+                              .push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => CoderChatScreen(
+                                    projectId: project.id,
+                                    projectName: project.name,
+                                    chatId: latestChat?.id,
+                                  ),
+                                ),
+                              )
+                              .then((_) {
+                                if (mounted) _load();
+                              });
+                        },
+                      );
                     },
-                  );
-                },
-              ),
+                  ),
+          ),
+        ),
       ),
     );
   }

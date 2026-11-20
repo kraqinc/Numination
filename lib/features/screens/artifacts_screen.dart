@@ -14,7 +14,9 @@ import 'package:numination/core/numi_icons.dart';
 import '../widgets/numi_skeleton.dart';
 
 class ArtifactsScreen extends ConsumerStatefulWidget {
-  const ArtifactsScreen({super.key});
+  const ArtifactsScreen({super.key, this.desktopSheet = false});
+
+  final bool desktopSheet;
 
   @override
   ConsumerState<ArtifactsScreen> createState() => _ArtifactsScreenState();
@@ -219,6 +221,7 @@ class _ArtifactsScreenState extends ConsumerState<ArtifactsScreen> {
     return Scaffold(
       backgroundColor: palette.background,
       appBar: AppBar(
+        automaticallyImplyLeading: !widget.desktopSheet,
         backgroundColor: palette.background,
         elevation: 0,
         iconTheme: IconThemeData(color: palette.textPrimary),
@@ -226,6 +229,15 @@ class _ArtifactsScreenState extends ConsumerState<ArtifactsScreen> {
           context.l10n.artifacts,
           style: TextStyle(color: palette.textPrimary),
         ),
+
+        actions: [
+          if (widget.desktopSheet)
+            IconButton(
+              tooltip: 'Cerrar',
+              onPressed: () => Navigator.of(context).pop(),
+              icon: const Icon(Icons.close_rounded),
+            ),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: _load,

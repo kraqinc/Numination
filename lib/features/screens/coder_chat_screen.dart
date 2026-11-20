@@ -1986,37 +1986,49 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
                     Expanded(
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(3, 10, 3, 10),
-                        child: TextField(
-                          controller: _messageController,
-                          focusNode: _messageFocusNode,
-                          enabled: !_isSending,
-                          minLines: 1,
-                          maxLines: 5,
-                          textCapitalization: TextCapitalization.sentences,
-                          keyboardType: TextInputType.multiline,
-                          cursorColor: palette.accent,
-                          style: TextStyle(
-                            color: palette.textPrimary,
-                            fontSize: 14,
-                            height: 1.35,
-                          ),
-                          decoration: InputDecoration(
-                            hintText: AppLocale.t('coder_prompt'),
-                            hintStyle: TextStyle(
-                              color: palette.textSecondary.withValues(
-                                alpha: 0.78,
-                              ),
-                              fontSize: 14,
-                            ),
-                            border: InputBorder.none,
-                            enabledBorder: InputBorder.none,
-                            focusedBorder: InputBorder.none,
-                            isCollapsed: true,
-                            contentPadding: EdgeInsets.zero,
-                          ),
-                          onSubmitted: (_) {
-                            if (!_isSending) _sendMessage();
+                        child: Focus(
+                          onKeyEvent: (node, event) {
+                            if (event is KeyDownEvent &&
+                                event.logicalKey == LogicalKeyboardKey.enter &&
+                                !HardwareKeyboard.instance.isShiftPressed) {
+                              if (!_isSending) _sendMessage();
+                              return KeyEventResult.handled;
+                            }
+                            return KeyEventResult.ignored;
                           },
+                          child: TextField(
+                            controller: _messageController,
+                            focusNode: _messageFocusNode,
+                            enabled: !_isSending,
+                            minLines: 1,
+                            maxLines: 5,
+                            textCapitalization: TextCapitalization.sentences,
+                            keyboardType: TextInputType.multiline,
+                            textInputAction: TextInputAction.send,
+                            cursorColor: palette.accent,
+                            style: TextStyle(
+                              color: palette.textPrimary,
+                              fontSize: 14,
+                              height: 1.35,
+                            ),
+                            decoration: InputDecoration(
+                              hintText: AppLocale.t('coder_prompt'),
+                              hintStyle: TextStyle(
+                                color: palette.textSecondary.withValues(
+                                  alpha: 0.78,
+                                ),
+                                fontSize: 14,
+                              ),
+                              border: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              isCollapsed: true,
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                            onSubmitted: (_) {
+                              if (!_isSending) _sendMessage();
+                            },
+                          ),
                         ),
                       ),
                     ),

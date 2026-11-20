@@ -198,9 +198,14 @@ class _ConfirmAgeScreenState extends ConsumerState<ConfirmAgeScreen> {
             builder: (context, constraints) {
               return SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 32),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                  child: _banned ? _bannedBody() : _confirmBody(),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: 480,
+                      minHeight: constraints.maxHeight,
+                    ),
+                    child: _banned ? _bannedBody() : _confirmBody(),
+                  ),
                 ),
               );
             },

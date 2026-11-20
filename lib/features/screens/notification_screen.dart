@@ -9,7 +9,9 @@ import '../../core/theme_controller.dart';
 import '../widgets/numi_skeleton.dart';
 
 class NotificationScreen extends ConsumerStatefulWidget {
-  const NotificationScreen({super.key});
+  const NotificationScreen({super.key, this.desktopSheet = false});
+
+  final bool desktopSheet;
 
   @override
   ConsumerState<NotificationScreen> createState() => _NotificationScreenState();
@@ -207,6 +209,7 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen>
     return Scaffold(
       backgroundColor: palette.background,
       appBar: AppBar(
+        automaticallyImplyLeading: !widget.desktopSheet,
         backgroundColor: palette.background,
         elevation: 0,
         iconTheme: IconThemeData(color: palette.textPrimary),
@@ -236,6 +239,13 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen>
           ],
         ),
         actions: [
+          if (widget.desktopSheet)
+            IconButton(
+              tooltip: 'Cerrar',
+              onPressed: () => Navigator.of(context).pop(),
+              icon: const Icon(Icons.close_rounded),
+            ),
+
           IconButton(
             tooltip: 'Actualizar',
             onPressed: () => _load(),

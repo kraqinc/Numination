@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/api.dart';
 import '../../core/auth_controller.dart';
@@ -141,6 +142,25 @@ class _CustomStringsScreenState extends ConsumerState<CustomStringsScreen> {
     }
   }
 
+  Future<void> _openKoFi() async {
+    final uri = Uri.https('ko-fi.com', '/numination');
+
+    try {
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+
+      if (!mounted || opened) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('No se pudo abrir Ko-fi.')));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('No se pudo abrir Ko-fi.')));
+    }
+  }
+
   Future<void> _save() async {
     setState(() {
       _isSaving = true;
@@ -230,6 +250,54 @@ class _CustomStringsScreenState extends ConsumerState<CustomStringsScreen> {
                     style: TextStyle(
                       color: palette.textSecondary,
                       fontSize: 13,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Material(
+                  color: palette.surfaceAlt,
+                  borderRadius: BorderRadius.circular(16),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: _openKoFi,
+                    child: Padding(
+                      padding: const EdgeInsets.all(15),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.favorite_outline_rounded,
+                            color: palette.accent,
+                            size: 24,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Apóyanos en Ko-fi',
+                                  style: TextStyle(
+                                    color: palette.textPrimary,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                Text(
+                                  'Ayúdanos a seguir desarrollando Numination.',
+                                  style: TextStyle(
+                                    color: palette.textSecondary,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Icon(
+                            Icons.open_in_new_rounded,
+                            color: palette.textSecondary,
+                            size: 18,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),

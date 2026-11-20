@@ -1959,79 +1959,84 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             if (_hasNoCredits)
               NoCreditsWidged(resetAt: _creditsResetAt, onViewPlans: _openPlans)
             else
-              _BottomInputBar(
-                controller: _messageController,
-                connectorSuggestions: _mentionConnectors,
-                showConnectorSuggestions: _showMentionSuggestions,
-                loadingConnectorSuggestions: _loadingMentionConnectors,
-                connectorQuery: _mentionQuery,
-                connectorLoadError: _mentionLoadError,
-                onConnectorSelected: _selectMentionConnector,
-                onManageConnectors: _openConnectorsFromMention,
-                focusNode: _messageFocusNode,
-                modeId: _modeId,
-                availableModes: availableModes,
-                isSending: _isSending,
-                isListening: _isListening,
-                isAttaching: _isAttaching,
-                overthink: _overthink,
-                pendingAttachments: _pendingAttachments,
-                hintText: _composerHint,
-                webSearchEnabled: _webSearchForNextMessage,
-                imageGenerationEnabled: _imageGenerationForNextMessage,
-                showPromptStarters: !_isLoadingHistory && _messages.isEmpty,
-                promptStarters: _promptStarters,
-                onRemoveAttachment: (file) {
-                  setState(() {
-                    _pendingAttachments.remove(file);
-                  });
-                },
-                onToggleOverthink: () {
-                  setState(() {
-                    final enable = !_overthink;
-                    _overthink = enable;
+              Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1080),
+                  child: _BottomInputBar(
+                    controller: _messageController,
+                    connectorSuggestions: _mentionConnectors,
+                    showConnectorSuggestions: _showMentionSuggestions,
+                    loadingConnectorSuggestions: _loadingMentionConnectors,
+                    connectorQuery: _mentionQuery,
+                    connectorLoadError: _mentionLoadError,
+                    onConnectorSelected: _selectMentionConnector,
+                    onManageConnectors: _openConnectorsFromMention,
+                    focusNode: _messageFocusNode,
+                    modeId: _modeId,
+                    availableModes: availableModes,
+                    isSending: _isSending,
+                    isListening: _isListening,
+                    isAttaching: _isAttaching,
+                    overthink: _overthink,
+                    pendingAttachments: _pendingAttachments,
+                    hintText: _composerHint,
+                    webSearchEnabled: _webSearchForNextMessage,
+                    imageGenerationEnabled: _imageGenerationForNextMessage,
+                    showPromptStarters: !_isLoadingHistory && _messages.isEmpty,
+                    promptStarters: _promptStarters,
+                    onRemoveAttachment: (file) {
+                      setState(() {
+                        _pendingAttachments.remove(file);
+                      });
+                    },
+                    onToggleOverthink: () {
+                      setState(() {
+                        final enable = !_overthink;
+                        _overthink = enable;
 
-                    if (enable) {
-                      _webSearchForNextMessage = false;
-                      _imageGenerationForNextMessage = false;
-                    }
-                  });
-                },
-                toolsExpanded: _toolsExpanded,
-                onToggleTools: () {
-                  setState(() {
-                    _toolsExpanded = !_toolsExpanded;
-                  });
-                },
-                onToggleWebSearch: () {
-                  setState(() {
-                    final enable = !_webSearchForNextMessage;
-                    _webSearchForNextMessage = enable;
+                        if (enable) {
+                          _webSearchForNextMessage = false;
+                          _imageGenerationForNextMessage = false;
+                        }
+                      });
+                    },
+                    toolsExpanded: _toolsExpanded,
+                    onToggleTools: () {
+                      setState(() {
+                        _toolsExpanded = !_toolsExpanded;
+                      });
+                    },
+                    onToggleWebSearch: () {
+                      setState(() {
+                        final enable = !_webSearchForNextMessage;
+                        _webSearchForNextMessage = enable;
 
-                    if (enable) {
-                      _imageGenerationForNextMessage = false;
-                      _overthink = false;
-                    }
-                  });
-                },
-                onToggleImageGeneration: () {
-                  setState(() {
-                    final enable = !_imageGenerationForNextMessage;
-                    _imageGenerationForNextMessage = enable;
+                        if (enable) {
+                          _imageGenerationForNextMessage = false;
+                          _overthink = false;
+                        }
+                      });
+                    },
+                    onToggleImageGeneration: () {
+                      setState(() {
+                        final enable = !_imageGenerationForNextMessage;
+                        _imageGenerationForNextMessage = enable;
 
-                    if (enable) {
-                      _webSearchForNextMessage = false;
-                      _overthink = false;
-                    }
-                  });
-                },
-                onPromptSelected: _selectPromptStarter,
-                onCancel: _cancelGeneration,
-                onModeChange: _toggleMode,
-                onSend: _sendMessage,
-                onMicTap: _toggleListening,
-                onAttachTap: _attachFile,
-                onOpenMentionPicker: _openMentionPicker,
+                        if (enable) {
+                          _webSearchForNextMessage = false;
+                          _overthink = false;
+                        }
+                      });
+                    },
+                    onPromptSelected: _selectPromptStarter,
+                    onCancel: _cancelGeneration,
+                    onModeChange: _toggleMode,
+                    onSend: _sendMessage,
+                    onMicTap: _toggleListening,
+                    onAttachTap: _attachFile,
+                    onOpenMentionPicker: _openMentionPicker,
+                  ),
+                ),
               ),
           ],
         ),
@@ -3226,39 +3231,56 @@ class _BottomInputBar extends ConsumerWidget {
                           Expanded(
                             child: Padding(
                               padding: const EdgeInsets.fromLTRB(3, 9, 3, 11),
-                              child: TextField(
-                                controller: controller,
-                                focusNode: focusNode,
-                                enabled: !isSending,
-                                minLines: 1,
-                                maxLines: 5,
-                                keyboardType: TextInputType.multiline,
-                                textInputAction: TextInputAction.newline,
-                                textCapitalization:
-                                    TextCapitalization.sentences,
-                                enableInteractiveSelection: true,
-                                cursorColor: palette.accent,
-                                style: TextStyle(
-                                  color: palette.textPrimary,
-                                  fontSize: 15,
-                                  height: 1.35,
-                                ),
-                                decoration: InputDecoration(
-                                  hintText: hintText,
-                                  hintMaxLines: 2,
-                                  hintStyle: TextStyle(
-                                    color: palette.textSecondary.withValues(
-                                      alpha: 0.76,
-                                    ),
+                              child: Focus(
+                                onKeyEvent: (node, event) {
+                                  if (event is KeyDownEvent &&
+                                      event.logicalKey ==
+                                          LogicalKeyboardKey.enter &&
+                                      !HardwareKeyboard
+                                          .instance
+                                          .isShiftPressed) {
+                                    if (!isSending) onSend();
+                                    return KeyEventResult.handled;
+                                  }
+                                  return KeyEventResult.ignored;
+                                },
+                                child: TextField(
+                                  controller: controller,
+                                  focusNode: focusNode,
+                                  enabled: !isSending,
+                                  minLines: 1,
+                                  maxLines: 5,
+                                  keyboardType: TextInputType.multiline,
+                                  textInputAction: TextInputAction.send,
+                                  onSubmitted: (_) {
+                                    if (!isSending) onSend();
+                                  },
+                                  textCapitalization:
+                                      TextCapitalization.sentences,
+                                  enableInteractiveSelection: true,
+                                  cursorColor: palette.accent,
+                                  style: TextStyle(
+                                    color: palette.textPrimary,
+                                    fontSize: 15,
+                                    height: 1.35,
                                   ),
-                                  border: InputBorder.none,
-                                  enabledBorder: InputBorder.none,
-                                  focusedBorder: InputBorder.none,
-                                  disabledBorder: InputBorder.none,
-                                  errorBorder: InputBorder.none,
-                                  focusedErrorBorder: InputBorder.none,
-                                  isCollapsed: true,
-                                  contentPadding: EdgeInsets.zero,
+                                  decoration: InputDecoration(
+                                    hintText: hintText,
+                                    hintMaxLines: 2,
+                                    hintStyle: TextStyle(
+                                      color: palette.textSecondary.withValues(
+                                        alpha: 0.76,
+                                      ),
+                                    ),
+                                    border: InputBorder.none,
+                                    enabledBorder: InputBorder.none,
+                                    focusedBorder: InputBorder.none,
+                                    disabledBorder: InputBorder.none,
+                                    errorBorder: InputBorder.none,
+                                    focusedErrorBorder: InputBorder.none,
+                                    isCollapsed: true,
+                                    contentPadding: EdgeInsets.zero,
+                                  ),
                                 ),
                               ),
                             ),
