@@ -32,6 +32,9 @@ class UpdateBottomSheets {
   static Future<void> showVersionInfo(BuildContext context) async {
     final english = AppErrorMessages.isEnglish;
     final installed = await PackageInfo.fromPlatform();
+    final installedVersion = await UpdateService.installedDesktopVersion(
+      fallbackVersion: installed.version,
+    );
     if (!context.mounted) return;
 
     AppUpdateInfo? latest;
@@ -59,7 +62,7 @@ class UpdateBottomSheets {
                 latest != null &&
                 UpdateService.isNewerVersion(
                   latest!.version,
-                  installed.version,
+                  installedVersion,
                 );
             final colors = Theme.of(sheetContext).colorScheme;
 
@@ -121,7 +124,7 @@ class UpdateBottomSheets {
                       label: english
                           ? 'Installed version'
                           : 'Versión instalada',
-                      value: installed.version,
+                      value: installedVersion,
                     ),
                     const SizedBox(height: 12),
                     _VersionRow(

@@ -240,9 +240,9 @@ class UpdateService {
         return null;
       }
 
-      final installed = await PackageInfo.fromPlatform();
+      final installedVersion = await installedDesktopVersion();
 
-      if (!_isNewerVersion(update.version, installed.version)) {
+      if (!_isNewerVersion(update.version, installedVersion)) {
         return null;
       }
 
@@ -351,6 +351,37 @@ class UpdateService {
     return _checkLatest(platform: _desktopPlatform);
   }
 
+  /// Devuelve la versión configurada durante la compilación
+  /// de la aplicación de escritorio.
+  static Future<String> installedDesktopVersion({
+    String? fallbackVersion,
+  }) async {
+    final packageVersion = fallbackVersion ??
+        (await PackageInfo.fromPlatform()).version.trim();
+
+    if (!Platform.isWindows && !Platform.isLinux) {
+      return packageVersion;
+    }
+
+    final configuredVersion = Env.appVersion.trim();
+
+    if (RegExp(r'^\d+\.\d+\.\d+$').hasMatch(configuredVersion)) {
+      if (packageVersion.isNotEmpty &&
+          packageVersion != configuredVersion &&
+          kDebugMode) {
+        debugPrint(
+          '[NuminationUpdater] Version mismatch: '
+          'APP_VERSION=$configuredVersion, '
+          'PackageInfo=$packageVersion',
+        );
+      }
+
+      return configuredVersion;
+    }
+
+    return packageVersion;
+  }
+
   static Future<AppUpdateInfo?> checkForDesktopUpdate() async {
     if ((!Platform.isWindows && !Platform.isLinux) ||
         kDebugMode ||
@@ -374,8 +405,8 @@ class UpdateService {
       final update = await _checkLatest(platform: _desktopPlatform);
       if (update == null) return null;
 
-      final installed = await PackageInfo.fromPlatform();
-      if (!_isNewerVersion(update.version, installed.version)) return null;
+      final installedVersion = await installedDesktopVersion();
+      if (!_isNewerVersion(update.version, installedVersion)) return null;
       return update;
     } finally {
       _desktopCheckInFlight = false;
