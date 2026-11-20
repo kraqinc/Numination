@@ -20,6 +20,7 @@ import '../../core/module_warmup.dart';
 import '../../core/models.dart';
 import '../../core/theme_controller.dart';
 import '../../core/update_service.dart';
+import '../widgets/update_bottom_sheets.dart';
 import '../widgets/ai_response.dart';
 import 'image_viewer_screen.dart';
 import '../widgets/hamburger.dart';
@@ -280,6 +281,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     unawaited(ModuleWarmup.start());
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+
+      if (Platform.isWindows || Platform.isLinux) {
+        await UpdateBottomSheets.checkOnLaunch(context);
+        return;
+      }
       if (!mounted) return;
 
       final openedSettings = await UpdateService.promptForAutoUpdatesPermission(

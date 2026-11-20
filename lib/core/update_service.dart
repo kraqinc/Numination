@@ -34,13 +34,18 @@ class UpdateService {
   static const MethodChannel _channel = MethodChannel('numination.updater');
 
   static const String _lastCheckKey = 'last_update_check';
+  static const String _desktopLastCheckKey = 'last_desktop_update_check';
+  static const String _windowsLastCheckKey = 'last_windows_update_check';
   static const String _pendingApkPathKey = 'pending_apk_path';
 
   static const Duration _minimumCheckInterval = Duration(minutes: 5);
 
   static const int _maximumApkBytes = 250 * 1024 * 1024;
+  static const int _maximumDesktopAssetBytes = 500 * 1024 * 1024;
 
   static bool _checkInFlight = false;
+  static bool _desktopCheckInFlight = false;
+  static bool _windowsCheckInFlight = false;
   static bool _permissionPromptInFlight = false;
   static bool _permissionPromptedThisLaunch = false;
   static Timer? _automaticCheckTimer;
@@ -58,7 +63,11 @@ class UpdateService {
     _automaticCheckTimer = null;
   }
 
-  static Uri _endpoint(String action, {Map<String, String> query = const {}}) {
+  static Uri _endpoint(
+    String action, {
+    String platform = 'android',
+    Map<String, String> query = const {},
+  }) {
     final parsedBase = Uri.tryParse(Env.supabaseUrl.trim());
     if (parsedBase == null ||
         parsedBase.scheme != 'https' ||
@@ -72,15 +81,15 @@ class UpdateService {
     }
     final base = parsedBase.toString().replaceFirst(RegExp(r'/+$'), '');
 
-    return Uri.parse(
-      '$base/functions/v1/numination-updater',
-    ).replace(queryParameters: {'action': action, ...query});
+    return Uri.parse('$base/functions/v1/numination-updater').replace(
+      queryParameters: {'action': action, 'platform': platform, ...query},
+    );
   }
 
   static Map<String, String> _headers({bool binary = false}) {
     final headers = <String, String>{
       'Accept': binary ? 'application/octet-stream' : 'application/json',
-      'User-Agent': 'Numination-Android-Updater',
+      'User-Agent': 'Numination-Updater',
     };
 
     final publishableKey = Env.supabasePublishableKey.trim();
@@ -206,6 +215,50 @@ class UpdateService {
     }
   }
 
+  /// Comprueba si hay una versión más reciente para Windows.
+  static Future<AppUpdateInfo?> checkForWindowsUpdate() async {
+    if (!Platform.isWindows || kDebugMode || _windowsCheckInFlight) {
+      return null;
+    }
+
+    _windowsCheckInFlight = true;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final lastCheck = prefs.getInt(_windowsLastCheckKey) ?? 0;
+
+      if (now - lastCheck < _minimumCheckInterval.inMilliseconds) {
+        return null;
+      }
+
+      await prefs.setInt(_windowsLastCheckKey, now);
+
+      final update = await _checkLatest(platform: 'windows');
+
+      if (update == null) {
+        return null;
+      }
+
+      final installed = await PackageInfo.fromPlatform();
+
+      if (!_isNewerVersion(update.version, installed.version)) {
+        return null;
+      }
+
+      return update;
+    } catch (error, stackTrace) {
+      if (kDebugMode) {
+        debugPrint('[NuminationUpdater:Windows] $error');
+        debugPrintStack(stackTrace: stackTrace);
+      }
+
+      return null;
+    } finally {
+      _windowsCheckInFlight = false;
+    }
+  }
+
   /// Consulta la última Release estable y prepara la instalación
   /// únicamente si existe una versión más reciente.
   static Future<void> checkAndInstallIfEnabled() async {
@@ -285,12 +338,58 @@ class UpdateService {
     }
   }
 
-  static Future<AppUpdateInfo?> _checkLatest() async {
+  static Future<bool> automaticUpdatesEnabled() => _enabled();
+
+  static String get _desktopPlatform =>
+      Platform.isWindows ? 'windows' : 'linux';
+
+  static bool isNewerVersion(String remote, String local) =>
+      _isNewerVersion(remote, local);
+
+  static Future<AppUpdateInfo?> getLatestDesktopRelease() async {
+    if (!Platform.isWindows && !Platform.isLinux) return null;
+    return _checkLatest(platform: _desktopPlatform);
+  }
+
+  static Future<AppUpdateInfo?> checkForDesktopUpdate() async {
+    if ((!Platform.isWindows && !Platform.isLinux) ||
+        kDebugMode ||
+        _desktopCheckInFlight) {
+      return null;
+    }
+
+    _desktopCheckInFlight = true;
+    try {
+      if (!await _enabled()) return null;
+
+      final prefs = await SharedPreferences.getInstance();
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final key = '${_desktopLastCheckKey}_$_desktopPlatform';
+      final lastCheck = prefs.getInt(key) ?? 0;
+      if (now - lastCheck < _minimumCheckInterval.inMilliseconds) {
+        return null;
+      }
+
+      await prefs.setInt(key, now);
+      final update = await _checkLatest(platform: _desktopPlatform);
+      if (update == null) return null;
+
+      final installed = await PackageInfo.fromPlatform();
+      if (!_isNewerVersion(update.version, installed.version)) return null;
+      return update;
+    } finally {
+      _desktopCheckInFlight = false;
+    }
+  }
+
+  static Future<AppUpdateInfo?> _checkLatest({
+    String platform = 'android',
+  }) async {
     final client = http.Client();
 
     try {
       final response = await client
-          .get(_endpoint('latest'), headers: _headers())
+          .get(_endpoint('latest', platform: platform), headers: _headers())
           .timeout(const Duration(seconds: 20));
 
       if (response.statusCode == 404) {
@@ -337,8 +436,12 @@ class UpdateService {
           ? sizeValue.toInt()
           : int.tryParse('$sizeValue');
 
-      if (size == null || size < 1 || size > _maximumApkBytes) {
-        throw const FormatException('Invalid release APK size.');
+      final maximumSize = platform == 'android'
+          ? _maximumApkBytes
+          : _maximumDesktopAssetBytes;
+
+      if (size == null || size < 1 || size > maximumSize) {
+        throw const FormatException('Invalid release asset size.');
       }
 
       return AppUpdateInfo(
@@ -378,14 +481,18 @@ class UpdateService {
     ];
   }
 
-  static Future<File> _downloadAndVerify(AppUpdateInfo update) async {
+  static Future<File> _downloadAndVerify(
+    AppUpdateInfo update, {
+    String platform = 'android',
+    ValueChanged<double>? onProgress,
+  }) async {
     final client = http.Client();
     File? partialFile;
 
     try {
       final request = http.Request(
         'GET',
-        _endpoint('download', query: {'tag': update.tag}),
+        _endpoint('download', platform: platform, query: {'tag': update.tag}),
       )..headers.addAll(_headers(binary: true));
 
       final response = await client
@@ -395,7 +502,9 @@ class UpdateService {
       if (response.statusCode != 200) {
         await response.stream.drain<void>();
 
-        throw HttpException('APK download failed (${response.statusCode}).');
+        throw HttpException(
+          'Release asset download failed (${response.statusCode}).',
+        );
       }
 
       final contentType = response.headers['content-type']?.toLowerCase() ?? '';
@@ -405,7 +514,7 @@ class UpdateService {
         await response.stream.drain<void>();
 
         throw const FormatException(
-          'The server returned metadata instead of an APK.',
+          'The server returned metadata instead of a release binary.',
         );
       }
 
@@ -417,7 +526,14 @@ class UpdateService {
 
       final safeTag = update.tag.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
 
-      final targetFile = File('${updateDir.path}/Numination-$safeTag.apk');
+      final extension = switch (platform) {
+        'windows' => 'exe',
+        'linux' => 'AppImage',
+        _ => 'apk',
+      };
+      final targetFile = File(
+        '${updateDir.path}/Numination-$safeTag.$extension',
+      );
 
       final partFile = File('${targetFile.path}.part');
 
@@ -434,6 +550,9 @@ class UpdateService {
       final hashInput = sha256.startChunkedConversion(digestSink);
 
       var totalBytes = 0;
+      final maximumDownloadBytes = platform == 'android'
+          ? _maximumApkBytes
+          : _maximumDesktopAssetBytes;
 
       try {
         await for (final chunk in response.stream.timeout(
@@ -441,7 +560,8 @@ class UpdateService {
         )) {
           totalBytes += chunk.length;
 
-          if (totalBytes > _maximumApkBytes || totalBytes > update.sizeBytes) {
+          if (totalBytes > maximumDownloadBytes ||
+              totalBytes > update.sizeBytes) {
             throw const FormatException(
               'Downloaded APK exceeds expected size.',
             );
@@ -449,6 +569,9 @@ class UpdateService {
 
           output.add(chunk);
           hashInput.add(chunk);
+          onProgress?.call(
+            (totalBytes / update.sizeBytes).clamp(0.0, 1.0).toDouble(),
+          );
         }
       } finally {
         hashInput.close();
@@ -458,7 +581,7 @@ class UpdateService {
 
       if (totalBytes != update.sizeBytes) {
         throw const FormatException(
-          'Downloaded APK size does not match release metadata.',
+          'Downloaded asset size does not match release metadata.',
         );
       }
 
@@ -466,7 +589,7 @@ class UpdateService {
 
       if (actualDigest != update.sha256) {
         throw const FormatException(
-          'Downloaded APK SHA-256 verification failed.',
+          'Downloaded asset SHA-256 verification failed.',
         );
       }
 
@@ -487,6 +610,120 @@ class UpdateService {
       client.close();
     }
   }
+
+  /// Descarga, verifica e inicia el instalador de Windows.
+  static Future<void> installWindowsUpdate(
+    AppUpdateInfo update, {
+    required ValueChanged<double> onProgress,
+  }) async {
+    if (!Platform.isWindows) {
+      throw UnsupportedError('Windows installer is only available on Windows.');
+    }
+
+    final installer = await _downloadAndVerify(
+      update,
+      platform: 'windows',
+      onProgress: onProgress,
+    );
+
+    // Inno Setup cierra Numination y reemplaza los archivos instalados.
+    await Process.start(installer.path, const [
+      '/VERYSILENT',
+      '/SUPPRESSMSGBOXES',
+      '/NORESTART',
+      '/CLOSEAPPLICATIONS',
+    ], mode: ProcessStartMode.detached);
+
+    // El instalador no puede reemplazar el ejecutable mientras está abierto.
+    exit(0);
+  }
+
+  static Future<void> installDesktopUpdate(
+    AppUpdateInfo update, {
+    required ValueChanged<double> onProgress,
+  }) async {
+    if (Platform.isWindows) {
+      final installer = await _downloadAndVerify(
+        update,
+        platform: 'windows',
+        onProgress: onProgress,
+      );
+      await Process.start(installer.path, const [
+        '/VERYSILENT',
+        '/SUPPRESSMSGBOXES',
+        '/NORESTART',
+        '/CLOSEAPPLICATIONS',
+      ], mode: ProcessStartMode.detached);
+      exit(0);
+    }
+
+    if (Platform.isLinux) {
+      final appImagePath = Platform.environment['APPIMAGE']?.trim() ?? '';
+      if (appImagePath.isEmpty) {
+        throw StateError(
+          'Abre Numination desde su archivo .AppImage para actualizarlo desde la aplicación.',
+        );
+      }
+
+      final target = File(appImagePath).absolute;
+      if (!await target.exists()) {
+        throw StateError(
+          'No se encontró el AppImage que está ejecutando Numination.',
+        );
+      }
+
+      final writable = await Process.run('/usr/bin/test', [
+        '-w',
+        target.parent.path,
+      ]);
+      if (writable.exitCode != 0) {
+        throw StateError(
+          'No tienes permiso para reemplazar el AppImage. Muévelo a una carpeta de tu usuario e inténtalo otra vez.',
+        );
+      }
+
+      final replacement = await _downloadAndVerify(
+        update,
+        platform: 'linux',
+        onProgress: onProgress,
+      );
+      final supportDir = await getApplicationSupportDirectory();
+      final scriptFile = File(
+        '${supportDir.path}/numination-appimage-update.sh',
+      );
+      final script = <String>[
+        r'#!/bin/sh',
+        r'set -eu',
+        'TARGET=${_shellQuote(target.path)}',
+        'SOURCE=${_shellQuote(replacement.path)}',
+        r'APP_PID="$PPID"',
+        r'while kill -0 "$APP_PID" 2>/dev/null; do',
+        r'  sleep 1',
+        r'done',
+        r'TEMP="${TARGET}.numination-update.$$"',
+        r'cp -- "$SOURCE" "$TEMP"',
+        r'chmod 755 "$TEMP"',
+        r'mv -f -- "$TEMP" "$TARGET"',
+        r'rm -f -- "$SOURCE"',
+        r'nohup "$TARGET" >/dev/null 2>&1 &',
+        r'rm -f -- "$0"',
+      ].join('\n');
+
+      await scriptFile.writeAsString(script, flush: true);
+      await Process.run('chmod', ['700', scriptFile.path]);
+      await Process.start('/bin/sh', [
+        scriptFile.path,
+      ], mode: ProcessStartMode.detached);
+      exit(0);
+    }
+
+    throw UnsupportedError(
+      'Las actualizaciones de escritorio no están disponibles en esta plataforma.',
+    );
+  }
+
+  static String _shellQuote(String value) =>
+      "'${value.replaceAll("'", "'\\''")}'";
 
   /// Reintenta una instalación pendiente al regresar de Ajustes.
   static Future<void> resumeAfterInstallPermission() async {

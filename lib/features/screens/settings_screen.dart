@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -15,6 +17,9 @@ import 'email_preferences_screen.dart';
 import 'plans_screen.dart';
 import 'theme_screen.dart';
 import 'package:numination/core/numi_icons.dart';
+
+import '../../core/error_messages.dart';
+import '../widgets/update_bottom_sheets.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key, this.desktopSheet = false});
@@ -101,6 +106,17 @@ class SettingsScreen extends ConsumerWidget {
           ).push(MaterialPageRoute(builder: (_) => const ThemeScreen())),
         ),
         _SettingsSectionDivider(color: palette.border),
+        if (Platform.isWindows || Platform.isLinux)
+          _SettingsTile(
+            icon: Icons.info_outline_rounded,
+            label: AppErrorMessages.isEnglish
+                ? 'Version and updates'
+                : 'Versión y actualizaciones',
+            subtitle: AppErrorMessages.isEnglish
+                ? 'Installed version and available updates'
+                : 'Versión instalada y actualizaciones disponibles',
+            onTap: () => UpdateBottomSheets.showVersionInfo(context),
+          ),
         SwitchListTile(
           value: autoUpdatesEnabled,
           onChanged: (value) {
