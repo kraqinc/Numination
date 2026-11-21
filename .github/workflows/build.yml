@@ -1,1 +1,62 @@
-PLACEHOLDER
+name: Numination build
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  flutter:
+    name: Flutter analyze & test
+    if: github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.0'
+          channel: stable
+          cache: true
+
+      - name: Create CI environment
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_AUTH_GOOGLE_CLIENT_ID: ${{ secrets.SUPABASE_AUTH_GOOGLE_CLIENT_ID }}
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+        run: |
+          cat > .env <<ENV
+          SUPABASE_URL=$SUPABASE_URL
+          SUPABASE_PUBLISHABLE_KEY=$SUPABASE_PUBLISHABLE_KEY
+          SUPABASE_AUTH_GOOGLE_CLIENT_ID=$SUPABASE_AUTH_GOOGLE_CLIENT_ID
+          API_BASE_URL=$API_BASE_URL
+          SUPABASE_AUTH_REDIRECT_URL=numination://auth
+          APP_VERSION=1.0.0
+          ENV
+
+      - name: Get dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Scan dependency lockfile with OSV
+        uses: google/osv-scanner-action/osv-scanner-action@32d3cd482bdadfb38b186c0ad1b031902d55d932
+        with:
+          scan-args: |-
+            --recursive
+            .
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test
