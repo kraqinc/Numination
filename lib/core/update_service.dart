@@ -52,7 +52,9 @@ class UpdateService {
 
   /// Una comprobación como máximo cada cinco minutos.
   static void startAutomaticChecks() {
-    _automaticCheckTimer ??= Timer.periodic(
+    if (!Platform.isAndroid || _automaticCheckTimer != null) return;
+
+    _automaticCheckTimer = Timer.periodic(
       _minimumCheckInterval,
       (_) => unawaited(checkAndInstallIfEnabled()),
     );
@@ -201,8 +203,19 @@ class UpdateService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_lastCheckKey);
 
-      return await _channel.invokeMethod<bool>('openUnknownSourcesSettings') ??
+      final opened =
+          await _channel.invokeMethod<bool>('openUnknownSourcesSettings') ??
           false;
+
+      if (!opened && context.mounted) {
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          const SnackBar(
+            content: Text('No se pudieron abrir los ajustes de instalación.'),
+          ),
+        );
+      }
+
+      return opened;
     } catch (error, stackTrace) {
       if (kDebugMode) {
         debugPrint('[NuminationUpdater] Error mostrando el permiso: $error');
@@ -261,10 +274,11 @@ class UpdateService {
 
   /// Consulta la última Release estable y prepara la instalación
   /// únicamente si existe una versión más reciente.
-  static Future<void> checkAndInstallIfEnabled() async {
-    if ((!Platform.isAndroid && !Platform.isIOS) ||
-        kDebugMode ||
-        _checkInFlight) {
+  static Future<void> checkAndInstallIfEnabled({
+    bool force = false,
+    ValueChanged<Object>? onError,
+  }) async {
+    if (!Platform.isAndroid || kDebugMode || _checkInFlight) {
       return;
     }
 
@@ -283,27 +297,19 @@ class UpdateService {
       final now = DateTime.now().millisecondsSinceEpoch;
       final lastCheck = prefs.getInt(_lastCheckKey) ?? 0;
 
-      if (now - lastCheck < _minimumCheckInterval.inMilliseconds) {
+      if (!force && now - lastCheck < _minimumCheckInterval.inMilliseconds) {
         return;
       }
 
-      // Registrar antes de la petición para evitar reintentos duplicados,
-      // incluso si la red falla.
-      await prefs.setInt(_lastCheckKey, now);
-
+      // Registrar únicamente después de recibir correctamente la respuesta.
       final update = await _checkLatest();
+      await prefs.setInt(_lastCheckKey, DateTime.now().millisecondsSinceEpoch);
 
       if (update == null) return;
 
       final installed = await PackageInfo.fromPlatform();
 
       if (!_isNewerVersion(update.version, installed.version)) {
-        return;
-      }
-
-      // iOS comprueba la versión, pero instala mediante App Store/TestFlight.
-      if (Platform.isIOS) {
-        await prefs.setString('ios_update_available_version', update.version);
         return;
       }
 
@@ -329,9 +335,13 @@ class UpdateService {
     } catch (error, stackTrace) {
       // Un fallo de actualización nunca debe impedir utilizar
       // el resto de la aplicación.
-      if (kDebugMode) {
-        debugPrint('[NuminationUpdater] $error');
-        debugPrintStack(stackTrace: stackTrace);
+      debugPrint('[NuminationUpdater] $error');
+      debugPrintStack(stackTrace: stackTrace);
+
+      try {
+        onError?.call(error);
+      } catch (_) {
+        // Un error de presentación no debe romper el actualizador.
       }
     } finally {
       _checkInFlight = false;
@@ -356,8 +366,8 @@ class UpdateService {
   static Future<String> installedDesktopVersion({
     String? fallbackVersion,
   }) async {
-    final packageVersion = fallbackVersion ??
-        (await PackageInfo.fromPlatform()).version.trim();
+    final packageVersion =
+        fallbackVersion ?? (await PackageInfo.fromPlatform()).version.trim();
 
     if (!Platform.isWindows && !Platform.isLinux) {
       return packageVersion;
@@ -382,7 +392,9 @@ class UpdateService {
     return packageVersion;
   }
 
-  static Future<AppUpdateInfo?> checkForDesktopUpdate() async {
+  static Future<AppUpdateInfo?> checkForDesktopUpdate({
+    bool force = false,
+  }) async {
     if ((!Platform.isWindows && !Platform.isLinux) ||
         kDebugMode ||
         _desktopCheckInFlight) {
@@ -397,12 +409,13 @@ class UpdateService {
       final now = DateTime.now().millisecondsSinceEpoch;
       final key = '${_desktopLastCheckKey}_$_desktopPlatform';
       final lastCheck = prefs.getInt(key) ?? 0;
-      if (now - lastCheck < _minimumCheckInterval.inMilliseconds) {
+      if (!force && now - lastCheck < _minimumCheckInterval.inMilliseconds) {
         return null;
       }
 
-      await prefs.setInt(key, now);
       final update = await _checkLatest(platform: _desktopPlatform);
+      await prefs.setInt(key, DateTime.now().millisecondsSinceEpoch);
+
       if (update == null) return null;
 
       final installedVersion = await installedDesktopVersion();

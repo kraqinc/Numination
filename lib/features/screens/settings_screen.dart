@@ -117,21 +117,22 @@ class SettingsScreen extends ConsumerWidget {
                 : 'Versión instalada y actualizaciones disponibles',
             onTap: () => UpdateBottomSheets.showVersionInfo(context),
           ),
-        SwitchListTile(
-          value: autoUpdatesEnabled,
-          onChanged: (value) {
-            ref.read(autoUpdateProvider.notifier).setEnabled(value);
-          },
-          activeThumbColor: palette.accent,
-          title: Text(
-            AppLocale.t('automatic_updates'),
-            style: TextStyle(color: palette.textPrimary, fontSize: 16),
+        if (Platform.isAndroid || Platform.isWindows || Platform.isLinux)
+          SwitchListTile(
+            value: autoUpdatesEnabled,
+            onChanged: (value) {
+              ref.read(autoUpdateProvider.notifier).setEnabled(value);
+            },
+            activeThumbColor: palette.accent,
+            title: Text(
+              AppLocale.t('automatic_updates'),
+              style: TextStyle(color: palette.textPrimary, fontSize: 16),
+            ),
+            subtitle: Text(
+              AppLocale.t('automatic_updates_subtitle'),
+              style: TextStyle(color: palette.textSecondary, fontSize: 12),
+            ),
           ),
-          subtitle: Text(
-            AppLocale.t('automatic_updates_subtitle'),
-            style: TextStyle(color: palette.textSecondary, fontSize: 12),
-          ),
-        ),
         _SettingsTile(
           icon: Icons.bolt_rounded,
           label: AppLocale.t('credits'),

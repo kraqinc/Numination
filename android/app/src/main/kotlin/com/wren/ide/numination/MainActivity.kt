@@ -12,6 +12,7 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
+
     private companion object {
         const val GMAIL_CHANNEL = "numination/gmail"
         const val UPDATER_CHANNEL = "numination.updater"
@@ -22,44 +23,143 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, GMAIL_CHANNEL)
-            .setMethodCallHandler { call, result ->
-                when (call.method) {
-                    "openGmail" -> try {
-                        val intent = packageManager.getLaunchIntentForPackage(GMAIL_PACKAGE)
-                        if (intent == null) result.success(false)
-                        else { intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); startActivity(intent); result.success(true) }
-                    } catch (_: Exception) { result.success(false) }
-                    else -> result.notImplemented()
-                }
-            }
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            GMAIL_CHANNEL
+        ).setMethodCallHandler { call, result ->
 
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, UPDATER_CHANNEL)
-            .setMethodCallHandler { call, result ->
-                when (call.method) {
-                    "canInstallPackages" -> result.success(
-                        Build.VERSION.SDK_INT < Build.VERSION_CODES.O || packageManager.canRequestPackageInstalls()
+            when (call.method) {
+
+                "openGmail" -> {
+                    try {
+                        val intent = packageManager
+                            .getLaunchIntentForPackage(GMAIL_PACKAGE)
+
+                        if (intent == null) {
+                            result.success(false)
+                        } else {
+                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            startActivity(intent)
+                            result.success(true)
+                        }
+                    } catch (_: Exception) {
+                        result.success(false)
+                    }
+                }
+
+                else -> result.notImplemented()
+            }
+        }
+
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            UPDATER_CHANNEL
+        ).setMethodCallHandler { call, result ->
+
+            when (call.method) {
+
+                "canInstallPackages" -> {
+                    result.success(
+                        Build.VERSION.SDK_INT < Build.VERSION_CODES.O ||
+                            packageManager.canRequestPackageInstalls()
                     )
-                    "openUnknownSourcesSettings" -> try {
-                        val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                            Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName"))
-                        } else Intent(Settings.ACTION_SECURITY_SETTINGS)
-                        startActivity(intent); result.success(true)
-                    } catch (_: Exception) { result.success(false) }
-                    "installApk" -> try {
+                }
+
+                "openUnknownSourcesSettings" -> {
+                    try {
+                        val intent = if (
+                            Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+                        ) {
+                            Intent(
+                                Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                                Uri.parse("package:$packageName")
+                            )
+                        } else {
+                            Intent(Settings.ACTION_SECURITY_SETTINGS)
+                        }
+
+                        startActivity(intent)
+                        result.success(true)
+
+                    } catch (e: Exception) {
+                        result.error(
+                            "SETTINGS_FAILED",
+                            e.message,
+                            null
+                        )
+                    }
+                }
+
+                "installApk" -> {
+                    try {
+
+                        // Verificar permiso de instalación.
+                        if (
+                            Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+                            !packageManager.canRequestPackageInstalls()
+                        ) {
+                            result.error(
+                                "INSTALL_PERMISSION_REQUIRED",
+                                "Activa Permitir desde esta fuente para Numination.",
+                                null
+                            )
+                            return@setMethodCallHandler
+                        }
+
+                        // Obtener ruta del APK.
                         val path = call.argument<String>("path")
-                        if (path.isNullOrBlank()) { result.error("INVALID_PATH", "Ruta APK vacía", null); return@setMethodCallHandler }
+
+                        if (path.isNullOrBlank()) {
+                            result.error(
+                                "INVALID_PATH",
+                                "Ruta APK vacía",
+                                null
+                            )
+                            return@setMethodCallHandler
+                        }
+
                         val apk = File(path)
-                        if (!apk.exists()) { result.error("APK_NOT_FOUND", "No existe el APK", null); return@setMethodCallHandler }
-                        val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", apk)
+
+                        if (!apk.exists() || !apk.isFile) {
+                            result.error(
+                                "APK_NOT_FOUND",
+                                "No existe el APK",
+                                null
+                            )
+                            return@setMethodCallHandler
+                        }
+
+                        // Generar URI segura mediante FileProvider.
+                        val uri = FileProvider.getUriForFile(
+                            this,
+                            "$packageName.fileprovider",
+                            apk
+                        )
+
+                        // Abrir instalador de Android.
                         val intent = Intent(Intent.ACTION_VIEW).apply {
                             setDataAndType(uri, APK_MIME)
-                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+
+                            addFlags(
+                                Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                                    Intent.FLAG_ACTIVITY_NEW_TASK
+                            )
                         }
-                        startActivity(intent); result.success(true)
-                    } catch (e: Exception) { result.error("INSTALL_FAILED", e.message, null) }
-                    else -> result.notImplemented()
+
+                        startActivity(intent)
+                        result.success(true)
+
+                    } catch (e: Exception) {
+                        result.error(
+                            "INSTALL_FAILED",
+                            e.message,
+                            null
+                        )
+                    }
                 }
+
+                else -> result.notImplemented()
             }
+        }
     }
 }

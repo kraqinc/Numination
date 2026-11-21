@@ -273,6 +273,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
     _rotateComposerHint();
     UpdateService.startAutomaticChecks();
+
+    if (Platform.isWindows || Platform.isLinux) {
+      UpdateBottomSheets.startAutomaticChecks(context);
+    }
+
     WidgetsBinding.instance.addObserver(this);
 
     _initSpeech();
@@ -284,10 +289,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       if (!mounted) return;
 
       if (Platform.isWindows || Platform.isLinux) {
-        await UpdateBottomSheets.checkOnLaunch(context);
+        await UpdateBottomSheets.checkOnLaunch(context, force: true);
         return;
       }
-      if (!mounted) return;
+
+      if (Platform.isIOS || !mounted) return;
 
       final openedSettings = await UpdateService.promptForAutoUpdatesPermission(
         context,
@@ -295,21 +301,48 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
       if (!mounted || openedSettings) return;
 
-      await UpdateService.checkAndInstallIfEnabled();
+      await UpdateService.checkAndInstallIfEnabled(
+        force: true,
+        onError: (_) {
+          if (!mounted) return;
+          ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+            const SnackBar(
+              content: Text(
+                'No se pudo completar la actualización. '
+                'Comprueba tu conexión e inténtalo de nuevo.',
+              ),
+            ),
+          );
+        },
+      );
     });
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      UpdateService.resumeAfterInstallPermission().then((_) {
-        if (mounted) {
-          UpdateService.checkAndInstallIfEnabled();
-        }
-      });
+    if (state != AppLifecycleState.resumed) return;
 
-      _loadCredits();
+    if (Platform.isWindows || Platform.isLinux) {
+      unawaited(UpdateBottomSheets.checkOnLaunch(context, force: false));
+    } else if (Platform.isAndroid) {
+      UpdateService.resumeAfterInstallPermission().then((_) {
+        if (!mounted) return;
+
+        UpdateService.checkAndInstallIfEnabled(
+          onError: (_) {
+            if (!mounted) return;
+
+            ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+              const SnackBar(
+                content: Text('No se pudo iniciar la instalación del APK.'),
+              ),
+            );
+          },
+        );
+      });
     }
+
+    _loadCredits();
   }
 
   Future<void> _rotateComposerHint() async {
@@ -635,6 +668,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     UpdateService.stopAutomaticChecks();
+    UpdateBottomSheets.stopAutomaticChecks();
     _messageController.removeListener(_onComposerChanged);
     _messageController.dispose();
     _scrollController.dispose();
