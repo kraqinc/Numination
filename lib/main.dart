@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'package:app_links/app_links.dart';
+import 'package:auto_updater/auto_updater.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -46,17 +48,36 @@ Future<void> main() async {
   );
 
   final platform = defaultTargetPlatform;
+  // Android uses Supabase browser OAuth; native Google Sign-In
+  // remains enabled only on iOS and macOS.
   final supportsNativeGoogleSignIn =
       !kIsWeb &&
-      (platform == TargetPlatform.android ||
-          platform == TargetPlatform.iOS ||
-          platform == TargetPlatform.macOS);
+      (platform == TargetPlatform.iOS || platform == TargetPlatform.macOS);
 
   if (supportsNativeGoogleSignIn && Env.googleClientId.trim().isNotEmpty) {
     await GoogleSignIn.instance.initialize(serverClientId: Env.googleClientId);
   }
 
+  await _initializeMacOSUpdater();
+
   runApp(const ProviderScope(child: NuminationApp()));
+}
+
+Future<void> _initializeMacOSUpdater() async {
+  if (!Platform.isMacOS) return;
+
+  try {
+    await autoUpdater.setFeedURL(
+      'https://github.com/kraqinc/Numination/releases/latest/download/appcast.xml',
+    );
+    await autoUpdater.checkForUpdates();
+    await autoUpdater.setScheduledCheckInterval(21600);
+  } catch (error, stackTrace) {
+    if (kDebugMode) {
+      debugPrint('[NuminationUpdater] $error');
+      debugPrintStack(stackTrace: stackTrace);
+    }
+  }
 }
 
 class _MissingEnvApp extends StatelessWidget {

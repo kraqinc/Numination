@@ -58,12 +58,14 @@ android {
 
     buildTypes {
         release {
-            signingConfig =
-                if (!keystorePath.isNullOrBlank()) {
-                    signingConfigs.getByName("release")
-                } else {
-                    signingConfigs.getByName("debug")
-                }
+            if (
+                keystorePath.isNullOrBlank() ||
+                keystorePassword.isNullOrBlank() ||
+                keyAliasValue.isNullOrBlank()
+            ) {
+                throw GradleException("Release signing secrets are required; debug signing is forbidden.")
+            }
+            signingConfig = signingConfigs.getByName("release")
 
             isMinifyEnabled = true
 
