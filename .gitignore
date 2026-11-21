@@ -1,4 +1,3 @@
-# Flutter / Dart
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
@@ -8,7 +7,6 @@
 build/
 coverage/
 .idea
-# Android
 .env
 a**/local.properties
 android/.gradle/
@@ -19,49 +17,29 @@ android/keystore/
 *.keystore
 *.apk
 *.aab
-
-# IDE
 .idea/
 .vscode/
 *.iml
 .DS_Store
 .dart_tool/
-
-# Environment / secrets
 .env
 .env.*
 !.env.example
-
-# Generated Flutter files
 generated_plugin_registrant.dart
-
-# Logs
 *.log
-
-# Flutter / Dart generated
 .dart_tool/
 build/
 .flutter-plugins
 .flutter-plugins-dependencies
-
-# IDE
 .idea/
 *.iml
-
-# Local configuration / secrets
 .env
 android/local.properties
-
-# iOS generated
 ios/Flutter/ephemeral/
 ios/Flutter/Generated.xcconfig
 ios/Flutter/flutter_export_environment.sh
-
-# Signing keys
 keystore/
 *.jks
-
-# Generated localizations
 lib/l10n/gen/
-
+signing/
 .git

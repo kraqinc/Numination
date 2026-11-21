@@ -1,7 +1,6 @@
 name: Numination build
 
 on:
-  workflow_dispatch:
   push:
     branches:
       - main
@@ -42,97 +41,6 @@ jobs:
 
       - name: Scan source code
         run: semgrep scan --config p/security-audit --config p/secrets --error --metrics=off .
-
-  generate-sparkle-keys:
-    name: Generate Sparkle signing keys
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: macos-latest
-    permissions:
-      contents: read
-
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.47.0'
-          channel: stable
-          cache: true
-
-      - name: Resolve dependencies
-        run: flutter pub get --enforce-lockfile
-
-      - name: Generate and export EdDSA keypair
-        run: |
-          set -euo pipefail
-
-          SPARKLE_VERSION="2.10.1"
-          SPARKLE_ARCHIVE="$RUNNER_TEMP/Sparkle.tar.xz"
-          SPARKLE_DIR="$RUNNER_TEMP/sparkle"
-          KEYCHAIN="$RUNNER_TEMP/numination-sparkle.keychain-db"
-          PRIVATE_KEY="$RUNNER_TEMP/numination-ed25519.private"
-          OUTPUT_DIR="$RUNNER_TEMP/numination-sparkle-keys"
-
-          curl -fsSL --retry 3 \
-            "https://github.com/sparkle-project/Sparkle/releases/download/${SPARKLE_VERSION}/Sparkle-${SPARKLE_VERSION}.tar.xz" \
-            -o "$SPARKLE_ARCHIVE"
-
-          mkdir -p "$SPARKLE_DIR" "$OUTPUT_DIR"
-          tar -xJf "$SPARKLE_ARCHIVE" -C "$SPARKLE_DIR"
-
-          GENERATE_KEYS="$(find "$SPARKLE_DIR" -type f -name generate_keys -print -quit)"
-          test -n "$GENERATE_KEYS"
-          test -x "$GENERATE_KEYS"
-
-          KEYCHAIN_PASSWORD="$(openssl rand -hex 32)"
-          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
-          security set-keychain-settings -lut 21600 "$KEYCHAIN"
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
-          security list-keychains -d user -s "$KEYCHAIN"
-          security default-keychain -d user -s "$KEYCHAIN"
-
-          cleanup() {
-            security delete-keychain "$KEYCHAIN" >/dev/null 2>&1 || true
-            rm -f "$PRIVATE_KEY" "$SPARKLE_ARCHIVE"
-          }
-          trap cleanup EXIT
-
-          GENERATE_OUTPUT="$("$GENERATE_KEYS" 2>&1)"
-          printf '%s\n' "$GENERATE_OUTPUT"
-
-          PUBLIC_KEY="$(printf '%s\n' "$GENERATE_OUTPUT" | grep -Eo '[A-Za-z0-9+/]{43}=' | tail -n 1)"
-          test -n "$PUBLIC_KEY"
-
-          "$GENERATE_KEYS" -x "$PRIVATE_KEY"
-          test -s "$PRIVATE_KEY"
-          chmod 600 "$PRIVATE_KEY"
-
-          printf '%s\n' "$PUBLIC_KEY" > "$OUTPUT_DIR/SPARKLE_PUBLIC_KEY.txt"
-          base64 < "$PRIVATE_KEY" | tr -d '\r\n' > "$OUTPUT_DIR/SPARKLE_EDDSA_PRIVATE_KEY_B64.txt"
-          chmod 600 "$OUTPUT_DIR/SPARKLE_EDDSA_PRIVATE_KEY_B64.txt"
-
-          {
-            echo '## Sparkle public key'
-            echo
-            echo 'Save this value as the GitHub Actions secret `SPARKLE_PUBLIC_KEY`.'
-            echo
-            echo '\`\`\`text'
-            cat "$OUTPUT_DIR/SPARKLE_PUBLIC_KEY.txt"
-            echo '\`\`\`'
-            echo
-            echo 'The private-key artifact must be stored as the secret `SPARKLE_EDDSA_PRIVATE_KEY_B64` and then deleted from downloaded files.'
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Upload private key and public key
-        uses: actions/upload-artifact@v7.0.2
-        with:
-          name: Numination-Sparkle-Keys
-          path: |
-            ${{ runner.temp }}/numination-sparkle-keys/SPARKLE_PUBLIC_KEY.txt
-            ${{ runner.temp }}/numination-sparkle-keys/SPARKLE_EDDSA_PRIVATE_KEY_B64.txt
-          if-no-files-found: error
-          retention-days: 1
 
   flutter:
     name: Flutter analyze & test

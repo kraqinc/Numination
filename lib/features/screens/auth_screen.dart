@@ -198,15 +198,19 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     });
 
     try {
-      final isDesktopOAuth =
+      final usesSupabaseOAuth =
           kIsWeb ||
+          defaultTargetPlatform == TargetPlatform.android ||
           defaultTargetPlatform == TargetPlatform.linux ||
           defaultTargetPlatform == TargetPlatform.windows;
 
-      if (isDesktopOAuth) {
+      if (usesSupabaseOAuth) {
         final launched = await Supabase.instance.client.auth.signInWithOAuth(
           OAuthProvider.google,
           redirectTo: kIsWeb ? null : Env.authRedirectUrl,
+          authScreenLaunchMode: defaultTargetPlatform == TargetPlatform.android
+              ? LaunchMode.externalApplication
+              : LaunchMode.platformDefault,
         );
         if (!launched) {
           throw StateError('No se pudo abrir la autenticación de Google.');
@@ -248,10 +252,19 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       await ref.read(authControllerProvider.notifier).refresh();
     } on GoogleSignInException catch (error) {
       if (!mounted) return;
+
+      final description = error.description?.trim();
+
+      debugPrint(
+        '[GOOGLE_AUTH] ${error.code}: '
+        '${description == null || description.isEmpty ? "sin descripción" : description}',
+      );
+
       if (error.code == GoogleSignInExceptionCode.canceled) return;
+
       setState(() {
         _errorText = AppErrorMessages.fromAuthError(
-          error.description ?? '',
+          description ?? error.toString(),
           fallback: AppErrorMessages.googleSignInFailed,
         );
       });
