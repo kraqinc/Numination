@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/adaptive_bottom_sheet.dart';
 import '../../core/api.dart';
 import '../../core/error_messages.dart';
 import '../../core/local_project_sync.dart';
@@ -481,7 +482,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
   }
 
   Future<void> _openAddMenu() async {
-    await showModalBottomSheet<void>(
+    await showAdaptiveBottomSheet<void>(
       context: context,
       showDragHandle: true,
       builder: (sheetContext) {
@@ -1067,7 +1068,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
         return;
       }
 
-      final selected = await showModalBottomSheet<Map<String, dynamic>>(
+      final selected = await showAdaptiveBottomSheet<Map<String, dynamic>>(
         context: context,
         showDragHandle: true,
         builder: (sheetContext) => SafeArea(
@@ -1156,7 +1157,7 @@ class _CoderChatScreenState extends ConsumerState<CoderChatScreen> {
         );
         return;
       }
-      await showModalBottomSheet<void>(
+      await showAdaptiveBottomSheet<void>(
         context: context,
         showDragHandle: true,
         builder: (sheetContext) => SafeArea(

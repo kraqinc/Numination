@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
+import '../../core/adaptive_bottom_sheet.dart';
 import '../../core/api.dart';
 
 import '../widgets/numi_loading_animation.dart';
@@ -121,7 +122,7 @@ class _ImageViewerScreenState extends State<ImageViewerScreen> {
   }
 
   Future<void> _chooseStyle() async {
-    final style = await showModalBottomSheet<({String name, String prompt})>(
+    final style = await showAdaptiveBottomSheet<({String name, String prompt})>(
       context: context,
       backgroundColor: const Color(0xFF202020),
       showDragHandle: true,

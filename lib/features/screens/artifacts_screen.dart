@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/adaptive_bottom_sheet.dart';
 import '../../core/api.dart';
 import '../../core/error_messages.dart';
 import '../../core/l10n_extensions.dart';
@@ -136,7 +137,7 @@ class _ArtifactsScreenState extends ConsumerState<ArtifactsScreen> {
 
   void _openSnippet(ArtifactItem artifact) {
     final palette = ref.read(appPaletteProvider);
-    showModalBottomSheet(
+    showAdaptiveBottomSheet(
       context: context,
       backgroundColor: palette.surface,
       isScrollControlled: true,

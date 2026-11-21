@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/adaptive_bottom_sheet.dart';
 import '../../core/api.dart';
 import '../../core/i18n.dart';
 import '../../core/models.dart';
@@ -9,7 +10,7 @@ import 'package:numination/core/numi_icons.dart';
 import 'numi_skeleton.dart';
 
 Future<ChatSession?> showSearchChats(BuildContext context) {
-  return showModalBottomSheet<ChatSession>(
+  return showAdaptiveBottomSheet<ChatSession>(
     context: context,
     backgroundColor: Colors.transparent,
     isScrollControlled: true,

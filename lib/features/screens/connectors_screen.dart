@@ -7,6 +7,7 @@ import 'package:lucide_flutter/lucide_flutter.dart';
 import 'package:simple_icons/simple_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/adaptive_bottom_sheet.dart';
 import '../../core/api.dart';
 import '../../core/theme_controller.dart';
 import '../../core/theme.dart';
@@ -307,7 +308,7 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
           .toList(growable: false);
       if (!mounted) return;
       final palette = ref.read(appPaletteProvider);
-      await showModalBottomSheet<void>(
+      await showAdaptiveBottomSheet<void>(
         context: context,
         isScrollControlled: true,
         backgroundColor: palette.surface,
@@ -626,7 +627,7 @@ class _ConnectorsScreenState extends ConsumerState<ConnectorsScreen>
     final palette = ref.read(appPaletteProvider);
     final connected = _isConnected(id);
     final configured = _isConfigured(id);
-    await showModalBottomSheet<void>(
+    await showAdaptiveBottomSheet<void>(
       context: context,
       backgroundColor: palette.surface,
       showDragHandle: true,

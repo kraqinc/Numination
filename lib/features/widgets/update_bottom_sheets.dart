@@ -4,13 +4,36 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
+import '../../core/adaptive_bottom_sheet.dart';
 import '../../core/error_messages.dart';
 import '../../core/update_service.dart';
 
 class UpdateBottomSheets {
   static bool _startupCheckInFlight = false;
+  static Timer? _desktopTimer;
+  static String? _lastPromptedVersion;
 
-  static Future<void> checkOnLaunch(BuildContext context) async {
+  static void startAutomaticChecks(BuildContext context) {
+    if ((!Platform.isWindows && !Platform.isLinux) || _desktopTimer != null) {
+      return;
+    }
+
+    _desktopTimer = Timer.periodic(const Duration(minutes: 30), (_) {
+      if (context.mounted) {
+        unawaited(checkOnLaunch(context, force: false));
+      }
+    });
+  }
+
+  static void stopAutomaticChecks() {
+    _desktopTimer?.cancel();
+    _desktopTimer = null;
+  }
+
+  static Future<void> checkOnLaunch(
+    BuildContext context, {
+    bool force = true,
+  }) async {
     if ((!Platform.isWindows && !Platform.isLinux) ||
         _startupCheckInFlight ||
         !await UpdateService.automaticUpdatesEnabled()) {
@@ -18,12 +41,34 @@ class UpdateBottomSheets {
     }
 
     _startupCheckInFlight = true;
+
     try {
-      final update = await UpdateService.checkForDesktopUpdate();
-      if (update == null || !context.mounted) return;
+      final update = await UpdateService.checkForDesktopUpdate(force: force);
+
+      if (update == null ||
+          !context.mounted ||
+          _lastPromptedVersion == update.version) {
+        return;
+      }
+
+      _lastPromptedVersion = update.version;
+
       await _showUpdate(context, update, showObsoleteBanner: true);
-    } catch (_) {
-      // Un fallo de red no debe bloquear el inicio de Numination.
+    } catch (error, stackTrace) {
+      debugPrint('[NuminationUpdater:Desktop] $error');
+      debugPrintStack(stackTrace: stackTrace);
+
+      if (context.mounted) {
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          SnackBar(
+            content: Text(
+              AppErrorMessages.isEnglish
+                  ? 'Could not check for updates. Try again later.'
+                  : 'No se pudieron consultar las actualizaciones. Inténtalo más tarde.',
+            ),
+          ),
+        );
+      }
     } finally {
       _startupCheckInFlight = false;
     }
@@ -50,7 +95,7 @@ class UpdateBottomSheets {
     }
     if (!context.mounted) return;
 
-    await showModalBottomSheet<void>(
+    await showAdaptiveBottomSheet<void>(
       context: context,
       useSafeArea: true,
       showDragHandle: true,
@@ -60,10 +105,7 @@ class UpdateBottomSheets {
           builder: (sheetContext, setSheetState) {
             final hasUpdate =
                 latest != null &&
-                UpdateService.isNewerVersion(
-                  latest!.version,
-                  installedVersion,
-                );
+                UpdateService.isNewerVersion(latest!.version, installedVersion);
             final colors = Theme.of(sheetContext).colorScheme;
 
             Future<void> refresh() async {
@@ -230,7 +272,7 @@ class UpdateBottomSheets {
     var progress = 0.0;
     String? errorMessage;
 
-    final installedLater = await showModalBottomSheet<bool>(
+    final installedLater = await showAdaptiveBottomSheet<bool>(
       context: context,
       useSafeArea: true,
       showDragHandle: true,
@@ -355,7 +397,7 @@ class UpdateBottomSheets {
     if (!context.mounted) return;
     final english = AppErrorMessages.isEnglish;
 
-    await showModalBottomSheet<void>(
+    await showAdaptiveBottomSheet<void>(
       context: context,
       useSafeArea: true,
       showDragHandle: true,

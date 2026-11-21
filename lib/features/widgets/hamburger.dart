@@ -4,6 +4,7 @@ import 'package:lucide_flutter/lucide_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/adaptive_bottom_sheet.dart';
 import '../../core/api.dart';
 import '../../core/error_messages.dart';
 import '../../core/auth_controller.dart';
@@ -134,24 +135,22 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
       final width = size.width - 32 > 1120 ? 1120.0 : size.width - 32;
       final height = size.height * 0.80 > 820 ? 820.0 : size.height * 0.80;
 
-      showModalBottomSheet<void>(
+      showDialog<void>(
         context: navigator.context,
         useRootNavigator: true,
-        isScrollControlled: true,
-        useSafeArea: true,
-        backgroundColor: Colors.transparent,
         barrierColor: Colors.black.withValues(alpha: 0.48),
-        builder: (sheetContext) => Align(
-          alignment: Alignment.bottomCenter,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: SizedBox(
-              width: width,
-              height: height,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(22),
-                child: pageBuilder(true),
-              ),
+        builder: (dialogContext) => Dialog(
+          backgroundColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
+          insetPadding: const EdgeInsets.all(16),
+          constraints: BoxConstraints(maxWidth: width, maxHeight: height),
+          child: SizedBox(
+            width: width,
+            height: height,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(22),
+              child: pageBuilder(true),
             ),
           ),
         ),
@@ -208,7 +207,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
   Future<void> _showChatActions(ChatSession chat) async {
     final palette = ref.read(appPaletteProvider);
 
-    final action = await showModalBottomSheet<String>(
+    final action = await showAdaptiveBottomSheet<String>(
       context: context,
       backgroundColor: palette.surface,
       shape: const RoundedRectangleBorder(
@@ -358,7 +357,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
 
       if (!mounted) return;
 
-      final selected = await showModalBottomSheet<String?>(
+      final selected = await showAdaptiveBottomSheet<String?>(
         context: context,
         backgroundColor: palette.surface,
         shape: const RoundedRectangleBorder(

@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_flutter/lucide_flutter.dart';
 
+import '../../core/adaptive_bottom_sheet.dart';
 import '../../core/dependency_analyzer.dart';
 import '../../core/models.dart';
 import '../../core/theme_controller.dart';
@@ -131,7 +132,7 @@ class _ArchitectModeScreenState extends ConsumerState<ArchitectModeScreen> {
     if (_files.length < 2) {
       return;
     }
-    final edge = await showModalBottomSheet<DependencyEdge>(
+    final edge = await showAdaptiveBottomSheet<DependencyEdge>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
