@@ -170,7 +170,7 @@ class ApiClient {
     if (Env.supabasePublishableKey.trim().isNotEmpty)
       'apikey': Env.supabasePublishableKey.trim(),
     if (_token != null) 'Authorization': 'Bearer $_token',
-    if (_timezone != null) 'X-Numination-Timezone': _timezone!,
+    'X-Numination-Timezone': ?_timezone,
   };
 
   static Uri _uri(String path) {
