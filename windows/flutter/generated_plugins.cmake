@@ -7,6 +7,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   auto_updater_windows
   connectivity_plus
   file_selector_windows
+  flutter_timezone
   speech_to_text_windows
   url_launcher_windows
   webview_all_windows

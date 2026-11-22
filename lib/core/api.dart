@@ -70,6 +70,14 @@ class ApiClient {
   ];
 
   static String? _token;
+  static String? _timezone;
+
+  static void setTimezone(String? timezone) {
+    final normalized = timezone?.trim();
+    _timezone =
+        normalized == null || normalized.isEmpty ? null : normalized;
+    _clearModuleGetCache();
+  }
 
   static const Duration _moduleGetCacheTtl = Duration(seconds: 30);
 
@@ -162,6 +170,7 @@ class ApiClient {
     if (Env.supabasePublishableKey.trim().isNotEmpty)
       'apikey': Env.supabasePublishableKey.trim(),
     if (_token != null) 'Authorization': 'Bearer $_token',
+    if (_timezone != null) 'X-Numination-Timezone': _timezone!,
   };
 
   static Uri _uri(String path) {

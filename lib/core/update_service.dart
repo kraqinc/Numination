@@ -540,14 +540,6 @@ class UpdateService {
     ];
   }
 
-  static Uri _releaseAssetUri(AppUpdateInfo update) {
-    return Uri.parse(
-      'https://github.com/kraqinc/Numination/releases/download/'
-      '${Uri.encodeComponent(update.tag)}/'
-      '${Uri.encodeComponent(update.assetName)}',
-    );
-  }
-
   static Future<File> _downloadAndVerify(
     AppUpdateInfo update, {
     String platform = 'android',
@@ -556,11 +548,25 @@ class UpdateService {
     final client = http.Client();
 
     try {
+      final maximumDownloadBytes = platform == 'android'
+          ? _maximumApkBytes
+          : _maximumDesktopAssetBytes;
+
+      if (update.sizeBytes < 1 ||
+          update.sizeBytes > maximumDownloadBytes) {
+        throw const FormatException(
+          'Release asset exceeds allowed size.',
+        );
+      }
+
       final supportDir = await getApplicationSupportDirectory();
       final updateDir = Directory('${supportDir.path}/updates');
       await updateDir.create(recursive: true);
 
-      final safeTag = update.tag.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
+      final safeTag = update.tag.replaceAll(
+        RegExp(r'[^a-zA-Z0-9._-]'),
+        '_',
+      );
 
       final extension = switch (platform) {
         'windows' => 'exe',
@@ -573,97 +579,85 @@ class UpdateService {
       );
       final partFile = File('${targetFile.path}.part');
 
-      var existingBytes = await partFile.exists() ? await partFile.length() : 0;
-
-      if (existingBytes > update.sizeBytes) {
+      if (await partFile.exists()) {
         await partFile.delete();
-        existingBytes = 0;
       }
 
-      if (existingBytes == update.sizeBytes) {
-        final existingDigest = await sha256.bind(partFile.openRead()).first;
+      final request = http.Request(
+        'GET',
+        _endpoint(
+          'download',
+          platform: platform,
+          query: {'tag': update.tag},
+        ),
+      );
 
-        if (existingDigest.toString().toLowerCase() == update.sha256) {
-          if (await targetFile.exists()) {
-            await targetFile.delete();
-          }
-          return await partFile.rename(targetFile.path);
-        }
-
-        await partFile.delete();
-        existingBytes = 0;
-      }
-
-      final request = http.Request('GET', _releaseAssetUri(update));
-      request.headers['Accept'] = 'application/octet-stream';
-      request.headers['User-Agent'] = 'Numination-Updater';
-
-      if (existingBytes > 0) {
-        request.headers['Range'] = 'bytes=$existingBytes-';
-      }
+      request.headers.addAll(_headers(binary: true));
 
       final response = await client
           .send(request)
           .timeout(const Duration(seconds: 30));
 
-      if (response.statusCode != 200 && response.statusCode != 206) {
-        await response.stream.drain<void>();
+      if (response.statusCode != 200) {
+        final body = await response.stream.bytesToString();
+        var detail = '';
+
+        try {
+          final decoded = jsonDecode(body);
+          if (decoded is Map) {
+            detail = (
+              decoded['error'] ??
+              decoded['message'] ??
+              decoded['details'] ??
+              ''
+            ).toString();
+          }
+        } catch (_) {
+          detail = body.trim().replaceAll(RegExp(r'\s+'), ' ');
+        }
+
+        if (detail.length > 240) {
+          detail = detail.substring(0, 240);
+        }
+
         throw HttpException(
-          'Release download failed (${response.statusCode}).',
+          'Supabase updater download failed '
+          '(${response.statusCode})'
+          '${detail.isEmpty ? '' : ': $detail'}',
         );
       }
 
-      if (response.statusCode == 206) {
-        final contentRange = response.headers['content-range'] ?? '';
-        final match = RegExp(
-          r'^bytes (\d+)-(\d+)/(\d+)$',
-        ).firstMatch(contentRange);
-
-        if (match == null ||
-            int.parse(match.group(1)!) != existingBytes ||
-            int.parse(match.group(3)!) != update.sizeBytes) {
-          await response.stream.drain<void>();
-          throw const FormatException('Invalid download range.');
-        }
-      } else {
-        existingBytes = 0;
-      }
-
-      final contentType = response.headers['content-type']?.toLowerCase() ?? '';
+      final contentType =
+          response.headers['content-type']?.toLowerCase() ?? '';
 
       if (contentType.contains('application/json') ||
           contentType.contains('text/html')) {
         await response.stream.drain<void>();
         throw const FormatException(
-          'The server returned metadata instead of the release binary.',
+          'Supabase returned a response instead of the release binary.',
         );
       }
 
-      final maximumDownloadBytes = platform == 'android'
-          ? _maximumApkBytes
-          : _maximumDesktopAssetBytes;
+      final contentLength = int.tryParse(
+        response.headers['content-length'] ?? '',
+      );
 
-      if (update.sizeBytes > maximumDownloadBytes) {
-        throw const FormatException('Release asset exceeds allowed size.');
+      if (contentLength != null &&
+          contentLength != update.sizeBytes) {
+        await response.stream.drain<void>();
+        throw const FormatException(
+          'Supabase download size does not match release metadata.',
+        );
       }
 
       final digestSink = AccumulatorSink<Digest>();
       final hashInput = sha256.startChunkedConversion(digestSink);
+      final output = partFile.openWrite(mode: FileMode.write);
 
-      final output = partFile.openWrite(
-        mode: existingBytes > 0 ? FileMode.append : FileMode.write,
-      );
-
-      var totalBytes = existingBytes;
+      var totalBytes = 0;
 
       try {
-        if (existingBytes > 0) {
-          await for (final chunk in partFile.openRead()) {
-            hashInput.add(chunk);
-          }
-        }
-
-        onProgress?.call(totalBytes / update.sizeBytes);
+        onProgress?.call(0);
 
         await for (final chunk in response.stream.timeout(
           const Duration(seconds: 60),
@@ -681,7 +675,9 @@ class UpdateService {
           hashInput.add(chunk);
 
           onProgress?.call(
-            (totalBytes / update.sizeBytes).clamp(0.0, 1.0).toDouble(),
+            (totalBytes / update.sizeBytes)
+                .clamp(0.0, 1.0)
+                .toDouble(),
           );
         }
       } finally {
@@ -691,10 +687,13 @@ class UpdateService {
       }
 
       if (totalBytes != update.sizeBytes) {
-        throw const FormatException('Download incomplete. Retry to resume it.');
+        throw const FormatException(
+          'Download incomplete. Retry the download.',
+        );
       }
 
-      final actualDigest = digestSink.events.single.toString().toLowerCase();
+      final actualDigest =
+          digestSink.events.single.toString().toLowerCase();
 
       if (actualDigest != update.sha256) {
         await partFile.delete();

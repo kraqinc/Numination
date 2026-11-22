@@ -10,6 +10,7 @@
 #include <auto_updater_windows/auto_updater_windows_plugin_c_api.h>
 #include <connectivity_plus/connectivity_plus_windows_plugin.h>
 #include <file_selector_windows/file_selector_windows.h>
+#include <flutter_timezone/flutter_timezone_plugin_c_api.h>
 #include <speech_to_text_windows/speech_to_text_windows.h>
 #include <url_launcher_windows/url_launcher_windows.h>
 #include <webview_all_windows/webview_all_windows_plugin.h>
@@ -23,6 +24,8 @@ void RegisterPlugins(flutter::PluginRegistry* registry) {
       registry->GetRegistrarForPlugin("ConnectivityPlusWindowsPlugin"));
   FileSelectorWindowsRegisterWithRegistrar(
       registry->GetRegistrarForPlugin("FileSelectorWindows"));
+  FlutterTimezonePluginCApiRegisterWithRegistrar(
+      registry->GetRegistrarForPlugin("FlutterTimezonePluginCApi"));
   SpeechToTextWindowsRegisterWithRegistrar(
       registry->GetRegistrarForPlugin("SpeechToTextWindows"));
   UrlLauncherWindowsRegisterWithRegistrar(

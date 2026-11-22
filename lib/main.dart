@@ -5,10 +5,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app.dart';
+import 'core/api.dart';
 import 'core/auth_controller.dart';
 import 'core/env.dart';
 import 'core/theme.dart';
@@ -46,6 +48,16 @@ Future<void> main() async {
       detectSessionInUri: true,
     ),
   );
+
+  try {
+    final localTimezone = await FlutterTimezone.getLocalTimezone();
+    ApiClient.setTimezone(localTimezone.identifier);
+  } catch (error, stackTrace) {
+    if (kDebugMode) {
+      debugPrint('[Timezone] No se pudo obtener la zona horaria: $error');
+      debugPrintStack(stackTrace: stackTrace);
+    }
+  }
 
   final platform = defaultTargetPlatform;
   // Android uses Supabase browser OAuth; native Google Sign-In

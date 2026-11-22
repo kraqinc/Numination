@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/api.dart';
 import 'plans_screen.dart';
@@ -15,6 +16,8 @@ class CreditsHubScreen extends StatefulWidget {
 
 class _CreditsHubScreenState extends State<CreditsHubScreen> {
   int? _balance;
+  DateTime? _nextResetAt;
+  String _tier = 'FREE';
   bool _loading = true;
   String? _error;
 
@@ -40,6 +43,10 @@ class _CreditsHubScreenState extends State<CreditsHubScreen> {
 
       setState(() {
         _balance = (data['balance'] as num?)?.toInt() ?? 0;
+        _nextResetAt = DateTime.tryParse(
+          data['nextResetAt']?.toString() ?? '',
+        )?.toLocal();
+        _tier = data['tier']?.toString().toUpperCase() ?? 'FREE';
         _loading = false;
       });
     } catch (_) {
@@ -62,6 +69,12 @@ class _CreditsHubScreenState extends State<CreditsHubScreen> {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final typography = Theme.of(context).textTheme;
+    final nextReset = _nextResetAt;
+    final showDailyReset =
+        !_loading && _error == null && _tier == 'FREE' && nextReset != null;
+    final nextResetLabel = nextReset == null
+        ? ''
+        : DateFormat.yMMMd('es_CO').add_jm().format(nextReset);
 
     return Scaffold(
       appBar: AppBar(
@@ -131,6 +144,53 @@ class _CreditsHubScreenState extends State<CreditsHubScreen> {
                 ],
               ),
             ),
+            if (showDailyReset) ...[
+              const SizedBox(height: 14),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: colors.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: colors.outlineVariant),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.schedule_rounded,
+                          size: 19,
+                          color: colors.primary,
+                        ),
+                        const SizedBox(width: 9),
+                        Text(
+                          'Renovación diaria',
+                          style: typography.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Tus créditos gratuitos se renuevan todos los días '
+                      'a las 9:00 a. m., según la hora local de tu dispositivo.',
+                      style: typography.bodySmall?.copyWith(
+                        color: colors.onSurfaceVariant,
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Próxima reposición: $nextResetLabel',
+                      style: typography.labelLarge,
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 24),
             Text(
               'Consigue más créditos',

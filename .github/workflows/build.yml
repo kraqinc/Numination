@@ -279,37 +279,54 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-  publish-ios-ipa:
-    name: Attach IPA to GitHub Release
+  publish-release:
+    name: Publish multiplatform release
     needs:
       - android
       - ios
+      - windows
+      - linux
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: read
 
     steps:
-      - name: Download IPA artifact
+      - name: Download build artifacts
         uses: actions/download-artifact@v8.0.2
         with:
-          name: Numination-ios-unsigned-ipa
+          pattern: Numination-*
+          merge-multiple: true
           path: release-assets
 
-      - name: Verify IPA
+      - name: Verify release files
         run: |
           set -euo pipefail
 
-          test -s release-assets/Numination-unsigned.ipa
+          cd release-assets
 
-          (
-            cd release-assets
-            sha256sum -c SHA256SUMS-ios.txt
-          )
+          for file in \
+            Numination.apk \
+            Numination-unsigned.ipa \
+            Numination-Setup.exe \
+            Numination-x86_64.AppImage \
+            SHA256SUMS-android.txt \
+            SHA256SUMS-ios.txt \
+            SHA256SUMS-windows.txt \
+            SHA256SUMS-linux.txt
+          do
+            test -s "$file"
+          done
 
-          unzip -t release-assets/Numination-unsigned.ipa
+          sha256sum -c SHA256SUMS-android.txt
+          sha256sum -c SHA256SUMS-ios.txt
+          sha256sum -c SHA256SUMS-windows.txt
+          sha256sum -c SHA256SUMS-linux.txt
 
-      - name: Publish IPA to existing release
+          unzip -t Numination-unsigned.ipa
+
+      - name: Create or update GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -317,9 +334,23 @@ jobs:
 
           TAG="v1.0.${{ github.run_number }}"
 
+          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "Numination $TAG" \
+              --notes "Multiplatform release of Numination."
+          fi
+
           gh release upload "$TAG" \
+            release-assets/Numination.apk \
+            release-assets/SHA256SUMS-android.txt \
             release-assets/Numination-unsigned.ipa \
             release-assets/SHA256SUMS-ios.txt \
+            release-assets/Numination-Setup.exe \
+            release-assets/SHA256SUMS-windows.txt \
+            release-assets/Numination-x86_64.AppImage \
+            release-assets/Numination-x86_64.AppImage.asc \
+            release-assets/SHA256SUMS-linux.txt \
             --repo "$GITHUB_REPOSITORY" \
             --clobber
 
@@ -377,8 +408,20 @@ jobs:
             throw 'Falta WINDOWS_PFX_PASSWORD en GitHub Secrets.'
           }
 
+          $encoded = $env:WINDOWS_PFX_BASE64 -replace '\s', ''
+
+          try {
+            $bytes = [Convert]::FromBase64String($encoded)
+          }
+          catch {
+            throw 'WINDOWS_PFX_BASE64 no es Base64 valido. Genera nuevamente el secreto desde el archivo PFX real.'
+          }
+
+          if ($bytes.Length -eq 0) {
+            throw 'El certificado decodificado esta vacio.'
+          }
+
           $pfxPath = Join-Path $env:RUNNER_TEMP 'numination-signing.pfx'
-          $bytes = [Convert]::FromBase64String($env:WINDOWS_PFX_BASE64)
 
           [System.IO.File]::WriteAllBytes($pfxPath, $bytes)
 
@@ -386,10 +429,49 @@ jobs:
             throw 'No se pudo restaurar el certificado PFX.'
           }
 
-          "WINDOWS_PFX_PATH=$pfxPath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          if ((Get-Item -LiteralPath $pfxPath).Length -eq 0) {
+            throw 'El archivo PFX restaurado esta vacio.'
+          }
 
+          "WINDOWS_PFX_PATH=$pfxPath" |
+            Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+          Write-Host 'Certificado PFX restaurado.'
       - name: Generate Windows runner
         run: flutter create --platforms=windows --org com.wren.ide --project-name numination .
+      - name: Generate Windows application icon
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+
+      - name: Build Windows ICO from official logo
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check --quiet Pillow
+          @'
+          from pathlib import Path
+          from PIL import Image
+
+          source = Image.open("assets/images/logo/logo_n.png").convert("RGBA")
+          output = Path("windows/runner/resources/app_icon.ico")
+          output.parent.mkdir(parents=True, exist_ok=True)
+          source.save(
+              output,
+              format="ICO",
+              sizes=[
+                  (16, 16),
+                  (24, 24),
+                  (32, 32),
+                  (48, 48),
+                  (64, 64),
+                  (128, 128),
+                  (256, 256),
+              ],
+          )
+          with Image.open(output) as icon:
+              assert icon.format == "ICO"
+          '@ | python -
+
 
       - name: Install dependencies
         run: flutter pub get --enforce-lockfile
@@ -640,13 +722,105 @@ jobs:
           cat > "$APPDIR/AppRun" <<'APPRUN'
           #!/bin/sh
           set -eu
+
           HERE="$(dirname "$(readlink -f "$0")")"
           export APPDIR="$HERE"
+
+          if [ "${NUMINATION_SKIP_INSTALL:-0}" != "1" ]; then
+            SOURCE="${APPIMAGE:-}"
+
+            if [ -n "$SOURCE" ] && [ -f "$SOURCE" ]; then
+              SOURCE="$(readlink -f "$SOURCE" 2>/dev/null || printf '%s' "$SOURCE")"
+
+              INSTALL_DIR="$HOME/.local/opt/numination"
+              INSTALLED="$INSTALL_DIR/Numination.AppImage"
+              INSTALLED_REAL="$(readlink -f "$INSTALLED" 2>/dev/null || printf '%s' "$INSTALLED")"
+
+              if [ "$SOURCE" != "$INSTALLED_REAL" ]; then
+                INSTALL_APPROVED=1
+
+                if command -v zenity >/dev/null 2>&1; then
+                  if zenity --question \
+                    --title="Numination" \
+                    --text="¿Instalar Numination en tu usuario y añadirlo al menú de aplicaciones?"; then
+                    INSTALL_APPROVED=1
+                  else
+                    INSTALL_APPROVED=0
+                  fi
+                elif command -v kdialog >/dev/null 2>&1; then
+                  if kdialog --title "Numination" \
+                    --yesno "¿Instalar Numination en tu usuario y añadirlo al menú de aplicaciones?"; then
+                    INSTALL_APPROVED=1
+                  else
+                    INSTALL_APPROVED=0
+                  fi
+                fi
+
+                if [ "$INSTALL_APPROVED" = "1" ]; then
+                  APPLICATIONS_DIR="$HOME/.local/share/applications"
+                  ICON_DIR="$HOME/.local/share/icons/hicolor/512x512/apps"
+                  DATA_DIR="$HOME/.local/share/numination"
+                  DESKTOP_FILE="$APPLICATIONS_DIR/numination.desktop"
+                  ICON_FILE="$ICON_DIR/numination.png"
+                  UNINSTALLER="$INSTALL_DIR/uninstall.sh"
+
+                  mkdir -p "$INSTALL_DIR" "$APPLICATIONS_DIR" "$ICON_DIR" "$DATA_DIR"
+
+                  TEMP_FILE="$INSTALL_DIR/Numination.AppImage.tmp.$$"
+                  cp "$SOURCE" "$TEMP_FILE"
+                  chmod 755 "$TEMP_FILE"
+                  mv -f "$TEMP_FILE" "$INSTALLED"
+
+                  cp "$HERE/numination.png" "$ICON_FILE"
+
+                  DESKTOP_EXEC="$(printf '%s' "$INSTALLED" | sed 's/\\/\\\\/g; s/"/\\"/g')"
+
+                  cat > "$DESKTOP_FILE" <<EOF
+          [Desktop Entry]
+          Type=Application
+          Name=Numination
+          Comment=Numination AI workspace
+          Exec="$DESKTOP_EXEC" %U
+          Icon=numination
+          Terminal=false
+          Categories=Development;Utility;
+          StartupNotify=true
+          EOF
+
+                  cat > "$UNINSTALLER" <<'UNINSTALL'
+          #!/bin/sh
+          set -eu
+          rm -f "$HOME/.local/share/applications/numination.desktop"
+          rm -f "$HOME/.local/share/icons/hicolor/512x512/apps/numination.png"
+          rm -rf "$HOME/.local/opt/numination"
+          UNINSTALL
+
+                  chmod 755 "$UNINSTALLER"
+
+                  if command -v update-desktop-database >/dev/null 2>&1; then
+                    update-desktop-database "$APPLICATIONS_DIR" >/dev/null 2>&1 || true
+                  fi
+
+                  if command -v zenity >/dev/null 2>&1; then
+                    zenity --info \
+                      --title="Numination instalado" \
+                      --text="Numination ya está instalado. Puedes abrirlo desde el menú de aplicaciones." \
+                      >/dev/null 2>&1 || true
+                  fi
+
+                  NUMINATION_SKIP_INSTALL=1 "$INSTALLED" "$@" >/dev/null 2>&1 &
+                  exit 0
+                fi
+              fi
+            fi
+          fi
+
           if [ -d "$HERE/apprun-hooks" ]; then
             for hook in "$HERE"/apprun-hooks/*.sh; do
               [ -f "$hook" ] && . "$hook"
             done
           fi
+
           export LD_LIBRARY_PATH="$HERE/usr/bin/lib:$HERE/usr/lib:$HERE/usr/lib/x86_64-linux-gnu:${LD_LIBRARY_PATH:-}"
           exec "$HERE/usr/bin/numination" "$@"
           APPRUN
