@@ -537,7 +537,6 @@ jobs:
             /p "$env:WINDOWS_PFX_PASSWORD" `
             /tr 'http://timestamp.digicert.com' `
             /td SHA256 `
-            /timeout 10000 `
             "$mainExe"
 
           if ($LASTEXITCODE -ne 0) {
@@ -594,7 +593,6 @@ jobs:
             /p "$env:WINDOWS_PFX_PASSWORD" `
             /tr 'http://timestamp.digicert.com' `
             /td SHA256 `
-            /timeout 10000 `
             "$installer"
 
           if ($LASTEXITCODE -ne 0) {
@@ -752,10 +750,35 @@ jobs:
           done
 
           if [ -n "$ICON_SRC" ]; then
-            cp "$ICON_SRC" "$APPDIR/usr/share/icons/hicolor/256x256/apps/numination.png"
-            cp "$ICON_SRC" "$APPDIR/numination.png"
+            ICON_VENV="$RUNNER_TEMP/icon-venv"
+
+            python3 -m venv "$ICON_VENV"
+            "$ICON_VENV/bin/pip" install --disable-pip-version-check --quiet Pillow
+
+            "$ICON_VENV/bin/python" - "$ICON_SRC" "$APPDIR/numination.png" "$APPDIR/usr/share/icons/hicolor/256x256/apps/numination.png" <<'PY_ICON'
+          import sys
+          from PIL import Image
+
+          source_path, output_512, output_256 = sys.argv[1:]
+          image = Image.open(source_path).convert("RGBA")
+
+          def make_icon(size, destination):
+              resized = image.copy()
+              resized.thumbnail((size, size), Image.Resampling.LANCZOS)
+
+              canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+              x = (size - resized.width) // 2
+              y = (size - resized.height) // 2
+              canvas.alpha_composite(resized, (x, y))
+              canvas.save(destination, format="PNG")
+
+          make_icon(512, output_512)
+          make_icon(256, output_256)
+          print("Iconos generados: 512x512 y 256x256")
+          PY_ICON
           else
-            echo "Warning: no icon found, continuing without custom icon"
+            echo "ERROR: No se encontró el logo de Numination."
+            exit 1
           fi
 
           curl -fsSL --retry 3 -o "$TOOLS/linuxdeploy-x86_64.AppImage" \
