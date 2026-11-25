@@ -1,3 +1,4 @@
+
 name: Numination Build
 
 on:
@@ -359,6 +360,7 @@ jobs:
     needs: flutter
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: windows-latest
+    timeout-minutes: 40
 
     steps:
       - uses: actions/checkout@v7
@@ -401,11 +403,11 @@ jobs:
           $ErrorActionPreference = 'Stop'
 
           if ([string]::IsNullOrWhiteSpace($env:WINDOWS_PFX_BASE64)) {
-            throw 'Falta WINDOWS_PFX_BASE64 en GitHub Secrets.'
+            throw 'Falta WINDOWS_PFX_BASE64.'
           }
 
           if ([string]::IsNullOrWhiteSpace($env:WINDOWS_PFX_PASSWORD)) {
-            throw 'Falta WINDOWS_PFX_PASSWORD en GitHub Secrets.'
+            throw 'Falta WINDOWS_PFX_PASSWORD.'
           }
 
           $encoded = $env:WINDOWS_PFX_BASE64 -replace '\s', ''
@@ -414,23 +416,19 @@ jobs:
             $bytes = [Convert]::FromBase64String($encoded)
           }
           catch {
-            throw 'WINDOWS_PFX_BASE64 no es Base64 valido. Genera nuevamente el secreto desde el archivo PFX real.'
+            throw 'WINDOWS_PFX_BASE64 no es válido.'
           }
 
           if ($bytes.Length -eq 0) {
-            throw 'El certificado decodificado esta vacio.'
+            throw 'El certificado está vacío.'
           }
 
           $pfxPath = Join-Path $env:RUNNER_TEMP 'numination-signing.pfx'
-
           [System.IO.File]::WriteAllBytes($pfxPath, $bytes)
 
-          if (!(Test-Path -LiteralPath $pfxPath)) {
-            throw 'No se pudo restaurar el certificado PFX.'
-          }
-
-          if ((Get-Item -LiteralPath $pfxPath).Length -eq 0) {
-            throw 'El archivo PFX restaurado esta vacio.'
+          if (!(Test-Path -LiteralPath $pfxPath) -or
+              (Get-Item -LiteralPath $pfxPath).Length -eq 0) {
+            throw 'No se pudo restaurar el PFX.'
           }
 
           "WINDOWS_PFX_PATH=$pfxPath" |
@@ -447,6 +445,7 @@ jobs:
         shell: pwsh
         run: |
           python -m pip install --disable-pip-version-check --quiet Pillow
+
           @'
           from pathlib import Path
           from PIL import Image
@@ -454,6 +453,7 @@ jobs:
           source = Image.open("assets/images/logo/logo_n.png").convert("RGBA")
           output = Path("windows/runner/resources/app_icon.ico")
           output.parent.mkdir(parents=True, exist_ok=True)
+
           source.save(
               output,
               format="ICO",
@@ -467,6 +467,7 @@ jobs:
                   (256, 256),
               ],
           )
+
           with Image.open(output) as icon:
               assert icon.format == "ICO"
           '@ | python -
@@ -483,74 +484,82 @@ jobs:
             --build-name "1.0.${{ github.run_number }}" `
             --build-number "${{ github.run_number }}"
 
-      - name: Sign Windows application binaries
+      - name: Locate SignTool
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $kits = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10\bin'
+
+          $signtool = Get-ChildItem -Path "$kits\*\x64\signtool.exe" -File |
+            Sort-Object {
+              [version]$_.Directory.Parent.Name
+            } -Descending |
+            Select-Object -First 1 -ExpandProperty FullName
+
+          if (!$signtool) {
+            throw 'No se encontró Windows SDK SignTool.'
+          }
+
+          "SIGNTOOL_PATH=$signtool" |
+            Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+          Write-Host "SignTool: $signtool"
+
+      - name: Sign Windows application
+        timeout-minutes: 3
         env:
           WINDOWS_PFX_PASSWORD: ${{ secrets.WINDOWS_PFX_PASSWORD }}
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
 
-          $password = ConvertTo-SecureString $env:WINDOWS_PFX_PASSWORD -AsPlainText -Force
-          $certificate = Get-PfxCertificate -FilePath $env:WINDOWS_PFX_PATH -Password $password
+          $mainExe = 'build/windows/x64/runner/Release/numination.exe'
 
-          if (!$certificate) {
-            throw 'No se pudo leer el certificado del archivo PFX.'
-          }
-
-          $temporaryCertificate = Join-Path $env:RUNNER_TEMP 'numination-signing.cer'
-          Export-Certificate -Cert $certificate -FilePath $temporaryCertificate | Out-Null
-
-          Import-Certificate -FilePath $temporaryCertificate -CertStoreLocation 'Cert:\CurrentUser\Root' | Out-Null
-          Import-Certificate -FilePath $temporaryCertificate -CertStoreLocation 'Cert:\CurrentUser\TrustedPublisher' | Out-Null
-
-          Remove-Item -LiteralPath $temporaryCertificate -Force
-          Write-Host "Certificado de firma confiado temporalmente: $($certificate.Thumbprint)"
-
-          $kits = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10\bin'
-          $signtool = Get-ChildItem -Path $kits -Filter signtool.exe -Recurse |
-            Where-Object { $_.FullName -match '\\x64\\signtool.exe$' } |
-            Sort-Object FullName -Descending |
-            Select-Object -First 1 -ExpandProperty FullName
-
-          if (!$signtool) {
-            throw 'No se encontró signtool.exe.'
-          }
-
-          $release = 'build/windows/x64/runner/Release'
-          if (!(Test-Path -LiteralPath $release)) {
-            throw 'No existe el directorio de Release de Windows.'
-          }
-
-          $mainExe = Join-Path $release 'numination.exe'
           if (!(Test-Path -LiteralPath $mainExe)) {
-            throw "No se encontró numination.exe en $release"
+            throw "No se encontró $mainExe"
           }
 
-          & $signtool sign `
+          if (!(Test-Path -LiteralPath $env:WINDOWS_PFX_PATH)) {
+            throw 'No existe el certificado PFX.'
+          }
+
+          if (!(Test-Path -LiteralPath $env:SIGNTOOL_PATH)) {
+            throw 'No existe SignTool.'
+          }
+
+          Write-Host 'Firmando numination.exe...'
+
+          & $env:SIGNTOOL_PATH sign `
+            /v `
             /fd SHA256 `
             /f "$env:WINDOWS_PFX_PATH" `
             /p "$env:WINDOWS_PFX_PASSWORD" `
             /tr 'http://timestamp.digicert.com' `
             /td SHA256 `
-            /timeout 30000 `
+            /timeout 10000 `
             "$mainExe"
 
           if ($LASTEXITCODE -ne 0) {
-            throw "Falló la firma de numination.exe."
+            throw "Falló la firma de numination.exe. Código: $LASTEXITCODE"
           }
 
-          & $signtool verify /pa /all "$mainExe"
+          Write-Host 'Verificando firma...'
+
+          & $env:SIGNTOOL_PATH verify /pa /v "$mainExe"
 
           if ($LASTEXITCODE -ne 0) {
-            throw "Falló la verificación de numination.exe."
+            throw 'Falló la verificación de numination.exe.'
           }
 
-          Write-Host "numination.exe firmado y verificado correctamente."
+          Write-Host 'Aplicación firmada correctamente.'
 
       - name: Install Inno Setup
+        timeout-minutes: 5
         run: choco install innosetup --yes --no-progress
 
       - name: Build and sign installer
+        timeout-minutes: 5
         env:
           WINDOWS_PFX_PASSWORD: ${{ secrets.WINDOWS_PFX_PASSWORD }}
         shell: pwsh
@@ -576,33 +585,28 @@ jobs:
             throw 'No se generó Numination-Setup.exe.'
           }
 
-          $kits = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10\bin'
-          $signtool = Get-ChildItem -Path $kits -Filter signtool.exe -Recurse |
-            Where-Object { $_.FullName -match '\\x64\\signtool.exe$' } |
-            Sort-Object FullName -Descending |
-            Select-Object -First 1 -ExpandProperty FullName
+          Write-Host 'Firmando instalador...'
 
-          if (!$signtool) {
-            throw 'No se encontró signtool.exe.'
-          }
-
-          & $signtool sign `
+          & $env:SIGNTOOL_PATH sign `
+            /v `
             /fd SHA256 `
             /f "$env:WINDOWS_PFX_PATH" `
             /p "$env:WINDOWS_PFX_PASSWORD" `
             /tr 'http://timestamp.digicert.com' `
             /td SHA256 `
-            /timeout 30000 `
+            /timeout 10000 `
             "$installer"
 
           if ($LASTEXITCODE -ne 0) {
-            throw 'Falló la firma Authenticode del instalador.'
+            throw "Falló la firma del instalador. Código: $LASTEXITCODE"
           }
 
-          & $signtool verify /pa /all /v "$installer"
+          Write-Host 'Verificando instalador...'
+
+          & $env:SIGNTOOL_PATH verify /pa /v "$installer"
 
           if ($LASTEXITCODE -ne 0) {
-            throw 'No se pudo verificar la firma Authenticode del instalador.'
+            throw 'Falló la verificación Authenticode del instalador.'
           }
 
           $sha = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -613,6 +617,7 @@ jobs:
           Write-Host "Windows installer SHA-256: $sha"
 
           Remove-Item -LiteralPath $env:WINDOWS_PFX_PATH -Force
+          Remove-Item Env:WINDOWS_PFX_PASSWORD -ErrorAction SilentlyContinue
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v7.0.2
@@ -767,7 +772,8 @@ jobs:
           export LINUXDEPLOY_OUTPUT_APP_NAME=Numination
           export LINUXDEPLOY_OUTPUT_VERSION="$APP_VERSION"
           export OUTPUT="$OUTPUT"
-           export LD_LIBRARY_PATH="$APP_BIN_DIR/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          export LD_LIBRARY_PATH="$APP_BIN_DIR/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
           "$TOOLS/linuxdeploy-x86_64.AppImage" \
             --appdir "$APPDIR" \
             --executable "$APP_BIN_DIR/numination" \
