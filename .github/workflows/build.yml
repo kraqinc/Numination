@@ -532,6 +532,7 @@ jobs:
             /p "$env:WINDOWS_PFX_PASSWORD" `
             /tr 'http://timestamp.digicert.com' `
             /td SHA256 `
+            /timeout 30000 `
             "$mainExe"
 
           if ($LASTEXITCODE -ne 0) {
@@ -591,6 +592,7 @@ jobs:
             /p "$env:WINDOWS_PFX_PASSWORD" `
             /tr 'http://timestamp.digicert.com' `
             /td SHA256 `
+            /timeout 30000 `
             "$installer"
 
           if ($LASTEXITCODE -ne 0) {
@@ -699,6 +701,7 @@ jobs:
           APPDIR="$RUNNER_TEMP/AppDir"
           OUTPUT="build/linux/package/Numination-x86_64.AppImage"
           TOOLS="$RUNNER_TEMP/linuxdeploy"
+          APP_BIN_DIR="$APPDIR/usr/bin"
 
           test -d "$BUNDLE"
           test -x "$BUNDLE/numination" || test -x "$BUNDLE/usr/bin/numination" || {
@@ -707,13 +710,14 @@ jobs:
             exit 1
           }
 
-          mkdir -p "$TOOLS" "$(dirname "$OUTPUT")" "$APPDIR/usr/bin" "$APPDIR/usr/share/applications" "$APPDIR/usr/share/icons/hicolor/256x256/apps"
+          mkdir -p "$TOOLS" "$(dirname "$OUTPUT")" "$APP_BIN_DIR" "$APPDIR/usr/share/applications" "$APPDIR/usr/share/icons/hicolor/256x256/apps"
 
-          cp -a "$BUNDLE/." "$APPDIR/"
-
-          if [ -x "$APPDIR/numination" ] && [ ! -x "$APPDIR/usr/bin/numination" ]; then
-            mkdir -p "$APPDIR/usr/bin"
-            cp "$APPDIR/numination" "$APPDIR/usr/bin/numination"
+          if [ -x "$BUNDLE/numination" ]; then
+            # Keep Flutter's executable, data/, and lib/ together. The executable
+            # resolves both assets and plugin libraries relative to its directory.
+            cp -a "$BUNDLE/." "$APP_BIN_DIR/"
+          else
+            cp -a "$BUNDLE/usr/." "$APPDIR/usr/"
           fi
 
           DESKTOP="$APPDIR/usr/share/applications/Numination.desktop"
@@ -763,10 +767,10 @@ jobs:
           export LINUXDEPLOY_OUTPUT_APP_NAME=Numination
           export LINUXDEPLOY_OUTPUT_VERSION="$APP_VERSION"
           export OUTPUT="$OUTPUT"
-
+           export LD_LIBRARY_PATH="$APP_BIN_DIR/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
           "$TOOLS/linuxdeploy-x86_64.AppImage" \
             --appdir "$APPDIR" \
-            --executable "$APPDIR/usr/bin/numination" \
+            --executable "$APP_BIN_DIR/numination" \
             --desktop-file "$DESKTOP" \
             --icon-file "$APPDIR/numination.png" \
             --plugin gtk \
