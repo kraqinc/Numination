@@ -594,16 +594,22 @@ jobs:
 
           Write-Host 'Firmando numination.exe...'
 
-          & $env:SIGNTOOL_PATH sign `
+          $signOutput = @(& $env:SIGNTOOL_PATH sign `
             /v `
             /fd SHA256 `
             /sha1 "$env:SIGNING_CERT_THUMBPRINT" `
             /tr 'http://timestamp.digicert.com' `
             /td SHA256 `
-            "$mainExe"
+            "$mainExe" 2>&1)
+          $signExitCode = $LASTEXITCODE
+          $signOutput | ForEach-Object { Write-Host $_ }
 
-          if ($LASTEXITCODE -ne 0) {
-            throw "Falló la firma de numination.exe. Código: $LASTEXITCODE"
+          if ($signExitCode -ne 0) {
+            $diagnostic = ($signOutput | ForEach-Object { "$($_)" }) -join "`n"
+            if ($diagnostic.Length -gt 1800) { $diagnostic = $diagnostic.Substring(0, 1800) }
+            $summary = @("## SignTool: numination.exe (exit $signExitCode)", '```text', $diagnostic, '```') -join "`n"
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value $summary
+            throw "SignTool no pudo firmar numination.exe. Código $signExitCode. $diagnostic"
           }
 
           Write-Host 'Verificando firma...'
@@ -649,16 +655,22 @@ jobs:
 
           Write-Host 'Firmando instalador...'
 
-          & $env:SIGNTOOL_PATH sign `
+          $signOutput = @(& $env:SIGNTOOL_PATH sign `
             /v `
             /fd SHA256 `
             /sha1 "$env:SIGNING_CERT_THUMBPRINT" `
             /tr 'http://timestamp.digicert.com' `
             /td SHA256 `
-            "$installer"
+            "$installer" 2>&1)
+          $signExitCode = $LASTEXITCODE
+          $signOutput | ForEach-Object { Write-Host $_ }
 
-          if ($LASTEXITCODE -ne 0) {
-            throw "Falló la firma del instalador. Código: $LASTEXITCODE"
+          if ($signExitCode -ne 0) {
+            $diagnostic = ($signOutput | ForEach-Object { "$($_)" }) -join "`n"
+            if ($diagnostic.Length -gt 1800) { $diagnostic = $diagnostic.Substring(0, 1800) }
+            $summary = @("## SignTool: instalador (exit $signExitCode)", '```text', $diagnostic, '```') -join "`n"
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value $summary
+            throw "SignTool no pudo firmar el instalador. Código $signExitCode. $diagnostic"
           }
 
           Write-Host 'Verificando instalador...'
