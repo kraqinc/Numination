@@ -361,6 +361,8 @@ jobs:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: windows-latest
     timeout-minutes: 40
+    outputs:
+      signing_diagnostic: ${{ steps.sign_windows_application.outputs.diagnostic || steps.sign_windows_installer.outputs.diagnostic }}
 
     steps:
       - uses: actions/checkout@v7
@@ -571,6 +573,7 @@ jobs:
           Write-Host "SignTool: $signtool"
 
       - name: Sign Windows application
+        id: sign_windows_application
         timeout-minutes: 3
         env:
           WINDOWS_PFX_PASSWORD: ${{ secrets.WINDOWS_PFX_PASSWORD }}
@@ -607,6 +610,9 @@ jobs:
           if ($signExitCode -ne 0) {
             $diagnostic = ($signOutput | ForEach-Object { "$($_)" }) -join "`n"
             if ($diagnostic.Length -gt 1800) { $diagnostic = $diagnostic.Substring(0, 1800) }
+            $outputDiagnostic = ($diagnostic -replace '\s+', ' ').Trim()
+            if ($outputDiagnostic.Length -gt 120) { $outputDiagnostic = $outputDiagnostic.Substring(0, 120) }
+            "diagnostic=$outputDiagnostic" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
             $annotation = $diagnostic.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
             Write-Host "::error title=SignTool signing diagnostic::$annotation"
             $summary = @("## SignTool: numination.exe (exit $signExitCode)", '```text', $diagnostic, '```') -join "`n"
@@ -629,6 +635,7 @@ jobs:
         run: choco install innosetup --yes --no-progress
 
       - name: Build and sign installer
+        id: sign_windows_installer
         timeout-minutes: 5
         env:
           WINDOWS_PFX_PASSWORD: ${{ secrets.WINDOWS_PFX_PASSWORD }}
@@ -670,6 +677,9 @@ jobs:
           if ($signExitCode -ne 0) {
             $diagnostic = ($signOutput | ForEach-Object { "$($_)" }) -join "`n"
             if ($diagnostic.Length -gt 1800) { $diagnostic = $diagnostic.Substring(0, 1800) }
+            $outputDiagnostic = ($diagnostic -replace '\s+', ' ').Trim()
+            if ($outputDiagnostic.Length -gt 120) { $outputDiagnostic = $outputDiagnostic.Substring(0, 120) }
+            "diagnostic=$outputDiagnostic" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
             $annotation = $diagnostic.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
             Write-Host "::error title=SignTool installer diagnostic::$annotation"
             $summary = @("## SignTool: instalador (exit $signExitCode)", '```text', $diagnostic, '```') -join "`n"
@@ -704,6 +714,15 @@ jobs:
             build/windows/package/SHA256SUMS-windows.txt
           if-no-files-found: error
           retention-days: 30
+
+  windows-signing-diagnostic:
+    name: "Windows signing error: ${{ needs.windows.outputs.signing_diagnostic }}"
+    needs: windows
+    if: always() && needs.windows.result == 'failure' && needs.windows.outputs.signing_diagnostic != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report signing error
+        run: echo "Windows Authenticode failed; inspect the diagnostic in this check name."
 
   linux:
     name: Linux AppImage
