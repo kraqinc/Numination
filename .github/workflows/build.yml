@@ -647,7 +647,8 @@ jobs:
         shell: pwsh
         env:
           SIGNING_DIAGNOSTIC: ${{ steps.sign_windows_application.outputs.diagnostic }}
-        run: throw "No se pudo firmar numination.exe: $env:SIGNING_DIAGNOSTIC"
+        run: |
+          throw "No se pudo firmar numination.exe: $env:SIGNING_DIAGNOSTIC"
 
       - name: Install Inno Setup
         timeout-minutes: 5
