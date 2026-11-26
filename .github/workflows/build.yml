@@ -475,6 +475,25 @@ jobs:
             throw 'El certificado no tiene permiso de uso para firma de código.'
           }
 
+          $securePassword = ConvertTo-SecureString $env:WINDOWS_PFX_PASSWORD -AsPlainText -Force
+          try {
+            $importedCertificates = Import-PfxCertificate `
+              -FilePath $env:WINDOWS_PFX_PATH `
+              -CertStoreLocation 'Cert:\CurrentUser\My' `
+              -Password $securePassword
+          }
+          catch {
+            throw 'No se pudo importar el certificado PFX al almacén temporal del runner.'
+          }
+
+          $signingCertificate = $importedCertificates |
+            Where-Object { $_.Thumbprint -eq $certificate.Thumbprint } |
+            Select-Object -First 1
+
+          if (!$signingCertificate -or !$signingCertificate.HasPrivateKey) {
+            throw 'El certificado no quedó disponible con su llave privada en el almacén temporal.'
+          }
+
           Write-Host "Certificado listo para firma: $($certificate.Subject)"
           Write-Host "Thumbprint: $($certificate.Thumbprint)"
           "SIGNING_CERT_THUMBPRINT=$($certificate.Thumbprint)" |
@@ -579,8 +598,6 @@ jobs:
             /v `
             /fd SHA256 `
             /sha1 "$env:SIGNING_CERT_THUMBPRINT" `
-            /f "$env:WINDOWS_PFX_PATH" `
-            /p "$env:WINDOWS_PFX_PASSWORD" `
             /tr 'http://timestamp.digicert.com' `
             /td SHA256 `
             "$mainExe"
@@ -636,8 +653,6 @@ jobs:
             /v `
             /fd SHA256 `
             /sha1 "$env:SIGNING_CERT_THUMBPRINT" `
-            /f "$env:WINDOWS_PFX_PATH" `
-            /p "$env:WINDOWS_PFX_PASSWORD" `
             /tr 'http://timestamp.digicert.com' `
             /td SHA256 `
             "$installer"
