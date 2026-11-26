@@ -597,23 +597,33 @@ jobs:
 
           Write-Host 'Firmando numination.exe...'
 
-          $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
-          $startInfo.FileName = $env:SIGNTOOL_PATH
-          $startInfo.UseShellExecute = $false
-          $startInfo.RedirectStandardOutput = $true
-          $startInfo.RedirectStandardError = $true
-          @('sign', '/v', '/fd', 'SHA256', '/sha1', $env:SIGNING_CERT_THUMBPRINT,
-            '/tr', 'http://timestamp.digicert.com', '/td', 'SHA256', $mainExe) |
-            ForEach-Object { [void]$startInfo.ArgumentList.Add($_) }
+          try {
+            $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+            $startInfo.FileName = $env:SIGNTOOL_PATH
+            $startInfo.UseShellExecute = $false
+            $startInfo.RedirectStandardOutput = $true
+            $startInfo.RedirectStandardError = $true
+            $startInfo.Arguments = "sign /v /fd SHA256 /sha1 `"$env:SIGNING_CERT_THUMBPRINT`" /tr http://timestamp.digicert.com /td SHA256 `"$mainExe`""
 
-          $process = [System.Diagnostics.Process]::new()
-          $process.StartInfo = $startInfo
-          [void]$process.Start()
-          $stdoutTask = $process.StandardOutput.ReadToEndAsync()
-          $stderrTask = $process.StandardError.ReadToEndAsync()
-          $process.WaitForExit()
-          $signExitCode = $process.ExitCode
-          $signOutput = @($stdoutTask.Result -split "`r?`n") + @($stderrTask.Result -split "`r?`n")
+            $process = [System.Diagnostics.Process]::new()
+            $process.StartInfo = $startInfo
+            [void]$process.Start()
+            $stdoutTask = $process.StandardOutput.ReadToEndAsync()
+            $stderrTask = $process.StandardError.ReadToEndAsync()
+            $process.WaitForExit()
+            $signExitCode = $process.ExitCode
+            $signOutput = @($stdoutTask.Result -split "`r?`n") + @($stderrTask.Result -split "`r?`n")
+          }
+          catch {
+            $diagnostic = "No se pudo ejecutar SignTool: $($_.Exception.Message)"
+            $outputDiagnostic = ($diagnostic -replace '\s+', ' ').Trim()
+            if ($outputDiagnostic.Length -gt 120) { $outputDiagnostic = $outputDiagnostic.Substring(0, 120) }
+            "diagnostic=$outputDiagnostic" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+            "signed=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+            Write-Warning $diagnostic
+            exit 0
+          }
+
           $signOutput | ForEach-Object { Write-Host $_ }
 
           if ($signExitCode -ne 0) {
