@@ -597,14 +597,23 @@ jobs:
 
           Write-Host 'Firmando numination.exe...'
 
-          $signOutput = @(& $env:SIGNTOOL_PATH sign `
-            /v `
-            /fd SHA256 `
-            /sha1 "$env:SIGNING_CERT_THUMBPRINT" `
-            /tr 'http://timestamp.digicert.com' `
-            /td SHA256 `
-            "$mainExe" 2>&1)
-          $signExitCode = $LASTEXITCODE
+          $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+          $startInfo.FileName = $env:SIGNTOOL_PATH
+          $startInfo.UseShellExecute = $false
+          $startInfo.RedirectStandardOutput = $true
+          $startInfo.RedirectStandardError = $true
+          @('sign', '/v', '/fd', 'SHA256', '/sha1', $env:SIGNING_CERT_THUMBPRINT,
+            '/tr', 'http://timestamp.digicert.com', '/td', 'SHA256', $mainExe) |
+            ForEach-Object { [void]$startInfo.ArgumentList.Add($_) }
+
+          $process = [System.Diagnostics.Process]::new()
+          $process.StartInfo = $startInfo
+          [void]$process.Start()
+          $stdoutTask = $process.StandardOutput.ReadToEndAsync()
+          $stderrTask = $process.StandardError.ReadToEndAsync()
+          $process.WaitForExit()
+          $signExitCode = $process.ExitCode
+          $signOutput = @($stdoutTask.Result -split "`r?`n") + @($stderrTask.Result -split "`r?`n")
           $signOutput | ForEach-Object { Write-Host $_ }
 
           if ($signExitCode -ne 0) {
@@ -613,13 +622,16 @@ jobs:
             $outputDiagnostic = ($diagnostic -replace '\s+', ' ').Trim()
             if ($outputDiagnostic.Length -gt 120) { $outputDiagnostic = $outputDiagnostic.Substring(0, 120) }
             "diagnostic=$outputDiagnostic" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+            "signed=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
             $annotation = $diagnostic.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
             Write-Host "::error title=SignTool signing diagnostic::$annotation"
             $summary = @("## SignTool: numination.exe (exit $signExitCode)", '```text', $diagnostic, '```') -join "`n"
             Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value $summary
-            throw "SignTool no pudo firmar numination.exe. Código $signExitCode. $diagnostic"
+            Write-Warning "SignTool no pudo firmar numination.exe. Código $signExitCode. $diagnostic"
+            exit 0
           }
 
+          "signed=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           Write-Host 'Verificando firma...'
 
           & $env:SIGNTOOL_PATH verify /pa /v "$mainExe"
@@ -629,6 +641,13 @@ jobs:
           }
 
           Write-Host 'Aplicación firmada correctamente.'
+
+      - name: Require signed Windows application
+        if: steps.sign_windows_application.outputs.signed != 'true'
+        shell: pwsh
+        env:
+          SIGNING_DIAGNOSTIC: ${{ steps.sign_windows_application.outputs.diagnostic }}
+        run: throw "No se pudo firmar numination.exe: $env:SIGNING_DIAGNOSTIC"
 
       - name: Install Inno Setup
         timeout-minutes: 5
@@ -716,13 +735,15 @@ jobs:
           retention-days: 30
 
   windows-signing-diagnostic:
-    name: "Windows signing error: ${{ needs.windows.outputs.signing_diagnostic }}"
+    name: Windows signing failure details
     needs: windows
     if: always() && needs.windows.result == 'failure' && needs.windows.outputs.signing_diagnostic != ''
     runs-on: ubuntu-latest
     steps:
       - name: Report signing error
-        run: echo "Windows Authenticode failed; inspect the diagnostic in this check name."
+        env:
+          SIGNING_DIAGNOSTIC: ${{ needs.windows.outputs.signing_diagnostic }}
+        run: echo "::error file=.github/workflows/build.yml,line=1,title=SignTool diagnostic::$SIGNING_DIAGNOSTIC"
 
   linux:
     name: Linux AppImage
