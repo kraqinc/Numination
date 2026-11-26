@@ -607,6 +607,8 @@ jobs:
           if ($signExitCode -ne 0) {
             $diagnostic = ($signOutput | ForEach-Object { "$($_)" }) -join "`n"
             if ($diagnostic.Length -gt 1800) { $diagnostic = $diagnostic.Substring(0, 1800) }
+            $annotation = $diagnostic.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+            Write-Host "::error title=SignTool signing diagnostic::$annotation"
             $summary = @("## SignTool: numination.exe (exit $signExitCode)", '```text', $diagnostic, '```') -join "`n"
             Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value $summary
             throw "SignTool no pudo firmar numination.exe. Código $signExitCode. $diagnostic"
@@ -668,6 +670,8 @@ jobs:
           if ($signExitCode -ne 0) {
             $diagnostic = ($signOutput | ForEach-Object { "$($_)" }) -join "`n"
             if ($diagnostic.Length -gt 1800) { $diagnostic = $diagnostic.Substring(0, 1800) }
+            $annotation = $diagnostic.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+            Write-Host "::error title=SignTool installer diagnostic::$annotation"
             $summary = @("## SignTool: instalador (exit $signExitCode)", '```text', $diagnostic, '```') -join "`n"
             Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value $summary
             throw "SignTool no pudo firmar el instalador. Código $signExitCode. $diagnostic"
