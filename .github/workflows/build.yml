@@ -1,4 +1,3 @@
-
 name: Numination Build
 
 on:
@@ -16,7 +15,6 @@ permissions:
 jobs:
   flutter:
     name: Flutter analyze & test
-    if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -435,7 +433,6 @@ jobs:
 
           $certificate.Dispose()
 
-      # NUEVO: confiar en el certificado para las verificaciones Authenticode.
       - name: Trust Windows signing certificate on runner
         env:
           WINDOWS_PFX_PASSWORD: ${{ secrets.WINDOWS_PFX_PASSWORD }}
@@ -578,7 +575,6 @@ jobs:
 
           $signOutput | ForEach-Object { Write-Host $_ }
 
-          # CORREGIDO: un fallo de firma ahora detiene el job.
           if ($signExitCode -ne 0) {
             $diagnostic = ($signOutput | ForEach-Object { "$($_)" }) -join "`n"
 
